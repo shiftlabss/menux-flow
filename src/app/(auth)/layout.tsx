@@ -3,7 +3,6 @@ import { GlobalDrawers } from "@/components/shared/global-drawers";
 import { GlobalSearch } from "@/components/shared/global-search";
 import { HelpButton } from "@/components/shared/help-button";
 import { MobileBottomNav } from "@/components/shared/mobile-bottom-nav";
-import { OnboardingChecklist } from "@/components/shared/onboarding-checklist";
 
 export default function AuthLayout({
   children,
@@ -17,7 +16,6 @@ export default function AuthLayout({
       <GlobalSearch />
       <HelpButton />
       <MobileBottomNav />
-      <OnboardingChecklist />
     </AppShell>
   );
 }
