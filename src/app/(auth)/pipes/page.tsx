@@ -12,9 +12,11 @@ import {
   Clock,
   AlertTriangle,
   Settings2,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Reorder } from "framer-motion";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,14 +39,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Opportunity, PipelineStage, Temperature } from "@/types";
 import { useUIStore } from "@/stores/ui-store";
 import { useOpportunityStore } from "@/stores/opportunity-store";
 import { calculateSlaDeadline } from "@/lib/business-rules";
 import { PipelineManagerDrawer } from "@/components/pipeline/pipeline-manager-drawer";
 
-// ===== Funnel Definitions =====
+// ═══════════════════════════════════════════════════════════════════
+// Funnel Definitions
+// ═══════════════════════════════════════════════════════════════════
 
 interface FunnelDefinition {
   id: string;
@@ -59,15 +62,15 @@ const funnels: FunnelDefinition[] = [
     stages: [
       { id: "lead-in", label: "Lead-In", slaHours: 48 },
       { id: "contato-feito", label: "Contato Feito", slaHours: 72 },
-      { id: "reuniao-agendada", label: "Reuniao Agendada", slaHours: 120 },
+      { id: "reuniao-agendada", label: "Reunião Agendada", slaHours: 120 },
       { id: "proposta-enviada", label: "Proposta Enviada", slaHours: 96 },
-      { id: "negociacao", label: "Negociacao", slaHours: 168 },
+      { id: "negociacao", label: "Negociação", slaHours: 168 },
       { id: "fechamento", label: "Fechamento", slaHours: 48 },
     ],
   },
   {
     id: "indicacao",
-    label: "Funil Indicacao",
+    label: "Funil Indicação",
     stages: [
       { id: "lead-in", label: "Lead-In", slaHours: 24 },
       { id: "contato-feito", label: "Contato Feito", slaHours: 48 },
@@ -77,7 +80,9 @@ const funnels: FunnelDefinition[] = [
   },
 ];
 
-// ===== Stage Order (for validation) =====
+// ═══════════════════════════════════════════════════════════════════
+// Stage Validation
+// ═══════════════════════════════════════════════════════════════════
 
 const stageOrder: PipelineStage[] = [
   "lead-in",
@@ -88,9 +93,10 @@ const stageOrder: PipelineStage[] = [
   "fechamento",
 ];
 
-// ===== Stage Validation Rules =====
-
-const stageRequiredFields: Record<PipelineStage, { field: keyof Opportunity; label: string }[]> = {
+const stageRequiredFields: Record<
+  PipelineStage,
+  { field: keyof Opportunity; label: string }[]
+> = {
   "lead-in": [],
   "contato-feito": [{ field: "clientName", label: "Nome do contato" }],
   "reuniao-agendada": [
@@ -116,20 +122,38 @@ const stageRequiredFields: Record<PipelineStage, { field: keyof Opportunity; lab
   ],
 };
 
-// ===== Temperature Icons =====
+// ═══════════════════════════════════════════════════════════════════
+// Temperature Config
+// ═══════════════════════════════════════════════════════════════════
 
-const temperatureIcons: Record<Temperature, React.ReactNode> = {
-  hot: <Flame className="h-3.5 w-3.5 text-status-danger" />,
-  warm: <Thermometer className="h-3.5 w-3.5 text-status-warning" />,
-  cold: <Snowflake className="h-3.5 w-3.5 text-status-info" />,
+const temperatureConfig: Record<
+  Temperature,
+  { icon: React.ReactNode; label: string; colorClass: string }
+> = {
+  hot: {
+    icon: <Flame className="h-3.5 w-3.5" />,
+    label: "Quente",
+    colorClass: "text-status-danger",
+  },
+  warm: {
+    icon: <Thermometer className="h-3.5 w-3.5" />,
+    label: "Morno",
+    colorClass: "text-status-warning",
+  },
+  cold: {
+    icon: <Snowflake className="h-3.5 w-3.5" />,
+    label: "Frio",
+    colorClass: "text-status-info",
+  },
 };
 
-// ===== Mock Data: 14 opportunities =====
+// ═══════════════════════════════════════════════════════════════════
+// Mock Data
+// ═══════════════════════════════════════════════════════════════════
 
 const currentUserId = "user-1";
 
 const mockOpportunities: Opportunity[] = [
-  // LEAD-IN
   {
     id: "1",
     title: "Restaurante Bela Vista",
@@ -178,7 +202,6 @@ const mockOpportunities: Opportunity[] = [
     status: "open",
     slaDeadline: "2026-02-06T08:00:00",
   },
-  // CONTATO FEITO
   {
     id: "4",
     title: "Bar do Ze",
@@ -211,7 +234,6 @@ const mockOpportunities: Opportunity[] = [
     status: "open",
     slaDeadline: "2026-02-04T12:00:00",
   },
-  // REUNIAO AGENDADA
   {
     id: "6",
     title: "Hotel Sunset",
@@ -246,7 +268,6 @@ const mockOpportunities: Opportunity[] = [
     expectedCloseDate: "2026-03-01",
     slaDeadline: "2026-02-06T15:00:00",
   },
-  // PROPOSTA ENVIADA
   {
     id: "8",
     title: "Cafe Central",
@@ -281,7 +302,6 @@ const mockOpportunities: Opportunity[] = [
     expectedCloseDate: "2026-02-20",
     slaDeadline: "2026-02-09T16:00:00",
   },
-  // NEGOCIACAO
   {
     id: "10",
     title: "Pousada Mar Azul",
@@ -316,7 +336,6 @@ const mockOpportunities: Opportunity[] = [
     expectedCloseDate: "2026-02-25",
     slaDeadline: "2026-02-05T08:00:00",
   },
-  // FECHAMENTO
   {
     id: "12",
     title: "Churrascaria Fogo Bravo",
@@ -369,7 +388,9 @@ const mockOpportunities: Opportunity[] = [
   },
 ];
 
-// ===== Helpers =====
+// ═══════════════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════════════
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -391,7 +412,9 @@ function getInitials(name: string): string {
 
 type SlaStatus = "ok" | "near" | "breached";
 
-function getSlaStatus(slaDeadline?: string): { status: SlaStatus; label: string } {
+function getSlaStatus(
+  slaDeadline?: string
+): { status: SlaStatus; label: string } {
   if (!slaDeadline) return { status: "ok", label: "" };
   const now = new Date();
   const deadline = new Date(slaDeadline);
@@ -404,7 +427,6 @@ function getSlaStatus(slaDeadline?: string): { status: SlaStatus; label: string 
   const totalHours = diffMs / (1000 * 60 * 60);
   const days = Math.floor(totalHours / 24);
   const hours = Math.floor(totalHours % 24);
-
   const label = days > 0 ? `${days}d ${hours}h` : `${hours}h`;
 
   if (totalHours <= 12) {
@@ -414,25 +436,26 @@ function getSlaStatus(slaDeadline?: string): { status: SlaStatus; label: string 
   return { status: "ok", label };
 }
 
-function getSlaIndicatorColor(status: SlaStatus): string {
+function getSlaColors(status: SlaStatus) {
   switch (status) {
     case "ok":
-      return "bg-status-success";
+      return {
+        dot: "bg-status-success",
+        border: "border-l-brand",
+        text: "text-zinc-400",
+      };
     case "near":
-      return "bg-status-warning";
+      return {
+        dot: "bg-status-warning",
+        border: "border-l-status-warning",
+        text: "text-status-warning",
+      };
     case "breached":
-      return "bg-status-danger";
-  }
-}
-
-function getCardBorderColor(status: SlaStatus): string {
-  switch (status) {
-    case "ok":
-      return "border-l-brand";
-    case "near":
-      return "border-l-status-warning";
-    case "breached":
-      return "border-l-status-danger";
+      return {
+        dot: "bg-status-danger",
+        border: "border-l-status-danger",
+        text: "text-status-danger",
+      };
   }
 }
 
@@ -442,8 +465,6 @@ function validateStageTransition(
 ): string[] {
   const currentIdx = stageOrder.indexOf(opportunity.stage);
   const targetIdx = stageOrder.indexOf(targetStage);
-
-  // Only validate when moving forward
   if (targetIdx <= currentIdx) return [];
 
   const requiredFields = stageRequiredFields[targetStage] || [];
@@ -461,24 +482,37 @@ function validateStageTransition(
   return missing;
 }
 
-// ===== Main Page Component =====
+// ═══════════════════════════════════════════════════════════════════
+// Main Page Component
+// ═══════════════════════════════════════════════════════════════════
 
 export default function PipesPage() {
   const { openDrawer } = useUIStore();
-  const { opportunities: storeOpportunities, moveToStage } = useOpportunityStore();
+  const { opportunities: storeOpportunities, moveToStage } =
+    useOpportunityStore();
   const [selectedFunnel, setSelectedFunnel] = useState("comercial");
-  // Merge store opportunities with local mock for backward compat
-  const [localOpportunities, setLocalOpportunities] = useState<Opportunity[]>(mockOpportunities);
-  const opportunities = storeOpportunities.length > 0 ? storeOpportunities.filter((o) => o.status === "open") : localOpportunities;
+  const [localOpportunities, setLocalOpportunities] =
+    useState<Opportunity[]>(mockOpportunities);
+  const opportunities =
+    storeOpportunities.length > 0
+      ? storeOpportunities.filter((o) => o.status === "open")
+      : localOpportunities;
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
-  const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(
+    null
+  );
   const [isManageDrawerOpen, setIsManageDrawerOpen] = useState(false);
+  const [columnError, setColumnError] = useState<{
+    stage: PipelineStage;
+    message: string;
+  } | null>(null);
   const dragCardRef = useRef<Opportunity | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
 
-  const activeFunnel = funnels.find((f) => f.id === selectedFunnel) ?? funnels[0];
+  const activeFunnel =
+    funnels.find((f) => f.id === selectedFunnel) ?? funnels[0];
   const activeStageIds = activeFunnel.stages.map((s) => s.id);
 
-  // Get opportunities grouped by stage
   const opportunitiesByStage = useMemo(() => {
     const grouped: Record<PipelineStage, Opportunity[]> = {
       "lead-in": [],
@@ -496,10 +530,23 @@ export default function PipesPage() {
     return grouped;
   }, [opportunities, activeStageIds]);
 
-  // Drag handlers for cross-column drag
+  const boardTotal = useMemo(
+    () =>
+      opportunities
+        .filter((o) => activeStageIds.includes(o.stage))
+        .reduce((acc, o) => acc + o.value, 0),
+    [opportunities, activeStageIds]
+  );
+  const boardCount = useMemo(
+    () =>
+      opportunities.filter((o) => activeStageIds.includes(o.stage)).length,
+    [opportunities, activeStageIds]
+  );
+
+  // ── Drag handlers ──────────────────────────────────────────────
+
   const handleDragStart = useCallback(
     (e: React.DragEvent, opportunity: Opportunity) => {
-      // Only allow dragging own cards
       if (opportunity.responsibleId !== currentUserId) {
         e.preventDefault();
         return;
@@ -529,6 +576,7 @@ export default function PipesPage() {
     (e: React.DragEvent, targetStage: PipelineStage) => {
       e.preventDefault();
       setDragOverStage(null);
+      setColumnError(null);
 
       const card = dragCardRef.current;
       if (!card) return;
@@ -539,21 +587,18 @@ export default function PipesPage() {
         return;
       }
 
-      // Validate stage transition
       const missingFields = validateStageTransition(card, targetStage);
       if (missingFields.length > 0) {
-        toast.error("Campos obrigatorios faltando", {
-          description: `Para mover para ${
-            activeFunnel.stages.find((s) => s.id === targetStage)?.label ?? targetStage
-          }, preencha: ${missingFields.join(", ")}`,
-          duration: 5000,
+        setColumnError({
+          stage: targetStage,
+          message: `Preencha: ${missingFields.join(", ")}`,
         });
         setDraggingCardId(null);
         dragCardRef.current = null;
+        setTimeout(() => setColumnError(null), 5000);
         return;
       }
 
-      // Move card to target stage + recalcular SLA
       const targetStageDef = activeFunnel.stages.find(
         (s) => s.id === targetStage
       );
@@ -561,7 +606,6 @@ export default function PipesPage() {
         ? calculateSlaDeadline(targetStageDef.slaHours)
         : undefined;
 
-      // Update in store
       const slaHours = targetStageDef?.slaHours;
       if (storeOpportunities.length > 0) {
         moveToStage(card.id, targetStage, slaHours);
@@ -580,12 +624,6 @@ export default function PipesPage() {
         );
       }
 
-      toast.success("Oportunidade movida", {
-        description: `"${card.title}" movida para ${
-          activeFunnel.stages.find((s) => s.id === targetStage)?.label ?? targetStage
-        }`,
-      });
-
       setDraggingCardId(null);
       dragCardRef.current = null;
     },
@@ -598,7 +636,6 @@ export default function PipesPage() {
     dragCardRef.current = null;
   }, []);
 
-  // Reorder within a column
   const handleReorder = useCallback(
     (stage: PipelineStage, newOrder: Opportunity[]) => {
       setLocalOpportunities((prev) => {
@@ -609,215 +646,273 @@ export default function PipesPage() {
     []
   );
 
+  // ── Board scroll ───────────────────────────────────────────────
+
+  const scrollBoard = useCallback((direction: "left" | "right") => {
+    if (!boardRef.current) return;
+    const amount = 350;
+    boardRef.current.scrollBy({
+      left: direction === "left" ? -amount : amount,
+      behavior: "smooth",
+    });
+  }, []);
+
+  // ═════════════════════════════════════════════════════════════════
+  // Render
+  // ═════════════════════════════════════════════════════════════════
+
   return (
     <TooltipProvider>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-black sm:text-3xl">
-              Pipeline de Vendas
-            </h1>
-            <p className="mt-1 font-body text-sm text-zinc-500">
-              Gerencie suas oportunidades pelo funil de vendas
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Funnel Selector */}
-            <Select value={selectedFunnel} onValueChange={setSelectedFunnel}>
-              <SelectTrigger className="w-[200px] rounded-[15px] font-heading text-sm">
-                <SelectValue placeholder="Selecionar funil" />
-              </SelectTrigger>
-              <SelectContent className="rounded-[15px]">
-                {funnels.map((funnel) => (
-                  <SelectItem key={funnel.id} value={funnel.id}>
-                    {funnel.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="flex h-[calc(100vh-64px)] flex-col overflow-hidden">
+        {/* ── Header & Toolbar ─────────────────────────────────── */}
+        <div className="shrink-0 space-y-3 pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="font-heading text-2xl font-bold text-black">
+                Pipeline de Vendas
+              </h1>
+              <p className="mt-0.5 font-body text-sm text-zinc-500">
+                {boardCount} oportunidades · {formatCurrency(boardTotal)}
+              </p>
+            </div>
 
-            <Button
-              variant="outline"
-              onClick={() => setIsManageDrawerOpen(true)}
-              className="rounded-full font-heading text-sm"
-            >
-              <Settings2 className="mr-2 h-4 w-4" />
-              Gerenciar Funis
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => openDrawer("filters")}
-              className="rounded-full font-heading text-sm"
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              Filtros
-            </Button>
-            <Button
-              onClick={() => openDrawer("new-opportunity")}
-              className="rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Oportunidade
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select
+                value={selectedFunnel}
+                onValueChange={setSelectedFunnel}
+              >
+                <SelectTrigger className="h-9 w-[180px] rounded-full border-zinc-200 font-heading text-sm">
+                  <SelectValue placeholder="Selecionar funil" />
+                </SelectTrigger>
+                <SelectContent className="rounded-[var(--radius-bento-card)]">
+                  {funnels.map((funnel) => (
+                    <SelectItem key={funnel.id} value={funnel.id}>
+                      {funnel.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openDrawer("filters")}
+                className="h-9 rounded-full font-heading text-sm"
+              >
+                <Filter className="mr-1.5 h-3.5 w-3.5" />
+                Filtros
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-full font-heading text-sm"
+                  >
+                    <MoreHorizontal className="mr-1.5 h-3.5 w-3.5" />
+                    Mais
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="rounded-[var(--radius-bento-card)]"
+                >
+                  <DropdownMenuItem
+                    onClick={() => setIsManageDrawerOpen(true)}
+                  >
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Gerenciar Funis
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Button
+                size="sm"
+                onClick={() => openDrawer("new-opportunity")}
+                className="h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800"
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Novo Card
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Kanban Board */}
-        <div
-          className="flex gap-3 overflow-x-auto pb-4"
-          style={{ padding: "4px" }}
-        >
-          {activeFunnel.stages.map((stageDef) => {
-            const cards = opportunitiesByStage[stageDef.id] || [];
-            const totalValue = cards.reduce((acc, o) => acc + o.value, 0);
-            const isDropTarget = dragOverStage === stageDef.id;
+        {/* ── Board ────────────────────────────────────────────── */}
+        <div className="relative flex min-h-0 flex-1 items-stretch">
+          {/* Scroll arrows */}
+          <button
+            onClick={() => scrollBoard("left")}
+            className="absolute left-0 top-1/2 z-20 -translate-y-1/2 rounded-full border border-zinc-200 bg-white p-1.5 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            aria-label="Rolar colunas para a esquerda"
+          >
+            <ChevronLeft className="h-4 w-4 text-zinc-500" />
+          </button>
+          <button
+            onClick={() => scrollBoard("right")}
+            className="absolute right-0 top-1/2 z-20 -translate-y-1/2 rounded-full border border-zinc-200 bg-white p-1.5 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            aria-label="Rolar colunas para a direita"
+          >
+            <ChevronRight className="h-4 w-4 text-zinc-500" />
+          </button>
 
-            // Column-level SLA: worst SLA status among cards
-            const worstSla = cards.reduce<SlaStatus>((worst, card) => {
-              const { status } = getSlaStatus(card.slaDeadline);
-              if (status === "breached") return "breached";
-              if (status === "near" && worst !== "breached") return "near";
-              return worst;
-            }, "ok");
+          {/* Board scroll container */}
+          <div
+            ref={boardRef}
+            className="flex flex-1 gap-3 overflow-x-auto scroll-smooth px-7 pb-2"
+            style={{ scrollSnapType: "x proximity" }}
+          >
+            {activeFunnel.stages.map((stageDef) => {
+              const cards = opportunitiesByStage[stageDef.id] || [];
+              const totalValue = cards.reduce((acc, o) => acc + o.value, 0);
+              const isDropTarget = dragOverStage === stageDef.id;
+              const error =
+                columnError?.stage === stageDef.id
+                  ? columnError.message
+                  : null;
 
-            return (
-              <div
-                key={stageDef.id}
-                className={`flex w-[85vw] shrink-0 flex-col rounded-[15px] transition-colors duration-150 sm:w-[290px] ${
-                  isDropTarget
-                    ? "bg-brand-light ring-2 ring-brand"
-                    : "bg-zinc-50"
-                }`}
-                onDragOver={(e) => handleDragOver(e, stageDef.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, stageDef.id)}
-              >
-                {/* Column Header */}
-                <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-[15px] bg-inherit p-3">
-                  <div className="flex items-center gap-2">
-                    {/* SLA Indicator Dot */}
-                    <span
-                      className={`inline-block h-2 w-2 rounded-full ${getSlaIndicatorColor(worstSla)}`}
-                      title={
-                        worstSla === "ok"
-                          ? "Dentro do SLA"
-                          : worstSla === "near"
-                            ? "Proximo do SLA"
-                            : "SLA estourado"
-                      }
-                    />
-                    <span className="font-heading text-sm font-semibold text-black">
-                      {stageDef.label}
-                    </span>
-                    <Badge
-                      variant="secondary"
-                      className="rounded-[10px] font-body text-xs"
-                    >
-                      {cards.length}
-                    </Badge>
+              const worstSla = cards.reduce<SlaStatus>((worst, card) => {
+                const { status } = getSlaStatus(card.slaDeadline);
+                if (status === "breached") return "breached";
+                if (status === "near" && worst !== "breached") return "near";
+                return worst;
+              }, "ok");
+
+              return (
+                <div
+                  key={stageDef.id}
+                  className={`flex w-[85vw] shrink-0 flex-col rounded-[var(--radius-bento-card)] border transition-all duration-150 sm:w-[320px] xl:w-[340px] ${
+                    isDropTarget
+                      ? "border-brand bg-brand/5 ring-2 ring-brand/30"
+                      : "border-transparent bg-zinc-50/80"
+                  }`}
+                  style={{ scrollSnapAlign: "start" }}
+                  onDragOver={(e) => handleDragOver(e, stageDef.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, stageDef.id)}
+                >
+                  {/* ── Column Header (sticky) ───────────────── */}
+                  <div className="sticky top-0 z-10 rounded-t-[var(--radius-bento-card)] bg-inherit px-3 py-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={`inline-block h-2 w-2 shrink-0 rounded-full ${getSlaColors(worstSla).dot}`}
+                        />
+                        <span className="truncate font-heading text-[13px] font-semibold text-black">
+                          {stageDef.label}
+                        </span>
+                        <span className="shrink-0 rounded-md bg-zinc-200/70 px-1.5 py-0.5 font-body text-[11px] font-medium text-zinc-600">
+                          {cards.length}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className="font-body text-[11px] font-medium text-zinc-400">
+                          {formatCurrency(totalValue)}
+                        </span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() =>
+                                openDrawer("new-opportunity", {
+                                  initialStage: stageDef.id,
+                                })
+                              }
+                              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                              aria-label={`Adicionar oportunidade em ${stageDef.label}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Adicionar oportunidade
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+
+                    {/* Inline error feedback */}
+                    {error && (
+                      <div className="mt-2 flex items-start gap-1.5 rounded-[var(--radius-bento-inner)] bg-[var(--feedback-error-bg)] px-2.5 py-2 text-[var(--feedback-error-text)]">
+                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span className="font-body text-[11px] leading-tight">
+                          {error}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="font-body text-xs text-zinc-500">
-                      {formatCurrency(totalValue)}
-                    </span>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-zinc-400 hover:text-brand"
-                          onClick={() =>
-                            openDrawer("new-opportunity", {
-                              initialStage: stageDef.id,
-                            })
+
+                  {/* ── Column Cards ──────────────────────────── */}
+                  <div className="flex-1 overflow-y-auto px-3 pb-3">
+                    {cards.length > 0 ? (
+                      <Reorder.Group
+                        axis="y"
+                        values={cards}
+                        onReorder={(newOrder) =>
+                          handleReorder(stageDef.id, newOrder)
+                        }
+                        className="space-y-2"
+                      >
+                        {cards.map((opportunity) => {
+                          const isGhost =
+                            opportunity.responsibleId !== currentUserId;
+
+                          if (isGhost) {
+                            return (
+                              <Reorder.Item
+                                key={opportunity.id}
+                                value={opportunity}
+                                dragListener={false}
+                              >
+                                <GhostDealCard opportunity={opportunity} />
+                              </Reorder.Item>
+                            );
                           }
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Adicionar oportunidade</TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
 
-                {/* Column Cards */}
-                <ScrollArea className="flex-1 px-3 pb-2">
-                  {cards.length > 0 ? (
-                    <Reorder.Group
-                      axis="y"
-                      values={cards}
-                      onReorder={(newOrder) =>
-                        handleReorder(stageDef.id, newOrder)
-                      }
-                      className="space-y-2"
-                    >
-                      {cards.map((opportunity) => {
-                        const isGhost =
-                          opportunity.responsibleId !== currentUserId;
-
-                        if (isGhost) {
                           return (
                             <Reorder.Item
                               key={opportunity.id}
                               value={opportunity}
-                              dragListener={false}
+                              className={
+                                draggingCardId === opportunity.id
+                                  ? "scale-[0.97] opacity-40"
+                                  : ""
+                              }
                             >
-                              <GhostCard opportunity={opportunity} />
+                              <DealCardBento
+                                opportunity={opportunity}
+                                onOpen={() =>
+                                  openDrawer("lead-card", {
+                                    id: opportunity.id,
+                                  })
+                                }
+                                onDragStart={(e) =>
+                                  handleDragStart(e, opportunity)
+                                }
+                                onDragEnd={handleDragEnd}
+                              />
                             </Reorder.Item>
                           );
-                        }
-
-                        return (
-                          <Reorder.Item
-                            key={opportunity.id}
-                            value={opportunity}
-                            className={
-                              draggingCardId === opportunity.id
-                                ? "opacity-50"
-                                : ""
-                            }
-                          >
-                            <OpportunityCard
-                              opportunity={opportunity}
-                              onOpen={() =>
-                                openDrawer("lead-card", {
-                                  id: opportunity.id,
-                                })
-                              }
-                              onDragStart={(e) =>
-                                handleDragStart(e, opportunity)
-                              }
-                              onDragEnd={handleDragEnd}
-                            />
-                          </Reorder.Item>
-                        );
-                      })}
-                    </Reorder.Group>
-                  ) : (
-                    /* Empty Column State */
-                    <div className="flex h-28 items-center justify-center rounded-[15px] border-2 border-dashed border-zinc-200">
-                      <p className="font-body text-xs text-zinc-400">
-                        Arraste cards aqui
-                      </p>
-                    </div>
-                  )}
-                </ScrollArea>
-
-                {/* Column Total Footer */}
-                <div className="border-t border-zinc-200 px-3 py-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-body text-xs text-zinc-400">
-                      Total
-                    </span>
-                    <span className="font-heading text-sm font-semibold text-black">
-                      {formatCurrency(totalValue)}
-                    </span>
+                        })}
+                      </Reorder.Group>
+                    ) : (
+                      <div
+                        className={`flex h-24 items-center justify-center rounded-[var(--radius-bento-inner)] border-2 border-dashed transition-colors ${
+                          isDropTarget
+                            ? "border-brand bg-brand/5"
+                            : "border-zinc-200"
+                        }`}
+                      >
+                        <p className="font-body text-xs text-zinc-400">
+                          Arraste cards aqui
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Pipeline Manager Drawer */}
@@ -830,9 +925,19 @@ export default function PipesPage() {
   );
 }
 
-// ===== Opportunity Card Component =====
+// ═══════════════════════════════════════════════════════════════════
+// DealCardBento — Card Spec padronizado
+// ═══════════════════════════════════════════════════════════════════
+//
+// Slots fixos:
+//   1. Header row:  drag handle + temperature + title (ellipsis) + menu "…"
+//   2. Sub row:     client name (ellipsis) + owner avatar chip
+//   3. Meta row:    value (currency) + SLA countdown
+//   4. Tags row:    max 2 tags + "+N" chip (conditional)
+//
+// Estados: default, hover, focus-visible, dragging (ghost via parent)
 
-function OpportunityCard({
+function DealCardBento({
   opportunity,
   onOpen,
   onDragStart,
@@ -845,44 +950,73 @@ function OpportunityCard({
 }) {
   const { openModal, openDrawer } = useUIStore();
   const sla = getSlaStatus(opportunity.slaDeadline);
-  const borderColor = getCardBorderColor(sla.status);
+  const slaColors = getSlaColors(sla.status);
+  const temp = temperatureConfig[opportunity.temperature];
 
   return (
     <div
-      className={`cursor-pointer rounded-[15px] border border-zinc-200 bg-white border-l-[3px] ${borderColor} p-3 transition-shadow duration-100 hover:shadow-md`}
+      className={`group relative cursor-pointer rounded-[var(--radius-bento-card)] border border-zinc-200 border-l-[3px] ${slaColors.border} bg-white p-3 shadow-[var(--shadow-bento-sm)] transition-all duration-[var(--transition-bento-fast)] hover:shadow-[var(--shadow-bento-sm-hover)] focus-within:ring-2 focus-within:ring-brand/40 active:scale-[var(--scale-bento-active)]`}
       onClick={onOpen}
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      tabIndex={0}
+      role="button"
+      aria-label={`Oportunidade: ${opportunity.title}, ${formatCurrency(opportunity.value)}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
     >
-      {/* Drag Handle + Temperature */}
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <GripVertical className="h-4 w-4 cursor-grab text-zinc-300 active:cursor-grabbing" />
-          {temperatureIcons[opportunity.temperature]}
-        </div>
+      {/* ── 1. Header row ──────────────────────────────────── */}
+      <div className="flex items-center gap-1.5">
+        <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className={`shrink-0 ${temp.colorClass}`}>
+              {temp.icon}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{temp.label}</TooltipContent>
+        </Tooltip>
+
+        <span className="min-w-0 flex-1 truncate font-heading text-[13px] font-semibold text-black">
+          {opportunity.title}
+        </span>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0 text-zinc-400"
+            <button
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-100 hover:text-zinc-600 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               onClick={(e) => e.stopPropagation()}
+              aria-label="Ações da oportunidade"
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
-            </Button>
+            </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="rounded-[15px]">
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              onOpen();
-            }}>
+          <DropdownMenuContent
+            align="end"
+            className="rounded-[var(--radius-bento-card)]"
+          >
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen();
+              }}
+            >
               Editar
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              openDrawer("new-activity", { opportunityId: opportunity.id });
-            }}>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                openDrawer("new-activity", {
+                  opportunityId: opportunity.id,
+                });
+              }}
+            >
               Nova atividade
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -890,7 +1024,9 @@ function OpportunityCard({
               className="text-status-success"
               onClick={(e) => {
                 e.stopPropagation();
-                openModal("win-opportunity", { opportunityId: opportunity.id });
+                openModal("win-opportunity", {
+                  opportunityId: opportunity.id,
+                });
               }}
             >
               Marcar como Ganho
@@ -899,7 +1035,9 @@ function OpportunityCard({
               className="text-status-danger"
               onClick={(e) => {
                 e.stopPropagation();
-                openModal("lose-opportunity", { opportunityId: opportunity.id });
+                openModal("lose-opportunity", {
+                  opportunityId: opportunity.id,
+                });
               }}
             >
               Marcar como Perdido
@@ -908,91 +1046,98 @@ function OpportunityCard({
         </DropdownMenu>
       </div>
 
-      {/* Title (Client Name) */}
-      <div className="mb-2 min-w-0">
-        <p className="line-clamp-2 font-body text-sm font-medium text-black">
+      {/* ── 2. Sub row: client + owner ─────────────────────── */}
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="min-w-0 flex-1 truncate font-body text-[12px] text-zinc-500">
           {opportunity.clientName}
-        </p>
-      </div>
-
-      {/* Value */}
-      <div className="mb-2">
-        <span className="font-heading text-sm font-semibold text-black">
-          {formatCurrency(opportunity.value)}
         </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 font-heading text-[9px] font-semibold text-white">
+              {getInitials(opportunity.responsibleName)}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{opportunity.responsibleName}</TooltipContent>
+        </Tooltip>
       </div>
 
-      {/* Tags (max 2) */}
+      {/* ── 3. Meta row: value + SLA ───────────────────────── */}
+      <div className="mt-2 flex items-center justify-between">
+        <span className="font-heading text-[13px] font-bold text-black">
+          {opportunity.value > 0
+            ? formatCurrency(opportunity.value)
+            : "Sem valor"}
+        </span>
+
+        {sla.label && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className={`flex items-center gap-1 font-body text-[11px] font-medium ${slaColors.text}`}
+              >
+                {sla.status === "breached" ? (
+                  <AlertTriangle className="h-3 w-3" />
+                ) : (
+                  <Clock className="h-3 w-3" />
+                )}
+                {sla.label}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>Tempo na etapa</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+
+      {/* ── 4. Tags row (conditional) ──────────────────────── */}
       {opportunity.tags.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1">
+        <div className="mt-2 flex items-center gap-1 overflow-hidden">
           {opportunity.tags.slice(0, 2).map((tag) => (
             <Badge
               key={tag}
               variant="outline"
-              className="rounded-[10px] font-body text-[11px]"
+              className="max-w-[100px] shrink-0 truncate rounded-[var(--radius-bento-inner)] px-1.5 py-0 font-body text-[10px] leading-5"
             >
               {tag}
             </Badge>
           ))}
           {opportunity.tags.length > 2 && (
-            <Badge
-              variant="secondary"
-              className="rounded-[10px] font-body text-[11px]"
-            >
-              +{opportunity.tags.length - 2}
-            </Badge>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 rounded-[var(--radius-bento-inner)] px-1.5 py-0 font-body text-[10px] leading-5"
+                >
+                  +{opportunity.tags.length - 2}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                {opportunity.tags.slice(2).join(", ")}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       )}
-
-      {/* Footer: Avatar + SLA Countdown */}
-      <div className="flex items-center justify-between border-t border-zinc-100 pt-2">
-        {/* Responsible Avatar */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-[10px] font-heading font-semibold text-white">
-              {getInitials(opportunity.responsibleName)}
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>{opportunity.responsibleName}</TooltipContent>
-        </Tooltip>
-
-        {/* SLA Countdown */}
-        {sla.label && (
-          <div
-            className={`flex items-center gap-1 font-body text-xs font-medium ${
-              sla.status === "breached"
-                ? "text-status-danger"
-                : sla.status === "near"
-                  ? "text-status-warning"
-                  : "text-zinc-400"
-            }`}
-          >
-            {sla.status === "breached" ? (
-              <AlertTriangle className="h-3 w-3" />
-            ) : (
-              <Clock className="h-3 w-3" />
-            )}
-            <span>{sla.label}</span>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
 
-// ===== Ghost Card Component (other sellers) =====
+// ═══════════════════════════════════════════════════════════════════
+// GhostDealCard — Cards de outros vendedores
+// ═══════════════════════════════════════════════════════════════════
 
-function GhostCard({ opportunity }: { opportunity: Opportunity }) {
+function GhostDealCard({ opportunity }: { opportunity: Opportunity }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="rounded-[15px] border border-zinc-200 bg-white p-3 opacity-50">
-          <div className="min-w-0">
-            <p className="line-clamp-2 font-body text-sm font-medium text-black">
+        <div className="flex cursor-default select-none items-center gap-2.5 rounded-[var(--radius-bento-card)] border border-zinc-100 bg-zinc-50 p-2.5 opacity-60">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200">
+            <Lock className="h-3 w-3 text-zinc-400" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-heading text-[12px] font-medium text-zinc-500">
               {opportunity.clientName}
             </p>
-            <p className="mt-0.5 truncate font-body text-xs text-zinc-500">
+            <p className="truncate font-body text-[11px] text-zinc-400">
               {opportunity.responsibleName}
             </p>
           </div>
