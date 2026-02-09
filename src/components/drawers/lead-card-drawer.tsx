@@ -42,11 +42,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -529,8 +528,8 @@ function ContactCard({
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export function LeadCardDrawer() {
-  const { drawerType, closeDrawer, openModal } = useUIStore();
-  const isOpen = drawerType === "lead-card";
+  const { modalType, closeModal, openModal } = useUIStore();
+  const isOpen = modalType === "lead-card";
 
   // Editable state
   const [title, setTitle] = useState(mockLead.title);
@@ -658,24 +657,23 @@ export function LeadCardDrawer() {
   }
 
   return (
-    <Sheet open={isOpen} onOpenChange={() => closeDrawer()}>
-      <SheetContent
-        side="right"
-        className="w-full overflow-y-auto border-l border-zinc-200 p-0 sm:w-[720px] sm:max-w-[720px]"
+    <Dialog open={isOpen} onOpenChange={() => closeModal()}>
+      <DialogContent
+        className="flex h-[90vh] !max-h-[90vh] w-[90vw] !max-w-[90vw] flex-col overflow-hidden rounded-[var(--radius-bento-card)] !gap-0 !p-0"
         showCloseButton={false}
       >
         {/* ── Header ──────────────────────────────────────────────── */}
-        <SheetHeader className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-6 py-4">
+        <div className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <SheetTitle className="font-heading text-xl font-semibold text-black">
+                <DialogTitle className="font-heading text-xl font-semibold text-black">
                   <InlineEditable
                     value={title}
                     onSave={setTitle}
                     className="font-heading text-xl font-semibold"
                   />
-                </SheetTitle>
+                </DialogTitle>
                 <ScoreDisplay score={leadScore} />
               </div>
               <p className="mt-0.5 font-body text-sm text-zinc-500">
@@ -719,7 +717,7 @@ export function LeadCardDrawer() {
                 variant="ghost"
                 size="icon"
                 className="text-zinc-400"
-                onClick={() => closeDrawer()}
+                onClick={() => closeModal()}
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -769,10 +767,10 @@ export function LeadCardDrawer() {
               }}
             />
           </div>
-        </SheetHeader>
+        </div>
 
         {/* ── Body ────────────────────────────────────────────────── */}
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto p-6">
           <Tabs defaultValue="resumo">
             <TabsList className="w-full border-b border-zinc-200 bg-transparent p-0">
               {[
@@ -1255,8 +1253,8 @@ export function LeadCardDrawer() {
             </TabsContent>
           </Tabs>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 

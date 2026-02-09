@@ -15,11 +15,11 @@ export function GlobalDrawers() {
   return (
     <>
       {/* Drawers */}
-      <LeadCardDrawer />
       <ClientCardDrawer />
       <FiltersPanel context="pipes" />
 
       {/* Modals */}
+      <LeadCardDrawer />
       <NewOpportunityModal />
       <NewActivityModal />
       <WinOpportunityModal />

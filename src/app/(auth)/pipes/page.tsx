@@ -189,6 +189,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "1",
       title: "Restaurante Bela Vista",
       clientName: "Restaurante Bela Vista Ltda",
+      neighborhood: "Altiplano",
       value: 12000,
       monthlyValue: 1000,
       stage: "lead-in",
@@ -205,6 +206,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "2",
       title: "Padaria Pao Quente",
       clientName: "Padaria Pao Quente ME",
+      neighborhood: "Manaíra",
       value: 4800,
       monthlyValue: 400,
       stage: "lead-in",
@@ -221,6 +223,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "3",
       title: "Lanchonete do Carlos",
       clientName: "Carlos Almeida ME",
+      neighborhood: "Bancários",
       value: 3600,
       monthlyValue: 300,
       stage: "lead-in",
@@ -237,6 +240,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "4",
       title: "Bar do Ze",
       clientName: "Bar do Ze Ltda",
+      neighborhood: "Tambaú",
       value: 8400,
       monthlyValue: 700,
       stage: "contato-feito",
@@ -253,6 +257,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "5",
       title: "Pizzaria Napoli",
       clientName: "Napoli Alimentos Ltda",
+      neighborhood: "Bessa",
       value: 15000,
       monthlyValue: 1250,
       stage: "contato-feito",
@@ -269,6 +274,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "6",
       title: "Hotel Sunset",
       clientName: "Hotel Sunset S.A.",
+      neighborhood: "Cabo Branco",
       value: 36000,
       monthlyValue: 3000,
       stage: "reuniao-agendada",
@@ -286,6 +292,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "7",
       title: "Sorveteria Gelato",
       clientName: "Gelato Artesanal ME",
+      neighborhood: "Jardim Oceania",
       value: 7200,
       monthlyValue: 600,
       stage: "reuniao-agendada",
@@ -303,6 +310,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "8",
       title: "Cafe Central",
       clientName: "Cafe Central ME",
+      neighborhood: "Centro",
       value: 6000,
       monthlyValue: 500,
       stage: "proposta-enviada",
@@ -320,6 +328,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "9",
       title: "Hamburgueria Smash",
       clientName: "Smash Burger Ltda",
+      neighborhood: "Brisamar",
       value: 9600,
       monthlyValue: 800,
       stage: "proposta-enviada",
@@ -337,6 +346,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "10",
       title: "Pousada Mar Azul",
       clientName: "Pousada Mar Azul ME",
+      neighborhood: "Tambaú",
       value: 24000,
       monthlyValue: 2000,
       stage: "negociacao",
@@ -354,6 +364,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "11",
       title: "Doceria Sabor & Arte",
       clientName: "Sabor e Arte Doces Ltda",
+      neighborhood: "Torre",
       value: 10800,
       monthlyValue: 900,
       stage: "negociacao",
@@ -371,6 +382,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "12",
       title: "Churrascaria Fogo Bravo",
       clientName: "Fogo Bravo Ltda",
+      neighborhood: "Mangabeira",
       value: 18000,
       monthlyValue: 1500,
       stage: "fechamento",
@@ -388,6 +400,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "13",
       title: "Acai da Praia",
       clientName: "Acai da Praia Franquias S.A.",
+      neighborhood: "Intermares",
       value: 42000,
       monthlyValue: 3500,
       stage: "fechamento",
@@ -405,6 +418,7 @@ function generateDynamicMockData(): Opportunity[] {
       id: "14",
       title: "Cantina Bella Nonna",
       clientName: "Bella Nonna Restaurante Ltda",
+      neighborhood: "Expedicionários",
       value: 14400,
       monthlyValue: 1200,
       stage: "lead-in",
@@ -1535,7 +1549,7 @@ export default function PipesPage() {
                                     opportunity={opportunity}
                                     temp={getTemp(opportunity)}
                                     onOpen={() =>
-                                      openDrawer("lead-card", {
+                                      openModal("lead-card", {
                                         id: opportunity.id,
                                       })
                                     }
@@ -1756,10 +1770,10 @@ function DealCardBento({
         </DropdownMenu>
       </div>
 
-      {/* ── 2. Sub row: client + owner ─────────────────────── */}
+      {/* ── 2. Sub row: neighborhood + owner ──────────────────── */}
       <div className="mt-1.5 flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate font-body text-[12px] text-zinc-500">
-          {opportunity.clientName}
+          {opportunity.neighborhood || "Sem bairro"}
         </span>
         {/* #12 FIX: Bigger avatar 24x24 */}
         <Tooltip>

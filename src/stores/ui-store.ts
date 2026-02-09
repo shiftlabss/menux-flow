@@ -11,6 +11,7 @@ export type DrawerType =
   | null;
 
 export type ModalType =
+  | "lead-card"
   | "invite-user"
   | "new-opportunity"
   | "new-activity"
