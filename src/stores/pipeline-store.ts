@@ -31,6 +31,7 @@ interface PipelineState {
   addPipeline: (pipeline: Omit<Pipeline, "id" | "createdAt" | "updatedAt">) => void;
   updatePipeline: (id: string, data: Partial<Pipeline>) => void;
   deletePipeline: (id: string) => void;
+  reorderPipelines: (pipelines: Pipeline[]) => void;
   addStage: (pipelineId: string, stage: Omit<PipelineStageConfig, "order">) => void;
   updateStage: (pipelineId: string, stageId: string, data: Partial<PipelineStageConfig>) => void;
   deleteStage: (pipelineId: string, stageId: string) => void;
@@ -113,6 +114,8 @@ export const usePipelineStore = create<PipelineState>()(
         set((state) => ({
           pipelines: state.pipelines.filter((p) => p.id !== id),
         })),
+
+      reorderPipelines: (pipelines) => set({ pipelines }),
 
       addStage: (pipelineId, stageData) =>
         set((state) => ({
