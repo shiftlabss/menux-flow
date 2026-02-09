@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
     try {
       // TODO: Replace with actual API call
-      console.log("Forgot password:", data);
+      void data;
       setIsSent(true);
     } catch {
       // Handle error

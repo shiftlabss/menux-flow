@@ -169,7 +169,7 @@ function ActivateAccountContent() {
     setIsSubmitting(true);
     try {
       // TODO: Replace with actual API call
-      console.log("Activate account:", { ...data, token, avatarFile });
+      void data;
       setIsSuccess(true);
     } catch {
       // Handle error

@@ -92,7 +92,7 @@ function ResetPasswordContent() {
     setIsSubmitting(true);
     try {
       // TODO: Replace with actual API call
-      console.log("Reset password:", { ...data, token });
+      void data;
       setIsSuccess(true);
     } catch {
       // Handle error

@@ -215,7 +215,6 @@ export default function LoginPage() {
 
       // TODO: Replace with actual API call
       // On real API failure, call handleLoginFailure() instead of the mock below
-      console.log("Login:", data, { rememberMe });
 
       // Mock successful login
       setUser(

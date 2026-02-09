@@ -207,8 +207,8 @@ export function NotesPanel() {
     setIsAdding(false);
   }, [newEntryText, activeTab]);
 
-  const handleEdit = useCallback((id: string) => {
-    console.log(`[NotesPanel] Editando entrada: ${id}`);
+  const handleEdit = useCallback((_id: string) => {
+    // TODO: implement edit functionality
   }, []);
 
   const handleDelete = useCallback((id: string) => {
