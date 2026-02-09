@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import {
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  useEffect,
+} from "react";
 import {
   Plus,
   Filter,
@@ -8,17 +14,27 @@ import {
   Flame,
   Thermometer,
   Snowflake,
-  GripVertical,
   Clock,
   AlertTriangle,
   Settings2,
   Lock,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  Palette,
+  Check,
+  ArrowDownToLine,
+  Download,
+  ListOrdered,
+  Search,
+  User,
+  CheckCircle2,
+  X,
 } from "lucide-react";
-import { Reorder } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,8 +57,10 @@ import {
 } from "@/components/ui/tooltip";
 import type { Opportunity, PipelineStage, Temperature } from "@/types";
 import { useUIStore } from "@/stores/ui-store";
-import { useOpportunityStore } from "@/stores/opportunity-store";
-import { calculateSlaDeadline } from "@/lib/business-rules";
+import {
+  calculateSlaDeadline,
+  calculateTemperature,
+} from "@/lib/business-rules";
 import { PipelineManagerDrawer } from "@/components/pipeline/pipeline-manager-drawer";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -148,245 +166,259 @@ const temperatureConfig: Record<
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// Mock Data
+// Mock Data — #2 FIX: SLA dinâmico relativo a now
 // ═══════════════════════════════════════════════════════════════════
 
-const currentUserId = "user-1";
+const currentUserId = "1";
 
-const mockOpportunities: Opportunity[] = [
-  {
-    id: "1",
-    title: "Restaurante Bela Vista",
-    clientName: "Restaurante Bela Vista Ltda",
-    value: 12000,
-    monthlyValue: 1000,
-    stage: "lead-in",
-    temperature: "hot",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["food-service", "premium"],
-    createdAt: "2026-01-15",
-    updatedAt: "2026-02-05",
-    status: "open",
-    slaDeadline: "2026-02-07T18:00:00",
-  },
-  {
-    id: "2",
-    title: "Padaria Pao Quente",
-    clientName: "Padaria Pao Quente ME",
-    value: 4800,
-    monthlyValue: 400,
-    stage: "lead-in",
-    temperature: "warm",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["panificacao"],
-    createdAt: "2026-02-01",
-    updatedAt: "2026-02-05",
-    status: "open",
-    slaDeadline: "2026-02-08T10:00:00",
-  },
-  {
-    id: "3",
-    title: "Lanchonete do Carlos",
-    clientName: "Carlos Almeida ME",
-    value: 3600,
-    monthlyValue: 300,
-    stage: "lead-in",
-    temperature: "cold",
-    responsibleId: "3",
-    responsibleName: "Ana Oliveira",
-    tags: ["fast-food"],
-    createdAt: "2026-02-03",
-    updatedAt: "2026-02-04",
-    status: "open",
-    slaDeadline: "2026-02-06T08:00:00",
-  },
-  {
-    id: "4",
-    title: "Bar do Ze",
-    clientName: "Bar do Ze Ltda",
-    value: 8400,
-    monthlyValue: 700,
-    stage: "contato-feito",
-    temperature: "warm",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["bar", "noturno"],
-    createdAt: "2026-02-01",
-    updatedAt: "2026-02-06",
-    status: "open",
-    slaDeadline: "2026-02-09T14:00:00",
-  },
-  {
-    id: "5",
-    title: "Pizzaria Napoli",
-    clientName: "Napoli Alimentos Ltda",
-    value: 15000,
-    monthlyValue: 1250,
-    stage: "contato-feito",
-    temperature: "hot",
-    responsibleId: "2",
-    responsibleName: "Joao Santos",
-    tags: ["pizzaria", "delivery"],
-    createdAt: "2026-01-28",
-    updatedAt: "2026-02-05",
-    status: "open",
-    slaDeadline: "2026-02-04T12:00:00",
-  },
-  {
-    id: "6",
-    title: "Hotel Sunset",
-    clientName: "Hotel Sunset S.A.",
-    value: 36000,
-    monthlyValue: 3000,
-    stage: "reuniao-agendada",
-    temperature: "warm",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["hotelaria"],
-    createdAt: "2026-01-20",
-    updatedAt: "2026-02-04",
-    status: "open",
-    expectedCloseDate: "2026-03-15",
-    slaDeadline: "2026-02-10T09:00:00",
-  },
-  {
-    id: "7",
-    title: "Sorveteria Gelato",
-    clientName: "Gelato Artesanal ME",
-    value: 7200,
-    monthlyValue: 600,
-    stage: "reuniao-agendada",
-    temperature: "cold",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["sorvetes"],
-    createdAt: "2026-01-22",
-    updatedAt: "2026-02-03",
-    status: "open",
-    expectedCloseDate: "2026-03-01",
-    slaDeadline: "2026-02-06T15:00:00",
-  },
-  {
-    id: "8",
-    title: "Cafe Central",
-    clientName: "Cafe Central ME",
-    value: 6000,
-    monthlyValue: 500,
-    stage: "proposta-enviada",
-    temperature: "cold",
-    responsibleId: "2",
-    responsibleName: "Joao Santos",
-    tags: ["cafeteria"],
-    createdAt: "2026-01-10",
-    updatedAt: "2026-02-03",
-    status: "open",
-    expectedCloseDate: "2026-02-28",
-    slaDeadline: "2026-02-07T11:00:00",
-  },
-  {
-    id: "9",
-    title: "Hamburgueria Smash",
-    clientName: "Smash Burger Ltda",
-    value: 9600,
-    monthlyValue: 800,
-    stage: "proposta-enviada",
-    temperature: "hot",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["hamburgueria", "premium"],
-    createdAt: "2026-01-18",
-    updatedAt: "2026-02-05",
-    status: "open",
-    expectedCloseDate: "2026-02-20",
-    slaDeadline: "2026-02-09T16:00:00",
-  },
-  {
-    id: "10",
-    title: "Pousada Mar Azul",
-    clientName: "Pousada Mar Azul ME",
-    value: 24000,
-    monthlyValue: 2000,
-    stage: "negociacao",
-    temperature: "hot",
-    responsibleId: "2",
-    responsibleName: "Joao Santos",
-    tags: ["hotelaria"],
-    createdAt: "2026-01-05",
-    updatedAt: "2026-02-06",
-    status: "open",
-    expectedCloseDate: "2026-02-15",
-    slaDeadline: "2026-02-12T10:00:00",
-  },
-  {
-    id: "11",
-    title: "Doceria Sabor & Arte",
-    clientName: "Sabor e Arte Doces Ltda",
-    value: 10800,
-    monthlyValue: 900,
-    stage: "negociacao",
-    temperature: "warm",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["confeitaria"],
-    createdAt: "2026-01-12",
-    updatedAt: "2026-02-05",
-    status: "open",
-    expectedCloseDate: "2026-02-25",
-    slaDeadline: "2026-02-05T08:00:00",
-  },
-  {
-    id: "12",
-    title: "Churrascaria Fogo Bravo",
-    clientName: "Fogo Bravo Ltda",
-    value: 18000,
-    monthlyValue: 1500,
-    stage: "fechamento",
-    temperature: "hot",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["food-service", "churrascaria"],
-    createdAt: "2025-12-20",
-    updatedAt: "2026-02-06",
-    status: "open",
-    expectedCloseDate: "2026-02-10",
-    slaDeadline: "2026-02-08T17:00:00",
-  },
-  {
-    id: "13",
-    title: "Acai da Praia",
-    clientName: "Acai da Praia Franquias S.A.",
-    value: 42000,
-    monthlyValue: 3500,
-    stage: "fechamento",
-    temperature: "hot",
-    responsibleId: "1",
-    responsibleName: "Maria Silva",
-    tags: ["acai", "franquia"],
-    createdAt: "2025-12-10",
-    updatedAt: "2026-02-06",
-    status: "open",
-    expectedCloseDate: "2026-02-08",
-    slaDeadline: "2026-02-07T12:00:00",
-  },
-  {
-    id: "14",
-    title: "Cantina Bella Nonna",
-    clientName: "Bella Nonna Restaurante Ltda",
-    value: 14400,
-    monthlyValue: 1200,
-    stage: "lead-in",
-    temperature: "warm",
-    responsibleId: "2",
-    responsibleName: "Joao Santos",
-    tags: ["italiano", "restaurante"],
-    createdAt: "2026-02-04",
-    updatedAt: "2026-02-06",
-    status: "open",
-    slaDeadline: "2026-02-09T09:00:00",
-  },
-];
+function generateDynamicMockData(): Opportunity[] {
+  const now = new Date();
+  const h = (hours: number) =>
+    new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString();
+  const daysAgo = (days: number) =>
+    new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+  const daysFromNow = (days: number) =>
+    new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
+  return [
+    {
+      id: "1",
+      title: "Restaurante Bela Vista",
+      clientName: "Restaurante Bela Vista Ltda",
+      value: 12000,
+      monthlyValue: 1000,
+      stage: "lead-in",
+      temperature: "hot",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["food-service", "premium"],
+      createdAt: daysAgo(25),
+      updatedAt: daysAgo(1),
+      status: "open",
+      slaDeadline: h(-6), // breached 6h ago
+    },
+    {
+      id: "2",
+      title: "Padaria Pao Quente",
+      clientName: "Padaria Pao Quente ME",
+      value: 4800,
+      monthlyValue: 400,
+      stage: "lead-in",
+      temperature: "warm",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["panificacao"],
+      createdAt: daysAgo(8),
+      updatedAt: daysAgo(2),
+      status: "open",
+      slaDeadline: h(30), // 30h left (ok)
+    },
+    {
+      id: "3",
+      title: "Lanchonete do Carlos",
+      clientName: "Carlos Almeida ME",
+      value: 3600,
+      monthlyValue: 300,
+      stage: "lead-in",
+      temperature: "cold",
+      responsibleId: "3",
+      responsibleName: "Ana Oliveira",
+      tags: ["fast-food"],
+      createdAt: daysAgo(6),
+      updatedAt: daysAgo(5),
+      status: "open",
+      slaDeadline: h(8), // 8h left (near)
+    },
+    {
+      id: "4",
+      title: "Bar do Ze",
+      clientName: "Bar do Ze Ltda",
+      value: 8400,
+      monthlyValue: 700,
+      stage: "contato-feito",
+      temperature: "warm",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["bar", "noturno"],
+      createdAt: daysAgo(8),
+      updatedAt: daysAgo(1),
+      status: "open",
+      slaDeadline: h(52), // ok
+    },
+    {
+      id: "5",
+      title: "Pizzaria Napoli",
+      clientName: "Napoli Alimentos Ltda",
+      value: 15000,
+      monthlyValue: 1250,
+      stage: "contato-feito",
+      temperature: "hot",
+      responsibleId: "2",
+      responsibleName: "Joao Santos",
+      tags: ["pizzaria", "delivery"],
+      createdAt: daysAgo(12),
+      updatedAt: daysAgo(3),
+      status: "open",
+      slaDeadline: h(-24), // breached 24h ago
+    },
+    {
+      id: "6",
+      title: "Hotel Sunset",
+      clientName: "Hotel Sunset S.A.",
+      value: 36000,
+      monthlyValue: 3000,
+      stage: "reuniao-agendada",
+      temperature: "warm",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["hotelaria"],
+      createdAt: daysAgo(20),
+      updatedAt: daysAgo(2),
+      status: "open",
+      expectedCloseDate: daysFromNow(35),
+      slaDeadline: h(96), // ok
+    },
+    {
+      id: "7",
+      title: "Sorveteria Gelato",
+      clientName: "Gelato Artesanal ME",
+      value: 7200,
+      monthlyValue: 600,
+      stage: "reuniao-agendada",
+      temperature: "cold",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["sorvetes"],
+      createdAt: daysAgo(18),
+      updatedAt: daysAgo(10),
+      status: "open",
+      expectedCloseDate: daysFromNow(20),
+      slaDeadline: h(4), // near
+    },
+    {
+      id: "8",
+      title: "Cafe Central",
+      clientName: "Cafe Central ME",
+      value: 6000,
+      monthlyValue: 500,
+      stage: "proposta-enviada",
+      temperature: "cold",
+      responsibleId: "2",
+      responsibleName: "Joao Santos",
+      tags: ["cafeteria"],
+      createdAt: daysAgo(30),
+      updatedAt: daysAgo(7),
+      status: "open",
+      expectedCloseDate: daysFromNow(19),
+      slaDeadline: h(18), // ok
+    },
+    {
+      id: "9",
+      title: "Hamburgueria Smash",
+      clientName: "Smash Burger Ltda",
+      value: 9600,
+      monthlyValue: 800,
+      stage: "proposta-enviada",
+      temperature: "hot",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["hamburgueria", "premium"],
+      createdAt: daysAgo(22),
+      updatedAt: daysAgo(1),
+      status: "open",
+      expectedCloseDate: daysFromNow(11),
+      slaDeadline: h(72), // ok
+    },
+    {
+      id: "10",
+      title: "Pousada Mar Azul",
+      clientName: "Pousada Mar Azul ME",
+      value: 24000,
+      monthlyValue: 2000,
+      stage: "negociacao",
+      temperature: "hot",
+      responsibleId: "2",
+      responsibleName: "Joao Santos",
+      tags: ["hotelaria"],
+      createdAt: daysAgo(35),
+      updatedAt: daysAgo(1),
+      status: "open",
+      expectedCloseDate: daysFromNow(6),
+      slaDeadline: h(120), // ok
+    },
+    {
+      id: "11",
+      title: "Doceria Sabor & Arte",
+      clientName: "Sabor e Arte Doces Ltda",
+      value: 10800,
+      monthlyValue: 900,
+      stage: "negociacao",
+      temperature: "warm",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["confeitaria"],
+      createdAt: daysAgo(28),
+      updatedAt: daysAgo(4),
+      status: "open",
+      expectedCloseDate: daysFromNow(16),
+      slaDeadline: h(-48), // breached 48h ago
+    },
+    {
+      id: "12",
+      title: "Churrascaria Fogo Bravo",
+      clientName: "Fogo Bravo Ltda",
+      value: 18000,
+      monthlyValue: 1500,
+      stage: "fechamento",
+      temperature: "hot",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["food-service", "churrascaria"],
+      createdAt: daysAgo(50),
+      updatedAt: daysAgo(1),
+      status: "open",
+      expectedCloseDate: daysFromNow(2),
+      slaDeadline: h(36), // ok
+    },
+    {
+      id: "13",
+      title: "Acai da Praia",
+      clientName: "Acai da Praia Franquias S.A.",
+      value: 42000,
+      monthlyValue: 3500,
+      stage: "fechamento",
+      temperature: "hot",
+      responsibleId: "1",
+      responsibleName: "Maria Silva",
+      tags: ["acai", "franquia"],
+      createdAt: daysAgo(60),
+      updatedAt: daysAgo(1),
+      status: "open",
+      expectedCloseDate: daysFromNow(1),
+      slaDeadline: h(10), // near
+    },
+    {
+      id: "14",
+      title: "Cantina Bella Nonna",
+      clientName: "Bella Nonna Restaurante Ltda",
+      value: 14400,
+      monthlyValue: 1200,
+      stage: "lead-in",
+      temperature: "warm",
+      responsibleId: "2",
+      responsibleName: "Joao Santos",
+      tags: ["italiano", "restaurante"],
+      createdAt: daysAgo(5),
+      updatedAt: daysAgo(1),
+      status: "open",
+      slaDeadline: h(40), // ok
+    },
+  ];
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Helpers
@@ -414,14 +446,26 @@ type SlaStatus = "ok" | "near" | "breached";
 
 function getSlaStatus(
   slaDeadline?: string
-): { status: SlaStatus; label: string } {
-  if (!slaDeadline) return { status: "ok", label: "" };
+): { status: SlaStatus; label: string; detailLabel: string } {
+  if (!slaDeadline)
+    return { status: "ok", label: "", detailLabel: "SLA não definido" };
   const now = new Date();
   const deadline = new Date(slaDeadline);
   const diffMs = deadline.getTime() - now.getTime();
 
   if (diffMs <= 0) {
-    return { status: "breached", label: "Estourado" };
+    // #11 FIX: Detailed SLA tooltip — show how much overdue
+    const overMs = Math.abs(diffMs);
+    const overHours = Math.floor(overMs / (1000 * 60 * 60));
+    const overDays = Math.floor(overHours / 24);
+    const remainHours = overHours % 24;
+    const overLabel =
+      overDays > 0 ? `${overDays}d ${remainHours}h` : `${overHours}h`;
+    return {
+      status: "breached",
+      label: "Estourado",
+      detailLabel: `SLA estourado há ${overLabel}`,
+    };
   }
 
   const totalHours = diffMs / (1000 * 60 * 60);
@@ -430,10 +474,14 @@ function getSlaStatus(
   const label = days > 0 ? `${days}d ${hours}h` : `${hours}h`;
 
   if (totalHours <= 12) {
-    return { status: "near", label };
+    return {
+      status: "near",
+      label,
+      detailLabel: `SLA vence em ${label} — atenção!`,
+    };
   }
 
-  return { status: "ok", label };
+  return { status: "ok", label, detailLabel: `SLA restante: ${label}` };
 }
 
 function getSlaColors(status: SlaStatus) {
@@ -462,10 +510,16 @@ function getSlaColors(status: SlaStatus) {
 function validateStageTransition(
   opportunity: Opportunity,
   targetStage: PipelineStage
-): string[] {
+): { missing: string[]; isRegression: boolean } {
   const currentIdx = stageOrder.indexOf(opportunity.stage);
   const targetIdx = stageOrder.indexOf(targetStage);
-  if (targetIdx <= currentIdx) return [];
+
+  // #6 FIX: Detect regression (moving backwards)
+  if (targetIdx < currentIdx) {
+    return { missing: [], isRegression: true };
+  }
+
+  if (targetIdx <= currentIdx) return { missing: [], isRegression: false };
 
   const requiredFields = stageRequiredFields[targetStage] || [];
   const missing: string[] = [];
@@ -479,7 +533,119 @@ function validateStageTransition(
     }
   }
 
-  return missing;
+  return { missing, isRegression: false };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Stage Color Palette
+// ═══════════════════════════════════════════════════════════════════
+
+const stageColorPalette = [
+  { id: "default", label: "Padrão", bg: "bg-brand", hex: "#6d28d9" },
+  { id: "blue", label: "Azul", bg: "bg-blue-500", hex: "#3b82f6" },
+  { id: "cyan", label: "Ciano", bg: "bg-cyan-500", hex: "#06b6d4" },
+  { id: "green", label: "Verde", bg: "bg-emerald-500", hex: "#10b981" },
+  { id: "yellow", label: "Amarelo", bg: "bg-amber-400", hex: "#fbbf24" },
+  { id: "orange", label: "Laranja", bg: "bg-orange-500", hex: "#f97316" },
+  { id: "red", label: "Vermelho", bg: "bg-red-500", hex: "#ef4444" },
+  { id: "pink", label: "Rosa", bg: "bg-pink-500", hex: "#ec4899" },
+  { id: "gray", label: "Cinza", bg: "bg-zinc-400", hex: "#a1a1aa" },
+];
+
+interface StageCustomization {
+  label?: string;
+  colorId?: string;
+}
+
+// #19 FIX: LocalStorage key for stage customizations
+const STAGE_CUSTOM_STORAGE_KEY = "flow-stage-customizations";
+
+function loadStageCustomizations(): Record<string, StageCustomization> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(STAGE_CUSTOM_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStageCustomizations(
+  data: Record<string, StageCustomization>
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STAGE_CUSTOM_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Silently ignore quota errors
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Skeleton Loading Component — #5 FIX
+// ═══════════════════════════════════════════════════════════════════
+
+function PipelineSkeleton({ stageCount }: { stageCount: number }) {
+  return (
+    <div className="flex h-[calc(100vh-64px)] flex-col overflow-hidden">
+      {/* Header skeleton */}
+      <div className="shrink-0 space-y-3 pb-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-52" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-[180px] rounded-full" />
+            <Skeleton className="h-9 w-20 rounded-full" />
+            <Skeleton className="h-9 w-16 rounded-full" />
+            <Skeleton className="h-9 w-28 rounded-full" />
+          </div>
+        </div>
+      </div>
+
+      {/* Board skeleton */}
+      <div className="flex flex-1 gap-3 overflow-hidden px-7 pb-2">
+        {Array.from({ length: stageCount }).map((_, i) => (
+          <div
+            key={i}
+            className="flex w-[320px] shrink-0 flex-col rounded-[var(--radius-bento-card)] bg-zinc-50/80 p-3"
+          >
+            {/* Column header skeleton */}
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-2.5 w-2.5 rounded-full" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-6 rounded-md" />
+              </div>
+              <Skeleton className="h-4 w-16" />
+            </div>
+
+            {/* Card skeletons */}
+            {Array.from({ length: 2 - (i % 2) }).map((_, j) => (
+              <div
+                key={j}
+                className="mb-2 rounded-[var(--radius-bento-card)] border border-zinc-200 bg-white p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-4 rounded" />
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-6 w-6 rounded-full" />
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-3 w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -487,21 +653,32 @@ function validateStageTransition(
 // ═══════════════════════════════════════════════════════════════════
 
 export default function PipesPage() {
-  const { openDrawer } = useUIStore();
-  const { opportunities: storeOpportunities, moveToStage } =
-    useOpportunityStore();
+  const { openDrawer, openModal } = useUIStore();
   const [selectedFunnel, setSelectedFunnel] = useState("comercial");
-  const [localOpportunities, setLocalOpportunities] =
-    useState<Opportunity[]>(mockOpportunities);
-  const opportunities =
-    storeOpportunities.length > 0
-      ? storeOpportunities.filter((o) => o.status === "open")
-      : localOpportunities;
+  const [localOpportunities, setLocalOpportunities] = useState<Opportunity[]>(
+    () => generateDynamicMockData()
+  );
+  const opportunities = localOpportunities;
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(
     null
   );
+  const [dropIndicator, setDropIndicator] = useState<{
+    stage: PipelineStage;
+    index: number;
+  } | null>(null);
   const [isManageDrawerOpen, setIsManageDrawerOpen] = useState(false);
+
+  // #19 FIX: Load from localStorage on mount
+  const [stageCustomizations, setStageCustomizations] = useState<
+    Record<string, StageCustomization>
+  >(() => loadStageCustomizations());
+
+  const [renamingStage, setRenamingStage] = useState<PipelineStage | null>(
+    null
+  );
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const [columnError, setColumnError] = useState<{
     stage: PipelineStage;
     message: string;
@@ -509,9 +686,55 @@ export default function PipesPage() {
   const dragCardRef = useRef<Opportunity | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
+  // #8 FIX: Track scroll overflow for conditional arrows
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // #5 FIX: Skeleton loading state
+  const [isLoading, setIsLoading] = useState(true);
+
+  // #9 FIX: Success feedback after moving a card
+  const [successFeedback, setSuccessFeedback] = useState<{
+    stage: PipelineStage;
+    cardTitle: string;
+  } | null>(null);
+
+  // #16 FIX: "Apenas meus cards" filter
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
+
+  // #17 FIX: Quick search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // #13 FIX: Live region for screen readers
+  const liveRegionRef = useRef<HTMLDivElement>(null);
+
   const activeFunnel =
     funnels.find((f) => f.id === selectedFunnel) ?? funnels[0];
-  const activeStageIds = activeFunnel.stages.map((s) => s.id);
+
+  // #4 FIX: Memoize activeStageIds to avoid recreating array every render
+  const activeStageIds = useMemo(
+    () => activeFunnel.stages.map((s) => s.id),
+    [activeFunnel]
+  );
+
+  // #5 FIX: Simulate loading (will be replaced by real data fetching)
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // #19 FIX: Persist stage customizations to localStorage on every change
+  useEffect(() => {
+    saveStageCustomizations(stageCustomizations);
+  }, [stageCustomizations]);
+
+  // #17 FIX: Normalize search query
+  const normalizedSearch = useMemo(
+    () => searchQuery.toLowerCase().trim(),
+    [searchQuery]
+  );
 
   const opportunitiesByStage = useMemo(() => {
     const grouped: Record<PipelineStage, Opportunity[]> = {
@@ -523,28 +746,95 @@ export default function PipesPage() {
       fechamento: [],
     };
     for (const opp of opportunities) {
-      if (activeStageIds.includes(opp.stage)) {
-        grouped[opp.stage].push(opp);
+      if (!activeStageIds.includes(opp.stage)) continue;
+
+      // #16 FIX: Filter own cards only
+      if (showOnlyMine && opp.responsibleId !== currentUserId) continue;
+
+      // #17 FIX: Search filter
+      if (
+        normalizedSearch &&
+        !opp.title.toLowerCase().includes(normalizedSearch) &&
+        !opp.clientName.toLowerCase().includes(normalizedSearch) &&
+        !opp.tags.some((t) => t.toLowerCase().includes(normalizedSearch))
+      ) {
+        continue;
       }
+
+      grouped[opp.stage].push(opp);
+    }
+    // Sort: own cards first, ghost cards (other sellers) below
+    for (const stage of Object.keys(grouped) as PipelineStage[]) {
+      grouped[stage].sort((a, b) => {
+        const aOwn = a.responsibleId === currentUserId ? 0 : 1;
+        const bOwn = b.responsibleId === currentUserId ? 0 : 1;
+        return aOwn - bOwn;
+      });
     }
     return grouped;
+  }, [opportunities, activeStageIds, showOnlyMine, normalizedSearch]);
+
+  // #7 FIX: Separate counts for own vs total
+  const { myCount, myTotal, boardCount, boardTotal } = useMemo(() => {
+    const active = opportunities.filter((o) =>
+      activeStageIds.includes(o.stage)
+    );
+    const mine = active.filter((o) => o.responsibleId === currentUserId);
+    return {
+      myCount: mine.length,
+      myTotal: mine.reduce((acc, o) => acc + o.value, 0),
+      boardCount: active.length,
+      boardTotal: active.reduce((acc, o) => acc + o.value, 0),
+    };
   }, [opportunities, activeStageIds]);
 
-  const boardTotal = useMemo(
-    () =>
-      opportunities
-        .filter((o) => activeStageIds.includes(o.stage))
-        .reduce((acc, o) => acc + o.value, 0),
-    [opportunities, activeStageIds]
+  // #15 FIX: Compute dynamic temperatures
+  const averageDealValue = useMemo(() => {
+    const active = opportunities.filter((o) =>
+      activeStageIds.includes(o.stage)
+    );
+    if (active.length === 0) return 10000;
+    return active.reduce((acc, o) => acc + o.value, 0) / active.length;
+  }, [opportunities, activeStageIds]);
+
+  const getTemp = useCallback(
+    (opp: Opportunity) => {
+      const computed = calculateTemperature(opp, averageDealValue);
+      return temperatureConfig[computed];
+    },
+    [averageDealValue]
   );
-  const boardCount = useMemo(
-    () =>
-      opportunities.filter((o) => activeStageIds.includes(o.stage)).length,
-    [opportunities, activeStageIds]
-  );
+
+  // #8 FIX: Update scroll arrow visibility
+  const updateScrollState = useCallback(() => {
+    if (!boardRef.current) return;
+    const el = boardRef.current;
+    setCanScrollLeft(el.scrollLeft > 5);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 5);
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+    const el = boardRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateScrollState, { passive: true });
+    window.addEventListener("resize", updateScrollState);
+    return () => {
+      el.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
+    };
+  }, [updateScrollState, activeStageIds]);
+
+  // #13 FIX: Announce to screen readers
+  const announce = useCallback((message: string) => {
+    if (liveRegionRef.current) {
+      liveRegionRef.current.textContent = message;
+    }
+  }, []);
 
   // ── Drag handlers ──────────────────────────────────────────────
 
+  // #1 FIX: Add grabbing cursor to body during drag
   const handleDragStart = useCallback(
     (e: React.DragEvent, opportunity: Opportunity) => {
       if (opportunity.responsibleId !== currentUserId) {
@@ -555,8 +845,13 @@ export default function PipesPage() {
       dragCardRef.current = opportunity;
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", opportunity.id);
+      document.body.style.cursor = "grabbing";
+      // #13 FIX: Announce drag start
+      announce(
+        `Arrastando card ${opportunity.title}. Solte em uma etapa para mover.`
+      );
     },
-    []
+    [announce]
   );
 
   const handleDragOver = useCallback(
@@ -564,19 +859,40 @@ export default function PipesPage() {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       setDragOverStage(stage);
+
+      const column = e.currentTarget as HTMLElement;
+      const cardElements = column.querySelectorAll("[data-card-index]");
+      let insertIndex = cardElements.length;
+
+      for (let i = 0; i < cardElements.length; i++) {
+        const rect = cardElements[i].getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+          insertIndex = i;
+          break;
+        }
+      }
+
+      setDropIndicator({ stage, index: insertIndex });
     },
     []
   );
 
-  const handleDragLeave = useCallback(() => {
-    setDragOverStage(null);
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    const related = e.relatedTarget as Node | null;
+    if (!e.currentTarget.contains(related)) {
+      setDragOverStage(null);
+      setDropIndicator(null);
+    }
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, targetStage: PipelineStage) => {
       e.preventDefault();
       setDragOverStage(null);
+      setDropIndicator(null);
       setColumnError(null);
+      document.body.style.cursor = "";
 
       const card = dragCardRef.current;
       if (!card) return;
@@ -587,16 +903,39 @@ export default function PipesPage() {
         return;
       }
 
-      const missingFields = validateStageTransition(card, targetStage);
-      if (missingFields.length > 0) {
+      // #6 FIX: Check for regression and show warning
+      const { missing, isRegression } = validateStageTransition(
+        card,
+        targetStage
+      );
+
+      if (missing.length > 0) {
         setColumnError({
           stage: targetStage,
-          message: `Preencha: ${missingFields.join(", ")}`,
+          message: `Preencha: ${missing.join(", ")}`,
         });
         setDraggingCardId(null);
         dragCardRef.current = null;
+        announce(`Erro: campos obrigatórios faltando — ${missing.join(", ")}`);
         setTimeout(() => setColumnError(null), 5000);
         return;
+      }
+
+      if (isRegression) {
+        const fromLabel =
+          stageOrder[stageOrder.indexOf(card.stage)]
+            ?.replace(/-/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase()) || card.stage;
+        const toLabel =
+          stageOrder[stageOrder.indexOf(targetStage)]
+            ?.replace(/-/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase()) || targetStage;
+        setColumnError({
+          stage: targetStage,
+          message: `Card retrocedido de ${fromLabel} para ${toLabel}`,
+        });
+        announce(`Aviso: card retrocedido de ${fromLabel} para ${toLabel}`);
+        setTimeout(() => setColumnError(null), 4000);
       }
 
       const targetStageDef = activeFunnel.stages.find(
@@ -606,44 +945,125 @@ export default function PipesPage() {
         ? calculateSlaDeadline(targetStageDef.slaHours)
         : undefined;
 
-      const slaHours = targetStageDef?.slaHours;
-      if (storeOpportunities.length > 0) {
-        moveToStage(card.id, targetStage, slaHours);
-      } else {
-        setLocalOpportunities((prev) =>
-          prev.map((o) =>
-            o.id === card.id
-              ? {
-                  ...o,
-                  stage: targetStage,
-                  updatedAt: new Date().toISOString(),
-                  slaDeadline: newSlaDeadline,
-                }
-              : o
-          )
+      setLocalOpportunities((prev) =>
+        prev.map((o) =>
+          o.id === card.id
+            ? {
+                ...o,
+                stage: targetStage,
+                updatedAt: new Date().toISOString(),
+                slaDeadline: newSlaDeadline,
+              }
+            : o
+        )
+      );
+
+      // #9 FIX: Show success feedback
+      if (!isRegression) {
+        setSuccessFeedback({ stage: targetStage, cardTitle: card.title });
+        announce(
+          `Card ${card.title} movido com sucesso para ${targetStage.replace(/-/g, " ")}`
         );
+        setTimeout(() => setSuccessFeedback(null), 2500);
       }
 
       setDraggingCardId(null);
       dragCardRef.current = null;
     },
-    [activeFunnel, moveToStage, storeOpportunities.length]
+    [activeFunnel, announce]
   );
 
   const handleDragEnd = useCallback(() => {
     setDraggingCardId(null);
     setDragOverStage(null);
+    setDropIndicator(null);
     dragCardRef.current = null;
+    document.body.style.cursor = "";
   }, []);
 
-  const handleReorder = useCallback(
-    (stage: PipelineStage, newOrder: Opportunity[]) => {
-      setLocalOpportunities((prev) => {
-        const otherCards = prev.filter((o) => o.stage !== stage);
-        return [...otherCards, ...newOrder];
-      });
+  // ── #18 FIX: Win / Lose handlers ──────────────────────────────
+  const handleWinOpportunity = useCallback(
+    (opportunityId: string) => {
+      setLocalOpportunities((prev) =>
+        prev.map((o) =>
+          o.id === opportunityId
+            ? { ...o, status: "won" as const, updatedAt: new Date().toISOString() }
+            : o
+        )
+      );
+      const opp = opportunities.find((o) => o.id === opportunityId);
+      if (opp) {
+        setSuccessFeedback({
+          stage: opp.stage,
+          cardTitle: `${opp.title} — Ganho!`,
+        });
+        announce(`Oportunidade ${opp.title} marcada como ganha!`);
+        setTimeout(() => setSuccessFeedback(null), 3000);
+      }
+    },
+    [opportunities, announce]
+  );
+
+  const handleLoseOpportunity = useCallback(
+    (opportunityId: string) => {
+      setLocalOpportunities((prev) =>
+        prev.map((o) =>
+          o.id === opportunityId
+            ? { ...o, status: "lost" as const, updatedAt: new Date().toISOString() }
+            : o
+        )
+      );
+      const opp = opportunities.find((o) => o.id === opportunityId);
+      if (opp) {
+        announce(`Oportunidade ${opp.title} marcada como perdida.`);
+      }
+    },
+    [opportunities, announce]
+  );
+
+  // ── Stage customization ──────────────────────────────────────────
+
+  const startRename = useCallback(
+    (stageId: PipelineStage, currentLabel: string) => {
+      setRenamingStage(stageId);
+      setRenameValue(currentLabel);
+      setTimeout(() => renameInputRef.current?.focus(), 50);
     },
     []
+  );
+
+  const confirmRename = useCallback(() => {
+    if (renamingStage && renameValue.trim()) {
+      setStageCustomizations((prev) => ({
+        ...prev,
+        [renamingStage]: {
+          ...prev[renamingStage],
+          label: renameValue.trim(),
+        },
+      }));
+    }
+    setRenamingStage(null);
+    setRenameValue("");
+  }, [renamingStage, renameValue]);
+
+  const setStageColor = useCallback(
+    (stageId: PipelineStage, colorId: string) => {
+      setStageCustomizations((prev) => ({
+        ...prev,
+        [stageId]: { ...prev[stageId], colorId },
+      }));
+    },
+    []
+  );
+
+  const getStageColor = useCallback(
+    (stageId: PipelineStage) => {
+      const colorId = stageCustomizations[stageId]?.colorId || "default";
+      return (
+        stageColorPalette.find((c) => c.id === colorId) ?? stageColorPalette[0]
+      );
+    },
+    [stageCustomizations]
   );
 
   // ── Board scroll ───────────────────────────────────────────────
@@ -657,12 +1077,47 @@ export default function PipesPage() {
     });
   }, []);
 
+  // #17 FIX: Toggle search with Ctrl+K / Cmd+K
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsSearchOpen((prev) => {
+          if (!prev) {
+            setTimeout(() => searchInputRef.current?.focus(), 50);
+          }
+          return !prev;
+        });
+      }
+      if (e.key === "Escape" && isSearchOpen) {
+        setIsSearchOpen(false);
+        setSearchQuery("");
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSearchOpen]);
+
   // ═════════════════════════════════════════════════════════════════
   // Render
   // ═════════════════════════════════════════════════════════════════
 
+  // #5 FIX: Show skeleton while loading
+  if (isLoading) {
+    return <PipelineSkeleton stageCount={activeFunnel.stages.length} />;
+  }
+
   return (
     <TooltipProvider>
+      {/* #13 FIX: Live region for screen reader announcements */}
+      <div
+        ref={liveRegionRef}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      />
+
       <div className="flex h-[calc(100vh-64px)] flex-col overflow-hidden">
         {/* ── Header & Toolbar ─────────────────────────────────── */}
         <div className="shrink-0 space-y-3 pb-4">
@@ -671,12 +1126,78 @@ export default function PipesPage() {
               <h1 className="font-heading text-2xl font-bold text-black">
                 Pipeline de Vendas
               </h1>
+              {/* #7 FIX: Show own vs total counts */}
               <p className="mt-0.5 font-body text-sm text-zinc-500">
-                {boardCount} oportunidades · {formatCurrency(boardTotal)}
+                {myCount} meus · {formatCurrency(myTotal)}
+                <span className="mx-1.5 text-zinc-300">|</span>
+                {boardCount} total · {formatCurrency(boardTotal)}
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* #17 FIX: Search toggle + inline input */}
+              {isSearchOpen && (
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                  <Input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar cards..."
+                    className="h-9 w-[200px] rounded-full pl-8 pr-8 font-body text-sm"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isSearchOpen ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setIsSearchOpen((prev) => !prev);
+                      if (!isSearchOpen) {
+                        setTimeout(() => searchInputRef.current?.focus(), 50);
+                      } else {
+                        setSearchQuery("");
+                      }
+                    }}
+                    className={`h-9 rounded-full font-heading text-sm ${isSearchOpen ? "bg-black text-white hover:bg-zinc-800" : ""}`}
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Buscar (⌘K)</TooltipContent>
+              </Tooltip>
+
+              {/* #16 FIX: "Apenas meus" toggle */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={showOnlyMine ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowOnlyMine((prev) => !prev)}
+                    className={`h-9 rounded-full font-heading text-sm ${showOnlyMine ? "bg-black text-white hover:bg-zinc-800" : ""}`}
+                  >
+                    <User className="mr-1.5 h-3.5 w-3.5" />
+                    Meus
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {showOnlyMine
+                    ? "Mostrando apenas meus cards"
+                    : "Mostrar apenas meus cards"}
+                </TooltipContent>
+              </Tooltip>
+
               <Select
                 value={selectedFunnel}
                 onValueChange={setSelectedFunnel}
@@ -703,6 +1224,7 @@ export default function PipesPage() {
                 Filtros
               </Button>
 
+              {/* #14 FIX: More options in dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -716,13 +1238,22 @@ export default function PipesPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="rounded-[var(--radius-bento-card)]"
+                  className="w-52 rounded-[var(--radius-bento-card)]"
                 >
                   <DropdownMenuItem
                     onClick={() => setIsManageDrawerOpen(true)}
                   >
                     <Settings2 className="mr-2 h-4 w-4" />
                     Gerenciar Funis
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled>
+                    <ListOrdered className="mr-2 h-4 w-4" />
+                    Ordenar por valor
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled>
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar pipeline
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -740,22 +1271,31 @@ export default function PipesPage() {
         </div>
 
         {/* ── Board ────────────────────────────────────────────── */}
-        <div className="relative flex min-h-0 flex-1 items-stretch">
-          {/* Scroll arrows */}
-          <button
-            onClick={() => scrollBoard("left")}
-            className="absolute left-0 top-1/2 z-20 -translate-y-1/2 rounded-full border border-zinc-200 bg-white p-1.5 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            aria-label="Rolar colunas para a esquerda"
-          >
-            <ChevronLeft className="h-4 w-4 text-zinc-500" />
-          </button>
-          <button
-            onClick={() => scrollBoard("right")}
-            className="absolute right-0 top-1/2 z-20 -translate-y-1/2 rounded-full border border-zinc-200 bg-white p-1.5 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            aria-label="Rolar colunas para a direita"
-          >
-            <ChevronRight className="h-4 w-4 text-zinc-500" />
-          </button>
+        <div
+          className="relative flex min-h-0 flex-1 items-stretch"
+          // #13 FIX: Accessible role for the board
+          role="region"
+          aria-label="Pipeline de vendas — arraste os cards entre as etapas"
+        >
+          {/* #8 FIX: Conditional scroll arrows */}
+          {canScrollLeft && (
+            <button
+              onClick={() => scrollBoard("left")}
+              className="absolute left-0 top-1/2 z-20 -translate-y-1/2 rounded-full border border-zinc-200 bg-white p-1.5 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              aria-label="Rolar colunas para a esquerda"
+            >
+              <ChevronLeft className="h-4 w-4 text-zinc-500" />
+            </button>
+          )}
+          {canScrollRight && (
+            <button
+              onClick={() => scrollBoard("right")}
+              className="absolute right-0 top-1/2 z-20 -translate-y-1/2 rounded-full border border-zinc-200 bg-white p-1.5 shadow-sm transition-colors hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              aria-label="Rolar colunas para a direita"
+            >
+              <ChevronRight className="h-4 w-4 text-zinc-500" />
+            </button>
+          )}
 
           {/* Board scroll container */}
           <div
@@ -771,18 +1311,16 @@ export default function PipesPage() {
                 columnError?.stage === stageDef.id
                   ? columnError.message
                   : null;
+              // #6 FIX: Check if error is a regression warning
+              const isRegressionWarning = error?.startsWith("Card retrocedido");
 
-              const worstSla = cards.reduce<SlaStatus>((worst, card) => {
-                const { status } = getSlaStatus(card.slaDeadline);
-                if (status === "breached") return "breached";
-                if (status === "near" && worst !== "breached") return "near";
-                return worst;
-              }, "ok");
+              // #9 FIX: Check if this stage has success feedback
+              const hasSuccess = successFeedback?.stage === stageDef.id;
 
               return (
                 <div
                   key={stageDef.id}
-                  className={`flex w-[85vw] shrink-0 flex-col rounded-[var(--radius-bento-card)] border transition-all duration-150 sm:w-[320px] xl:w-[340px] ${
+                  className={`group/col flex w-[85vw] shrink-0 flex-col rounded-[var(--radius-bento-card)] border transition-all duration-150 sm:w-[320px] xl:w-[340px] ${
                     isDropTarget
                       ? "border-brand bg-brand/5 ring-2 ring-brand/30"
                       : "border-transparent bg-zinc-50/80"
@@ -791,17 +1329,41 @@ export default function PipesPage() {
                   onDragOver={(e) => handleDragOver(e, stageDef.id)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, stageDef.id)}
+                  // #13 FIX: Accessible column role
+                  role="group"
+                  aria-label={`Etapa: ${stageCustomizations[stageDef.id]?.label || stageDef.label}, ${cards.length} cards, ${formatCurrency(totalValue)}`}
                 >
                   {/* ── Column Header (sticky) ───────────────── */}
                   <div className="sticky top-0 z-10 rounded-t-[var(--radius-bento-card)] bg-inherit px-3 py-3">
                     <div className="flex items-center justify-between">
                       <div className="flex min-w-0 items-center gap-2">
                         <span
-                          className={`inline-block h-2 w-2 shrink-0 rounded-full ${getSlaColors(worstSla).dot}`}
+                          className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${getStageColor(stageDef.id).bg}`}
                         />
-                        <span className="truncate font-heading text-[13px] font-semibold text-black">
-                          {stageDef.label}
-                        </span>
+
+                        {renamingStage === stageDef.id ? (
+                          <input
+                            ref={renameInputRef}
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onBlur={confirmRename}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") confirmRename();
+                              if (e.key === "Escape") {
+                                setRenamingStage(null);
+                                setRenameValue("");
+                              }
+                            }}
+                            className="min-w-0 flex-1 truncate rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 font-heading text-[13px] font-semibold text-black outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                            aria-label="Renomear etapa"
+                          />
+                        ) : (
+                          <span className="truncate font-heading text-[13px] font-semibold text-black">
+                            {stageCustomizations[stageDef.id]?.label ||
+                              stageDef.label}
+                          </span>
+                        )}
+
                         <span className="shrink-0 rounded-md bg-zinc-200/70 px-1.5 py-0.5 font-body text-[11px] font-medium text-zinc-600">
                           {cards.length}
                         </span>
@@ -810,33 +1372,113 @@ export default function PipesPage() {
                         <span className="font-body text-[11px] font-medium text-zinc-400">
                           {formatCurrency(totalValue)}
                         </span>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+
+                        {/* Stage settings dropdown */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <button
+                              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-all hover:bg-zinc-200/60 hover:text-zinc-600 group-hover/col:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                              aria-label={`Configurar etapa ${stageDef.label}`}
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-48 rounded-[var(--radius-bento-card)]"
+                          >
+                            <DropdownMenuItem
                               onClick={() =>
                                 openDrawer("new-opportunity", {
                                   initialStage: stageDef.id,
                                 })
                               }
-                              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                              aria-label={`Adicionar oportunidade em ${stageDef.label}`}
                             >
-                              <Plus className="h-3.5 w-3.5" />
-                            </button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Adicionar oportunidade
-                          </TooltipContent>
-                        </Tooltip>
+                              <Plus className="mr-2 h-3.5 w-3.5" />
+                              Novo card
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() =>
+                                startRename(
+                                  stageDef.id,
+                                  stageCustomizations[stageDef.id]?.label ||
+                                    stageDef.label
+                                )
+                              }
+                            >
+                              <Pencil className="mr-2 h-3.5 w-3.5" />
+                              Renomear
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <div className="px-2 py-1.5">
+                              <span className="flex items-center gap-1.5 font-body text-[11px] font-medium text-zinc-500">
+                                <Palette className="h-3 w-3" />
+                                Cor da etapa
+                              </span>
+                              <div className="mt-1.5 grid grid-cols-5 gap-1.5">
+                                {stageColorPalette.map((color) => {
+                                  const isActive =
+                                    (stageCustomizations[stageDef.id]
+                                      ?.colorId || "default") === color.id;
+                                  return (
+                                    <button
+                                      key={color.id}
+                                      onClick={() =>
+                                        setStageColor(stageDef.id, color.id)
+                                      }
+                                      className={`flex h-6 w-6 items-center justify-center rounded-full transition-all ${color.bg} ${
+                                        isActive
+                                          ? "ring-2 ring-zinc-900 ring-offset-2"
+                                          : "hover:ring-2 hover:ring-zinc-300 hover:ring-offset-1"
+                                      }`}
+                                      title={color.label}
+                                      aria-label={color.label}
+                                    >
+                                      {isActive && (
+                                        <Check className="h-3 w-3 text-white" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
                       </div>
                     </div>
 
-                    {/* Inline error feedback */}
+                    {/* Inline error / regression feedback */}
                     {error && (
-                      <div className="mt-2 flex items-start gap-1.5 rounded-[var(--radius-bento-inner)] bg-[var(--feedback-error-bg)] px-2.5 py-2 text-[var(--feedback-error-text)]">
-                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                      <div
+                        className={`mt-2 flex items-start gap-1.5 rounded-[var(--radius-bento-inner)] px-2.5 py-2 ${
+                          isRegressionWarning
+                            ? "bg-[var(--feedback-warning-bg)] text-[var(--feedback-warning-text)]"
+                            : "bg-[var(--feedback-error-bg)] text-[var(--feedback-error-text)]"
+                        }`}
+                        role="alert"
+                      >
+                        {isRegressionWarning ? (
+                          <ArrowDownToLine className="mt-0.5 h-3 w-3 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                        )}
                         <span className="font-body text-[11px] leading-tight">
                           {error}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* #9 FIX: Success feedback after moving card */}
+                    {hasSuccess && (
+                      <div
+                        className="mt-2 flex items-start gap-1.5 rounded-[var(--radius-bento-inner)] bg-[var(--feedback-success-bg)] px-2.5 py-2 text-[var(--feedback-success-text)]"
+                        role="status"
+                      >
+                        <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span className="font-body text-[11px] leading-tight">
+                          {successFeedback.cardTitle} movido com sucesso
                         </span>
                       </div>
                     )}
@@ -844,68 +1486,137 @@ export default function PipesPage() {
 
                   {/* ── Column Cards ──────────────────────────── */}
                   <div className="flex-1 overflow-y-auto px-3 pb-3">
-                    {cards.length > 0 ? (
-                      <Reorder.Group
-                        axis="y"
-                        values={cards}
-                        onReorder={(newOrder) =>
-                          handleReorder(stageDef.id, newOrder)
-                        }
-                        className="space-y-2"
-                      >
-                        {cards.map((opportunity) => {
-                          const isGhost =
-                            opportunity.responsibleId !== currentUserId;
+                    {cards.length > 0 || isDropTarget ? (
+                      <div className="space-y-2">
+                        {(() => {
+                          const showPlaceholder =
+                            draggingCardId &&
+                            dropIndicator?.stage === stageDef.id &&
+                            dragCardRef.current?.stage !== stageDef.id;
 
-                          if (isGhost) {
-                            return (
-                              <Reorder.Item
-                                key={opportunity.id}
-                                value={opportunity}
-                                dragListener={false}
-                              >
-                                <GhostDealCard opportunity={opportunity} />
-                              </Reorder.Item>
+                          const elements: React.ReactNode[] = [];
+
+                          if (
+                            showPlaceholder &&
+                            dropIndicator.index === 0
+                          ) {
+                            elements.push(
+                              <div
+                                key="drop-placeholder"
+                                className="rounded-[var(--radius-bento-card)] border-2 border-dashed border-brand/40 bg-brand/5 transition-all duration-200"
+                                style={{ height: 72 }}
+                              />
                             );
                           }
 
-                          return (
-                            <Reorder.Item
-                              key={opportunity.id}
-                              value={opportunity}
-                              className={
-                                draggingCardId === opportunity.id
-                                  ? "scale-[0.97] opacity-40"
-                                  : ""
-                              }
-                            >
-                              <DealCardBento
-                                opportunity={opportunity}
-                                onOpen={() =>
-                                  openDrawer("lead-card", {
-                                    id: opportunity.id,
-                                  })
-                                }
-                                onDragStart={(e) =>
-                                  handleDragStart(e, opportunity)
-                                }
-                                onDragEnd={handleDragEnd}
+                          cards.forEach((opportunity, idx) => {
+                            const isGhost =
+                              opportunity.responsibleId !== currentUserId;
+
+                            if (isGhost) {
+                              elements.push(
+                                <GhostDealCard
+                                  key={opportunity.id}
+                                  opportunity={opportunity}
+                                />
+                              );
+                            } else {
+                              elements.push(
+                                <div
+                                  key={opportunity.id}
+                                  data-card-index={idx}
+                                  className={`transition-transform duration-200 ${
+                                    draggingCardId === opportunity.id
+                                      ? "scale-[0.97] opacity-40"
+                                      : ""
+                                  }`}
+                                >
+                                  <DealCardBento
+                                    opportunity={opportunity}
+                                    temp={getTemp(opportunity)}
+                                    onOpen={() =>
+                                      openDrawer("lead-card", {
+                                        id: opportunity.id,
+                                      })
+                                    }
+                                    onDragStart={(e) =>
+                                      handleDragStart(e, opportunity)
+                                    }
+                                    onDragEnd={handleDragEnd}
+                                    onWin={() =>
+                                      handleWinOpportunity(opportunity.id)
+                                    }
+                                    onLose={() =>
+                                      handleLoseOpportunity(opportunity.id)
+                                    }
+                                  />
+                                </div>
+                              );
+                            }
+
+                            if (
+                              showPlaceholder &&
+                              dropIndicator.index === idx + 1
+                            ) {
+                              elements.push(
+                                <div
+                                  key="drop-placeholder"
+                                  className="rounded-[var(--radius-bento-card)] border-2 border-dashed border-brand/40 bg-brand/5 transition-all duration-200"
+                                  style={{ height: 72 }}
+                                />
+                              );
+                            }
+                          });
+
+                          if (
+                            showPlaceholder &&
+                            dropIndicator.index >= cards.length &&
+                            !elements.some(
+                              (el) =>
+                                el !== null &&
+                                typeof el === "object" &&
+                                "key" in el &&
+                                el.key === "drop-placeholder"
+                            )
+                          ) {
+                            elements.push(
+                              <div
+                                key="drop-placeholder"
+                                className="rounded-[var(--radius-bento-card)] border-2 border-dashed border-brand/40 bg-brand/5 transition-all duration-200"
+                                style={{ height: 72 }}
                               />
-                            </Reorder.Item>
-                          );
-                        })}
-                      </Reorder.Group>
+                            );
+                          }
+
+                          if (cards.length === 0 && isDropTarget) {
+                            elements.push(
+                              <div
+                                key="drop-placeholder-empty"
+                                className="rounded-[var(--radius-bento-card)] border-2 border-dashed border-brand/40 bg-brand/5 transition-all duration-200"
+                                style={{ height: 72 }}
+                              />
+                            );
+                          }
+
+                          return elements;
+                        })()}
+                      </div>
                     ) : (
-                      <div
-                        className={`flex h-24 items-center justify-center rounded-[var(--radius-bento-inner)] border-2 border-dashed transition-colors ${
-                          isDropTarget
-                            ? "border-brand bg-brand/5"
-                            : "border-zinc-200"
-                        }`}
-                      >
+                      // #10 FIX: Better empty state
+                      <div className="flex h-24 flex-col items-center justify-center gap-1 rounded-[var(--radius-bento-inner)] border-2 border-dashed border-zinc-200 transition-colors">
                         <p className="font-body text-xs text-zinc-400">
-                          Arraste cards aqui
+                          Nenhum card nesta etapa
                         </p>
+                        <button
+                          onClick={() =>
+                            openDrawer("new-opportunity", {
+                              initialStage: stageDef.id,
+                            })
+                          }
+                          className="font-body text-[11px] font-medium text-brand hover:underline"
+                        >
+                          + Criar novo
+                        </button>
                       </div>
                     )}
                   </div>
@@ -930,28 +1641,35 @@ export default function PipesPage() {
 // ═══════════════════════════════════════════════════════════════════
 //
 // Slots fixos:
-//   1. Header row:  drag handle + temperature + title (ellipsis) + menu "…"
+//   1. Header row:  title (ellipsis) + menu "…"
 //   2. Sub row:     client name (ellipsis) + owner avatar chip
 //   3. Meta row:    value (currency) + SLA countdown
 //   4. Tags row:    max 2 tags + "+N" chip (conditional)
+//   5. Temperature: bottom-right indicator
 //
 // Estados: default, hover, focus-visible, dragging (ghost via parent)
 
 function DealCardBento({
   opportunity,
+  temp,
   onOpen,
   onDragStart,
   onDragEnd,
+  onWin,
+  onLose,
 }: {
   opportunity: Opportunity;
+  temp: { icon: React.ReactNode; label: string; colorClass: string };
   onOpen: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
+  onWin: () => void;
+  onLose: () => void;
 }) {
-  const { openModal, openDrawer } = useUIStore();
+  // #3 FIX: Use openDrawer but stop propagation in the content
+  const { openDrawer } = useUIStore();
   const sla = getSlaStatus(opportunity.slaDeadline);
   const slaColors = getSlaColors(sla.status);
-  const temp = temperatureConfig[opportunity.temperature];
 
   return (
     <div
@@ -961,8 +1679,10 @@ function DealCardBento({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       tabIndex={0}
+      // #13 FIX: Better aria labels
       role="button"
-      aria-label={`Oportunidade: ${opportunity.title}, ${formatCurrency(opportunity.value)}`}
+      aria-roledescription="card arrastável"
+      aria-label={`${opportunity.title}, ${formatCurrency(opportunity.value)}, ${temp.label}`}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -972,26 +1692,17 @@ function DealCardBento({
     >
       {/* ── 1. Header row ──────────────────────────────────── */}
       <div className="flex items-center gap-1.5">
-        <GripVertical className="h-3.5 w-3.5 shrink-0 cursor-grab text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing" />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className={`shrink-0 ${temp.colorClass}`}>
-              {temp.icon}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{temp.label}</TooltipContent>
-        </Tooltip>
-
         <span className="min-w-0 flex-1 truncate font-heading text-[13px] font-semibold text-black">
           {opportunity.title}
         </span>
 
+        {/* #3 FIX: DropdownMenu with onCloseAutoFocus to prevent card click */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-opacity hover:bg-zinc-100 hover:text-zinc-600 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
               aria-label="Ações da oportunidade"
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
@@ -1000,6 +1711,8 @@ function DealCardBento({
           <DropdownMenuContent
             align="end"
             className="rounded-[var(--radius-bento-card)]"
+            onClick={(e) => e.stopPropagation()}
+            onCloseAutoFocus={(e) => e.preventDefault()}
           >
             <DropdownMenuItem
               onClick={(e) => {
@@ -1020,13 +1733,12 @@ function DealCardBento({
               Nova atividade
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {/* #18 FIX: Win/Lose directly update localOpportunities */}
             <DropdownMenuItem
               className="text-status-success"
               onClick={(e) => {
                 e.stopPropagation();
-                openModal("win-opportunity", {
-                  opportunityId: opportunity.id,
-                });
+                onWin();
               }}
             >
               Marcar como Ganho
@@ -1035,9 +1747,7 @@ function DealCardBento({
               className="text-status-danger"
               onClick={(e) => {
                 e.stopPropagation();
-                openModal("lose-opportunity", {
-                  opportunityId: opportunity.id,
-                });
+                onLose();
               }}
             >
               Marcar como Perdido
@@ -1051,9 +1761,10 @@ function DealCardBento({
         <span className="min-w-0 flex-1 truncate font-body text-[12px] text-zinc-500">
           {opportunity.clientName}
         </span>
+        {/* #12 FIX: Bigger avatar 24x24 */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-800 font-heading text-[9px] font-semibold text-white">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 font-heading text-[10px] font-semibold text-white">
               {getInitials(opportunity.responsibleName)}
             </span>
           </TooltipTrigger>
@@ -1069,6 +1780,7 @@ function DealCardBento({
             : "Sem valor"}
         </span>
 
+        {/* #11 FIX: Tooltip com breakdown detalhado do SLA */}
         {sla.label && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -1083,7 +1795,7 @@ function DealCardBento({
                 {sla.label}
               </span>
             </TooltipTrigger>
-            <TooltipContent>Tempo na etapa</TooltipContent>
+            <TooltipContent>{sla.detailLabel}</TooltipContent>
           </Tooltip>
         )}
       </div>
@@ -1117,6 +1829,18 @@ function DealCardBento({
           )}
         </div>
       )}
+
+      {/* ── Temperature indicator (bottom-right) ─────────── */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={`absolute bottom-2.5 right-2.5 ${temp.colorClass}`}
+          >
+            {temp.icon}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{temp.label}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }
@@ -1129,7 +1853,12 @@ function GhostDealCard({ opportunity }: { opportunity: Opportunity }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="flex cursor-default select-none items-center gap-2.5 rounded-[var(--radius-bento-card)] border border-zinc-100 bg-zinc-50 p-2.5 opacity-60">
+        <div
+          className="flex cursor-default select-none items-center gap-2.5 rounded-[var(--radius-bento-card)] border border-zinc-100 bg-zinc-50 p-2.5 opacity-60"
+          // #13 FIX: Accessible role
+          role="listitem"
+          aria-label={`Card de ${opportunity.responsibleName}: ${opportunity.clientName}`}
+        >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200">
             <Lock className="h-3 w-3 text-zinc-400" />
           </div>
