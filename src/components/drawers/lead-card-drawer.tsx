@@ -34,6 +34,9 @@ import {
   ChevronDown,
   Activity,
   Filter,
+  Instagram,
+  ExternalLink,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,25 +111,31 @@ function trackEvent(
 
 const temperatureConfig: Record<
   Temperature,
-  { label: string; icon: React.ReactNode; color: string; bg: string }
+  { label: string; icon: React.ReactNode; color: string; bg: string; border: string; chipClass: string }
 > = {
   hot: {
     label: "Quente",
-    icon: <Flame className="h-4 w-4" />,
+    icon: <Flame className="h-3.5 w-3.5" />,
     color: "text-status-danger",
     bg: "bg-status-danger-light",
+    border: "border-status-danger/15",
+    chipClass: "bg-red-50 text-red-600 border-red-200/40 hover:bg-red-100/60",
   },
   warm: {
     label: "Morna",
-    icon: <Thermometer className="h-4 w-4" />,
+    icon: <Thermometer className="h-3.5 w-3.5" />,
     color: "text-status-warning",
     bg: "bg-status-warning-light",
+    border: "border-status-warning/15",
+    chipClass: "bg-amber-50 text-amber-600 border-amber-200/40 hover:bg-amber-100/60",
   },
   cold: {
     label: "Fria",
-    icon: <Snowflake className="h-4 w-4" />,
+    icon: <Snowflake className="h-3.5 w-3.5" />,
     color: "text-status-info",
     bg: "bg-status-info-light",
+    border: "border-status-info/15",
+    chipClass: "bg-sky-50 text-sky-600 border-sky-200/40 hover:bg-sky-100/60",
   },
 };
 
@@ -155,7 +164,13 @@ const mockLead = {
   clientName: "Restaurante Bela Vista Ltda",
   cnpj: "12.345.678/0001-00",
   razaoSocial: "Restaurante Bela Vista Ltda ME",
-  endereco: "Rua das Flores, 123 - Jardim Paulista, Sao Paulo - SP",
+  cep: "01411-000",
+  logradouro: "Rua das Flores",
+  numero: "123",
+  complemento: "",
+  bairro: "Jardim Paulista",
+  cidade: "Sao Paulo",
+  estado: "SP",
   telefoneEmpresa: "(11) 3456-7890",
   emailEmpresa: "contato@belavista.com",
   value: 12000,
@@ -174,6 +189,9 @@ const mockLead = {
   updatedAt: "2026-02-05",
   notes: "Cliente muito interessado. Agendar reuniao de apresentacao do modulo financeiro.",
   groupName: null,
+  website: "https://belavista.com.br",
+  instagram: "https://instagram.com/belavistarestaurante",
+  cardapio: "https://belavista.com.br/cardapio",
 };
 
 const mockContacts = [
@@ -222,9 +240,9 @@ function formatCurrency(value: number, currency = "BRL") {
 }
 
 function getScoreColor(score: number) {
-  if (score >= 70) return "bg-status-success text-white";
-  if (score >= 40) return "bg-status-warning text-white";
-  return "bg-status-danger text-white";
+  if (score >= 70) return "bg-emerald-50 text-emerald-700 border border-emerald-200/50";
+  if (score >= 40) return "bg-amber-50 text-amber-700 border border-amber-200/50";
+  return "bg-red-50 text-red-700 border border-red-200/50";
 }
 
 function getScoreLabel(score: number) {
@@ -456,39 +474,49 @@ function StageRail({
   onBannerDismiss: () => void;
 }) {
   const currentIndex = stageConfig.findIndex((s) => s.id === currentStage);
+  const currentLabel = stageConfig[currentIndex]?.label ?? "Etapa";
 
   return (
     <div className="space-y-2">
-      <div
-        className={`flex items-center gap-1 overflow-x-auto pb-1 ${disabled ? "pointer-events-none opacity-50" : ""}`}
-        role="group"
-        aria-label="Etapas do funil"
-      >
-        {stageConfig.map((stage, i) => {
-          const isActive = stage.id === currentStage;
-          const isPast = i < currentIndex;
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            disabled={disabled}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full border border-brand/20 bg-brand/10 px-3 py-1.5 font-body text-xs font-semibold text-brand transition-all duration-150 ease-out hover:bg-brand/15 hover:border-brand/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-1 ${disabled ? "pointer-events-none opacity-50" : ""}`}
+            aria-label={`Etapa atual: ${currentLabel}`}
+          >
+            <span className="font-body text-[10px] font-medium text-brand/60">Etapa</span>
+            <span className="font-body text-[11px]">{currentLabel}</span>
+            <ChevronDown className="h-3 w-3 opacity-60" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="rounded-[var(--radius-bento-card)] min-w-[200px]">
+          {stageConfig.map((stage, i) => {
+            const isActive = stage.id === currentStage;
+            const isPast = i < currentIndex;
 
-          return (
-            <button
-              key={stage.id}
-              onClick={() => onStageChange(stage.id)}
-              disabled={disabled}
-              className={`flex min-h-[44px] items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 font-body text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 ${
-                isActive
-                  ? "bg-brand text-white shadow-sm"
-                  : isPast
-                    ? "bg-brand/10 text-brand"
-                    : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600"
-              }`}
-              aria-label={`${stage.label}${isActive ? " (atual)" : isPast ? " (concluida)" : ""}`}
-              aria-current={isActive ? "step" : undefined}
-            >
-              {isPast && <Check className="h-3 w-3" />}
-              {stage.label}
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <DropdownMenuItem
+                key={stage.id}
+                onClick={() => onStageChange(stage.id)}
+                className={`flex items-center gap-2 font-body text-sm ${
+                  isActive ? "font-semibold text-brand" : isPast ? "text-brand/70" : "text-zinc-500"
+                }`}
+              >
+                {isPast && <Check className="h-3.5 w-3.5 text-brand" />}
+                {isActive && <ChevronRight className="h-3.5 w-3.5 text-brand" />}
+                {!isPast && !isActive && <span className="h-3.5 w-3.5" />}
+                {stage.label}
+                {isActive && (
+                  <span className="ml-auto rounded-full bg-brand/10 px-1.5 py-0.5 font-body text-[9px] font-medium text-brand">
+                    Atual
+                  </span>
+                )}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
       {statusBanner && (
         <InlineStatusBanner banner={statusBanner} onDismiss={onBannerDismiss} />
       )}
@@ -1039,7 +1067,7 @@ function EditableField({
 // Temperature Selector (compact)
 // ═══════════════════════════════════════════════════════════════════
 
-function TemperatureChips({
+function TemperatureSelect({
   current,
   onChange,
   suggested,
@@ -1050,38 +1078,55 @@ function TemperatureChips({
   suggested?: Temperature;
   disabled?: boolean;
 }) {
+  const cfg = temperatureConfig[current];
+
   return (
-    <div className={`flex items-center gap-1.5 ${disabled ? "pointer-events-none opacity-50" : ""}`}>
-      {(["hot", "warm", "cold"] as Temperature[]).map((temp) => {
-        const cfg = temperatureConfig[temp];
-        const isSelected = current === temp;
-        return (
+    <div className={`flex items-center gap-2 ${disabled ? "pointer-events-none opacity-50" : ""}`}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button
-            key={temp}
-            onClick={() => onChange(temp)}
-            className={`flex min-h-[32px] items-center gap-1 rounded-full px-2.5 py-1 font-body text-[11px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 ${
-              isSelected
-                ? `${cfg.bg} ${cfg.color}`
-                : "bg-zinc-50 text-zinc-400 hover:bg-zinc-100"
-            }`}
-            title={cfg.label}
-            aria-label={`Temperatura ${cfg.label}`}
-            aria-pressed={isSelected}
+            disabled={disabled}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 py-1.5 font-body text-[11px] font-semibold transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-1 ${cfg.chipClass}`}
+            aria-label={`Temperatura: ${cfg.label}`}
           >
             {cfg.icon}
-            <span className="max-sm:hidden">{cfg.label}</span>
+            {cfg.label}
+            <ChevronDown className="h-3 w-3 opacity-50" />
           </button>
-        );
-      })}
-      {suggested && suggested !== current && (
-        <button
-          onClick={() => onChange(suggested)}
-          className="font-body text-[10px] text-zinc-400 transition-colors hover:text-brand"
-          title="Aplicar sugestao"
-        >
-          Sugestao: {temperatureConfig[suggested].label}
-        </button>
-      )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="rounded-[var(--radius-bento-card)] min-w-[180px]">
+          {(["hot", "warm", "cold"] as Temperature[]).map((temp) => {
+            const tempCfg = temperatureConfig[temp];
+            const isSelected = current === temp;
+
+            return (
+              <DropdownMenuItem
+                key={temp}
+                onClick={() => onChange(temp)}
+                className={`flex items-center gap-2 font-body text-sm ${isSelected ? "font-semibold" : ""}`}
+              >
+                <span className={tempCfg.color}>{tempCfg.icon}</span>
+                <span className={isSelected ? tempCfg.color : "text-zinc-600"}>
+                  {tempCfg.label}
+                </span>
+                {isSelected && <Check className="ml-auto h-3.5 w-3.5 text-brand" />}
+              </DropdownMenuItem>
+            );
+          })}
+          {suggested && suggested !== current && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onChange(suggested)}
+                className="flex items-center gap-2 font-body text-xs text-brand"
+              >
+                <Star className="h-3 w-3" />
+                Sugestao: {temperatureConfig[suggested].label}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -1189,9 +1234,70 @@ export function LeadCardDrawer() {
   // Company fields
   const [cnpj, setCnpj] = useState(mockLead.cnpj);
   const [razaoSocial, setRazaoSocial] = useState(mockLead.razaoSocial);
-  const [endereco, setEndereco] = useState(mockLead.endereco);
+  const [cep, setCep] = useState(mockLead.cep);
+  const [logradouro, setLogradouro] = useState(mockLead.logradouro);
+  const [numero, setNumero] = useState(mockLead.numero);
+  const [complemento, setComplemento] = useState(mockLead.complemento);
+  const [bairro, setBairro] = useState(mockLead.bairro);
+  const [cidade, setCidade] = useState(mockLead.cidade);
+  const [estado, setEstado] = useState(mockLead.estado);
+  const [cepLoading, setCepLoading] = useState(false);
   const [telefoneEmpresa, setTelefoneEmpresa] = useState(mockLead.telefoneEmpresa);
   const [emailEmpresa, setEmailEmpresa] = useState(mockLead.emailEmpresa);
+  const [website, setWebsite] = useState(mockLead.website);
+  const [instagramUrl, setInstagramUrl] = useState(mockLead.instagram);
+  const [cardapioUrl, setCardapioUrl] = useState(mockLead.cardapio);
+
+  // CEP lookup — dispara automaticamente quando o CEP muda e tem 8 dígitos
+  const cepInitialRef = useRef(true);
+  useEffect(() => {
+    // Ignora o valor inicial (já temos endereço preenchido do mock/banco)
+    if (cepInitialRef.current) {
+      cepInitialRef.current = false;
+      return;
+    }
+
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) {
+      setCepLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCepLoading(true);
+
+    fetch(`https://viacep.com.br/ws/${clean}/json/`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled || data.erro) return;
+        setLogradouro(data.logradouro || "");
+        setBairro(data.bairro || "");
+        setCidade(data.localidade || "");
+        setEstado(data.uf || "");
+        if (data.complemento) setComplemento(data.complemento);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setCepLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [cep]);
+
+  const enderecoFormatado = useMemo(() => {
+    const parts: string[] = [];
+    if (logradouro) {
+      parts.push(numero ? `${logradouro}, ${numero}` : logradouro);
+    }
+    if (complemento) parts.push(complemento);
+    if (bairro) parts.push(bairro);
+    if (cidade && estado) {
+      parts.push(`${cidade} - ${estado}`);
+    } else if (cidade) {
+      parts.push(cidade);
+    }
+    return parts.join(", ");
+  }, [logradouro, numero, complemento, bairro, cidade, estado]);
 
   // UI state
   const [headerBanner, setHeaderBanner] = useState<InlineBanner | null>(null);
@@ -1312,76 +1418,147 @@ export function LeadCardDrawer() {
           showCloseButton={false}
         >
           {/* ═══════════════════════════════════════════════════════════
-              HeaderStickyDeal
+              HeaderStickyDeal — Premium 3-zone layout
               ═══════════════════════════════════════════════════════════ */}
-          <div className="sticky top-0 z-10 border-b border-zinc-100 bg-white">
-            <div className="px-6 py-4">
-              {/* Breadcrumb leve */}
-              <nav className="mb-1 flex items-center gap-1 font-body text-[11px] text-zinc-400" aria-label="Breadcrumb">
-                <span>Pipes</span>
-                <ChevronRight className="h-3 w-3" />
-                <span className="text-zinc-600">{mockLead.clientName}</span>
-              </nav>
-
-              {/* Row 1: Identity + Actions */}
-              <div className="flex items-start justify-between gap-4">
+          <div className="sticky top-0 z-10 border-b border-zinc-100 bg-white/95 backdrop-blur-sm">
+            <div className="px-6 pt-4 pb-4">
+              {/* ─── Zone 1: Identity ─────────────────────────────── */}
+              <div className="flex items-start justify-between gap-6">
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <DialogTitle className="font-heading text-xl font-semibold text-black">
+                  {/* Breadcrumb */}
+                  <nav className="mb-2 flex items-center gap-1 font-body text-[11px] text-zinc-400" aria-label="Breadcrumb">
+                    <span>Pipes</span>
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                    <span className="text-zinc-500">Pipeline Comercial</span>
+                  </nav>
+
+                  {/* Deal name — prominence */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <DialogTitle className="font-heading text-2xl font-bold tracking-tight text-black sm:text-[28px]">
                       <InlineEditable
                         value={title}
                         onSave={setTitle}
-                        className="font-heading text-xl font-semibold"
+                        className="font-heading text-2xl font-bold tracking-tight sm:text-[28px]"
                         readOnly={isLocked}
                       />
                     </DialogTitle>
-                    {/* Score badge with tooltip */}
+
+                    {/* Score badge — compact, muted */}
                     <div
-                      className={`inline-flex items-center gap-1 rounded-[8px] px-2 py-1 font-heading text-xs font-bold ${getScoreColor(leadScore)}`}
+                      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-heading text-[11px] font-bold leading-none ${getScoreColor(leadScore)}`}
                       title={`Lead Score: ${leadScore} (${getScoreLabel(leadScore)}) — Baseado em atividades, valor e engajamento`}
                     >
-                      <TrendingUp className="h-3 w-3" />
+                      <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" />
                       {leadScore}
                     </div>
-                    {/* Status pill */}
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-body text-[11px] font-semibold ${statusCfg.color} ${statusCfg.bg}`}>
-                      {dealStatus === "won" && <Check className="h-3 w-3" />}
-                      {dealStatus === "lost" && <X className="h-3 w-3" />}
+
+                    {/* Status badge — translucent, discrete */}
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-body text-[11px] font-medium transition-all duration-150 ${statusCfg.color} ${statusCfg.bg}`}
+                    >
+                      {dealStatus === "won" && <Check className="h-2.5 w-2.5" aria-hidden="true" />}
+                      {dealStatus === "lost" && <X className="h-2.5 w-2.5" aria-hidden="true" />}
                       {statusCfg.label}
                     </span>
                   </div>
-                  <p className="mt-0.5 font-body text-sm text-zinc-500">
-                    {mockLead.clientName || <span className="italic text-zinc-300">Sem empresa vinculada</span>}
-                  </p>
+
+                  {/* Subtitle — info diferenciadora + links externos */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    {/* Texto contextual */}
+                    {mockLead.clientName && !title.toLowerCase().includes(mockLead.clientName.split(" ").slice(0, 2).join(" ").toLowerCase()) ? (
+                      <span className="font-body text-[13px] text-zinc-400">
+                        {mockLead.clientName}
+                      </span>
+                    ) : source ? (
+                      <span className="font-body text-[13px] text-zinc-400">
+                        Fonte: {source}
+                      </span>
+                    ) : null}
+
+                    {/* Links externos — Site | Instagram | Cardápio */}
+                    {(website || instagramUrl || cardapioUrl) && (
+                      <div className="flex items-center gap-1">
+                        {website && (
+                          <a
+                            href={website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-body text-[11px] font-medium text-zinc-400 transition-all duration-150 hover:bg-zinc-100 hover:text-zinc-600"
+                            title={website}
+                          >
+                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                            Site
+                          </a>
+                        )}
+                        {instagramUrl && (
+                          <a
+                            href={instagramUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-body text-[11px] font-medium text-zinc-400 transition-all duration-150 hover:bg-zinc-100 hover:text-zinc-600"
+                            title={instagramUrl}
+                          >
+                            <Instagram className="h-3 w-3" aria-hidden="true" />
+                            Instagram
+                          </a>
+                        )}
+                        {cardapioUrl && (
+                          <a
+                            href={cardapioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-body text-[11px] font-medium text-zinc-400 transition-all duration-150 hover:bg-zinc-100 hover:text-zinc-600"
+                            title={cardapioUrl}
+                          >
+                            <UtensilsCrossed className="h-3 w-3" aria-hidden="true" />
+                            Cardápio
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Action buttons */}
-                <div className="flex shrink-0 items-center gap-2">
+                {/* ─── Zone 3: Actions ──────────────────────────────── */}
+                <div className="flex shrink-0 items-center gap-1.5 pt-1">
                   {dealStatus === "open" && (
                     <>
-                      <Button
+                      {/* Ganho — outline por padrão, sólido no hover */}
+                      <button
                         onClick={() => setShowWinConfirm(true)}
                         disabled={isWinLoading}
-                        className="min-h-[44px] rounded-full bg-status-success px-5 font-heading text-sm text-white hover:bg-status-success/90 focus-visible:ring-2 focus-visible:ring-status-success/50"
+                        className="group/won inline-flex h-8 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 font-heading text-xs font-semibold text-emerald-700 transition-all duration-150 ease-out hover:border-emerald-600 hover:bg-emerald-600 hover:text-white hover:shadow-md active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50"
                       >
-                        {isWinLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
-                        Ganho
-                      </Button>
-                      <Button
+                        {isWinLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5 transition-transform duration-150 group-hover/won:scale-110" aria-hidden="true" />
+                        )}
+                        <span className="max-sm:hidden">Ganho</span>
+                      </button>
+
+                      {/* Perdido — outline by default, solid red on hover */}
+                      <button
                         onClick={() => setShowLostPanel(true)}
                         disabled={isLostLoading}
-                        className="min-h-[44px] rounded-full bg-status-danger px-5 font-heading text-sm text-white hover:bg-status-danger/90 focus-visible:ring-2 focus-visible:ring-status-danger/50"
+                        className="group/lost inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3.5 font-heading text-xs font-semibold text-zinc-500 transition-all duration-150 ease-out hover:border-red-500 hover:bg-red-500 hover:text-white hover:shadow-md active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/40 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50"
                       >
-                        {isLostLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <X className="mr-1.5 h-4 w-4" />}
-                        Perdido
-                      </Button>
+                        {isLostLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <X className="h-3.5 w-3.5 transition-transform duration-150 group-hover/lost:scale-110" aria-hidden="true" />
+                        )}
+                        <span className="max-sm:hidden">Perdido</span>
+                      </button>
                     </>
                   )}
+
+                  {/* More menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] text-zinc-400">
-                        <MoreHorizontal className="h-5 w-5" />
-                      </Button>
+                      <button className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="rounded-[12px]">
                       <DropdownMenuItem>
@@ -1401,14 +1578,21 @@ export function LeadCardDrawer() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px] text-zinc-400" onClick={() => closeModal()}>
-                    <X className="h-5 w-5" />
-                  </Button>
+
+                  {/* Close */}
+                  <button
+                    onClick={() => closeModal()}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+                    aria-label="Fechar"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
 
-              {/* Row 2: StageRail */}
-              <div className="mt-3">
+              {/* ─── Zone 2: State ──────────────────────────────────── */}
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                {/* Stage chip */}
                 <StageRail
                   currentStage={stage}
                   onStageChange={handleStageChange}
@@ -1416,27 +1600,27 @@ export function LeadCardDrawer() {
                   statusBanner={stageBanner}
                   onBannerDismiss={() => setStageBanner(null)}
                 />
-              </div>
 
-              {/* Row 3: Temperature + Owner inline */}
-              <div className="mt-3 flex items-center justify-between">
-                <TemperatureChips
+                {/* Temperature chip */}
+                <TemperatureSelect
                   current={temperature}
                   onChange={setTemperature}
                   suggested={suggestedTemperature}
                   disabled={isLocked}
                 />
+
+                {/* Responsible — avatar, edit icon on hover only */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex min-h-[44px] items-center gap-2 rounded-full px-3 py-1.5 transition-colors hover:bg-zinc-50">
+                    <button className="group/owner flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 transition-colors duration-150 hover:bg-zinc-50">
                       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white">
                         {getInitials(responsibleName)}
                       </div>
-                      <span className="font-body text-sm font-medium text-black max-sm:hidden">{responsibleName}</span>
-                      <Pencil className="h-3 w-3 text-zinc-300" />
+                      <span className="font-body text-xs text-zinc-500 max-sm:hidden">{responsibleName}</span>
+                      <Pencil className="h-2.5 w-2.5 text-zinc-300 opacity-0 transition-opacity duration-150 group-hover/owner:opacity-100" aria-hidden="true" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-[12px]">
+                  <DropdownMenuContent align="start" className="rounded-[12px]">
                     {mockTeamMembers.map((member) => (
                       <DropdownMenuItem key={member.id} onClick={() => { setResponsibleId(member.id); setResponsibleName(member.name); }} className="flex items-center gap-2">
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-bold text-zinc-600">
@@ -1452,14 +1636,14 @@ export function LeadCardDrawer() {
 
               {/* Header-level banners */}
               {headerBanner && (
-                <div className="mt-3">
+                <div className="mt-4">
                   <InlineStatusBanner banner={headerBanner} onDismiss={() => setHeaderBanner(null)} />
                 </div>
               )}
 
               {/* Lost reason panel */}
               {showLostPanel && dealStatus === "open" && (
-                <div className="mt-3">
+                <div className="mt-4">
                   <LostReasonPanel
                     onConfirm={handleMarkLost}
                     onCancel={() => setShowLostPanel(false)}
@@ -1474,26 +1658,165 @@ export function LeadCardDrawer() {
               Body — Split View (Desktop) / Stack (Mobile)
               ═══════════════════════════════════════════════════════════ */}
           <div className="flex min-h-0 flex-1">
-            {/* ── Left Column: Summary Bento ────────────────────────── */}
-            <div className="hidden w-[360px] shrink-0 border-r border-zinc-50 md:block lg:w-[380px]">
+            {/* ── Left Column: Resumo do Cliente ───────────────────── */}
+            <div className="hidden w-[360px] shrink-0 border-r border-zinc-100/50 md:block lg:w-[380px]">
               <ScrollArea className="h-full">
-                <div className="space-y-3 p-4">
-                  <ForecastCard
-                    value={value}
-                    monthlyValue={monthlyValue}
-                    expectedCloseDate={expectedCloseDate}
-                    onValueChange={setValue}
-                    onMonthlyChange={setMonthlyValue}
-                    onDateChange={setExpectedCloseDate}
-                    dealStatus={dealStatus}
-                  />
-                  <OwnerCard
-                    currentId={responsibleId}
-                    currentName={responsibleName}
-                    teamMembers={mockTeamMembers}
-                    onReassign={(id, name) => { setResponsibleId(id); setResponsibleName(name); }}
-                  />
-                  <SourceMetaCard source={source} createdAt={mockLead.createdAt} tags={tags} />
+                <div className="p-5">
+                  {/* Empresa */}
+                  <div className="mb-5">
+                    <h3 className="mb-3 font-heading text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      Empresa
+                    </h3>
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-brand/8">
+                          <Building2 className="h-4.5 w-4.5 text-brand" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-heading text-sm font-semibold text-black">{razaoSocial}</p>
+                          <p className="font-body text-[11px] text-zinc-400">{cnpj}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 pl-[52px]">
+                        {enderecoFormatado && (
+                          <div className="flex items-center gap-2 text-zinc-500">
+                            <MapPin className="h-3 w-3 shrink-0 text-zinc-400" />
+                            <span className="truncate font-body text-xs">{enderecoFormatado}</span>
+                          </div>
+                        )}
+                        {cep && (
+                          <div className="flex items-center gap-2 text-zinc-500">
+                            <span className="ml-5 font-body text-[11px] text-zinc-400">CEP {cep}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-zinc-500">
+                          <Phone className="h-3 w-3 shrink-0 text-zinc-400" />
+                          <span className="font-body text-xs">{telefoneEmpresa}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-zinc-500">
+                          <Mail className="h-3 w-3 shrink-0 text-zinc-400" />
+                          <span className="truncate font-body text-xs">{emailEmpresa}</span>
+                        </div>
+                        {website && (
+                          <div className="flex items-center gap-2 text-zinc-500">
+                            <ExternalLink className="h-3 w-3 shrink-0 text-zinc-400" />
+                            <a href={website} target="_blank" rel="noopener noreferrer" className="truncate font-body text-xs text-brand hover:underline">
+                              {website.replace(/^https?:\/\//, "")}
+                            </a>
+                          </div>
+                        )}
+                        {instagramUrl && (
+                          <div className="flex items-center gap-2 text-zinc-500">
+                            <Instagram className="h-3 w-3 shrink-0 text-zinc-400" />
+                            <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="truncate font-body text-xs text-brand hover:underline">
+                              {instagramUrl.replace(/^https?:\/\/(www\.)?instagram\.com\//, "@")}
+                            </a>
+                          </div>
+                        )}
+                        {cardapioUrl && (
+                          <div className="flex items-center gap-2 text-zinc-500">
+                            <UtensilsCrossed className="h-3 w-3 shrink-0 text-zinc-400" />
+                            <a href={cardapioUrl} target="_blank" rel="noopener noreferrer" className="truncate font-body text-xs text-brand hover:underline">
+                              Cardápio
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contato Principal */}
+                  {contacts.find((c) => c.isPrimary) && (() => {
+                    const primary = contacts.find((c) => c.isPrimary)!;
+                    return (
+                      <div className="mb-5">
+                        <h3 className="mb-3 font-heading text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                          Contato Principal
+                        </h3>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+                            <User className="h-4 w-4 text-zinc-500" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-heading text-sm font-semibold text-black">{primary.nome}</p>
+                            <p className="font-body text-[11px] text-zinc-400">{primary.cargo}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 space-y-1.5 pl-12">
+                          <div className="flex items-center gap-2 text-zinc-500">
+                            <Mail className="h-3 w-3 shrink-0 text-zinc-400" />
+                            <span className="font-body text-xs">{primary.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-zinc-500">
+                            <Phone className="h-3 w-3 shrink-0 text-zinc-400" />
+                            <span className="font-body text-xs">{primary.telefone}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Divisor */}
+                  <div className="my-4 h-px bg-zinc-100" />
+
+                  {/* Valores */}
+                  <div className="mb-5">
+                    <h3 className="mb-3 font-heading text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      Valores
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-[10px] bg-zinc-50/80 p-3">
+                        <p className="font-body text-[10px] text-zinc-400">Setup</p>
+                        <p className="mt-0.5 font-heading text-lg font-bold text-black">{formatCurrency(value)}</p>
+                      </div>
+                      <div className="rounded-[10px] bg-zinc-50/80 p-3">
+                        <p className="font-body text-[10px] text-zinc-400">Mensal</p>
+                        <p className="mt-0.5 font-heading text-lg font-bold text-black">{formatCurrency(monthlyValue)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between rounded-[10px] bg-zinc-50/80 px-3 py-2">
+                      <span className="font-body text-[10px] text-zinc-400">Previsao de fechamento</span>
+                      <span className="font-body text-xs font-medium text-black">
+                        {expectedCloseDate ? new Date(expectedCloseDate).toLocaleDateString("pt-BR") : "--"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Divisor */}
+                  <div className="my-4 h-px bg-zinc-100" />
+
+                  {/* Meta */}
+                  <div className="mb-5">
+                    <h3 className="mb-3 font-heading text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                      Meta
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-body text-xs text-zinc-400">Fonte</span>
+                        <span className="font-body text-xs font-medium text-black">{source}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-body text-xs text-zinc-400">Criado em</span>
+                        <span className="font-body text-xs font-medium text-black">
+                          {new Date(mockLead.createdAt).toLocaleDateString("pt-BR")}
+                        </span>
+                      </div>
+                      {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {tags.map((tag) => (
+                            <span key={tag} className="rounded-full bg-zinc-100 px-2 py-0.5 font-body text-[10px] text-zinc-500">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Divisor */}
+                  <div className="my-4 h-px bg-zinc-100" />
+
+                  {/* Anotacoes */}
                   <NotesCard initialNotes={notes} onNotesChange={setNotes} />
                 </div>
               </ScrollArea>
@@ -1503,25 +1826,68 @@ export function LeadCardDrawer() {
             <div className="min-h-0 flex-1">
               <ScrollArea className="h-full">
                 <div className="p-5">
-                  {/* Mobile-only: Summary Accordion */}
+                  {/* Mobile-only: Resumo do cliente */}
                   <MobileAccordion>
                     <div className="mb-4 space-y-3">
-                      <ForecastCard
-                        value={value}
-                        monthlyValue={monthlyValue}
-                        expectedCloseDate={expectedCloseDate}
-                        onValueChange={setValue}
-                        onMonthlyChange={setMonthlyValue}
-                        onDateChange={setExpectedCloseDate}
-                        dealStatus={dealStatus}
-                      />
-                      <SourceMetaCard source={source} createdAt={mockLead.createdAt} tags={tags} />
-                      <NotesCard initialNotes={notes} onNotesChange={setNotes} />
+                      {/* Empresa resumida */}
+                      <div className="rounded-[14px] border border-zinc-100 p-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-brand/8">
+                            <Building2 className="h-4 w-4 text-brand" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-heading text-sm font-semibold text-black">{razaoSocial}</p>
+                            <p className="font-body text-[11px] text-zinc-400">{cnpj}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2 space-y-1 pl-12">
+                          {enderecoFormatado && (
+                            <p className="flex items-center gap-1.5 font-body text-xs text-zinc-500">
+                              <MapPin className="h-3 w-3 text-zinc-400" />{enderecoFormatado}
+                            </p>
+                          )}
+                          <p className="flex items-center gap-1.5 font-body text-xs text-zinc-500">
+                            <Phone className="h-3 w-3 text-zinc-400" />{telefoneEmpresa}
+                          </p>
+                          <p className="flex items-center gap-1.5 font-body text-xs text-zinc-500">
+                            <Mail className="h-3 w-3 text-zinc-400" />{emailEmpresa}
+                          </p>
+                          {website && (
+                            <p className="flex items-center gap-1.5 font-body text-xs">
+                              <ExternalLink className="h-3 w-3 text-zinc-400" />
+                              <a href={website} target="_blank" rel="noopener noreferrer" className="truncate text-brand hover:underline">{website.replace(/^https?:\/\//, "")}</a>
+                            </p>
+                          )}
+                          {instagramUrl && (
+                            <p className="flex items-center gap-1.5 font-body text-xs">
+                              <Instagram className="h-3 w-3 text-zinc-400" />
+                              <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className="truncate text-brand hover:underline">{instagramUrl.replace(/^https?:\/\/(www\.)?instagram\.com\//, "@")}</a>
+                            </p>
+                          )}
+                          {cardapioUrl && (
+                            <p className="flex items-center gap-1.5 font-body text-xs">
+                              <UtensilsCrossed className="h-3 w-3 text-zinc-400" />
+                              <a href={cardapioUrl} target="_blank" rel="noopener noreferrer" className="truncate text-brand hover:underline">Cardápio</a>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {/* Valores */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-[10px] bg-zinc-50/80 p-3">
+                          <p className="font-body text-[10px] text-zinc-400">Setup</p>
+                          <p className="mt-0.5 font-heading text-base font-bold text-black">{formatCurrency(value)}</p>
+                        </div>
+                        <div className="rounded-[10px] bg-zinc-50/80 p-3">
+                          <p className="font-body text-[10px] text-zinc-400">Mensal</p>
+                          <p className="mt-0.5 font-heading text-base font-bold text-black">{formatCurrency(monthlyValue)}</p>
+                        </div>
+                      </div>
                     </div>
                   </MobileAccordion>
 
                   <Tabs defaultValue="empresa">
-                    <TabsList className="w-full overflow-x-auto border-b border-zinc-100 bg-transparent p-0">
+                    <TabsList className="inline-flex gap-1 overflow-x-auto rounded-full bg-zinc-100/80 p-1">
                       {[
                         { value: "empresa", label: "Empresa" },
                         { value: "contatos", label: "Contatos" },
@@ -1532,7 +1898,7 @@ export function LeadCardDrawer() {
                         <TabsTrigger
                           key={tab.value}
                           value={tab.value}
-                          className="min-h-[40px] whitespace-nowrap rounded-none border-b-2 border-transparent px-4 py-2.5 font-body text-sm data-[state=active]:border-brand data-[state=active]:text-brand"
+                          className="flex-none rounded-full px-3.5 py-1.5 font-body text-xs font-medium text-zinc-500 transition-all duration-150 hover:text-zinc-700 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
                         >
                           {tab.label}
                         </TabsTrigger>
@@ -1544,9 +1910,107 @@ export function LeadCardDrawer() {
                       <div className="space-y-3">
                         <EditableField icon={<Building2 className="h-4 w-4" />} label="CNPJ" value={cnpj} onSave={setCnpj} readOnly={isLocked} />
                         <EditableField icon={<FileText className="h-4 w-4" />} label="Razao Social" value={razaoSocial} onSave={setRazaoSocial} readOnly={isLocked} />
-                        <EditableField icon={<MapPin className="h-4 w-4" />} label="Endereco" value={endereco} onSave={setEndereco} readOnly={isLocked} />
+
+                        {/* ── Localização ── */}
+                        <div className="space-y-2.5 rounded-[12px] border border-zinc-100 p-3">
+                          <p className="flex items-center gap-2 font-heading text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                            <MapPin className="h-3.5 w-3.5" />
+                            Localização
+                          </p>
+                          {/* CEP com auto-complete */}
+                          <div className="flex items-center gap-2">
+                            <div className="min-w-0 flex-1">
+                              <Label className="font-body text-[10px] text-zinc-400">CEP</Label>
+                              <div className="relative">
+                                <Input
+                                  value={cep}
+                                  onChange={(e) => setCep(e.target.value)}
+                                  placeholder="00000-000"
+                                  className="h-8 rounded-lg border-zinc-200 font-body text-xs focus:border-brand focus:ring-brand/20"
+                                  readOnly={isLocked}
+                                  maxLength={9}
+                                />
+                                {cepLoading && (
+                                  <Loader2 className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-brand" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {/* Logradouro + Número */}
+                          <div className="flex gap-2">
+                            <div className="min-w-0 flex-1">
+                              <Label className="font-body text-[10px] text-zinc-400">Logradouro</Label>
+                              <Input
+                                value={logradouro}
+                                onChange={(e) => setLogradouro(e.target.value)}
+                                placeholder="Rua, Avenida..."
+                                className="h-8 rounded-lg border-zinc-200 font-body text-xs focus:border-brand focus:ring-brand/20"
+                                readOnly={isLocked}
+                              />
+                            </div>
+                            <div className="w-20 shrink-0">
+                              <Label className="font-body text-[10px] text-zinc-400">Nº</Label>
+                              <Input
+                                value={numero}
+                                onChange={(e) => setNumero(e.target.value)}
+                                placeholder="123"
+                                className="h-8 rounded-lg border-zinc-200 font-body text-xs focus:border-brand focus:ring-brand/20"
+                                readOnly={isLocked}
+                              />
+                            </div>
+                          </div>
+                          {/* Complemento */}
+                          <div>
+                            <Label className="font-body text-[10px] text-zinc-400">Complemento</Label>
+                            <Input
+                              value={complemento}
+                              onChange={(e) => setComplemento(e.target.value)}
+                              placeholder="Sala, andar, bloco..."
+                              className="h-8 rounded-lg border-zinc-200 font-body text-xs focus:border-brand focus:ring-brand/20"
+                              readOnly={isLocked}
+                            />
+                          </div>
+                          {/* Bairro + Cidade + Estado */}
+                          <div className="flex gap-2">
+                            <div className="min-w-0 flex-1">
+                              <Label className="font-body text-[10px] text-zinc-400">Bairro</Label>
+                              <Input
+                                value={bairro}
+                                onChange={(e) => setBairro(e.target.value)}
+                                placeholder="Bairro"
+                                className="h-8 rounded-lg border-zinc-200 font-body text-xs focus:border-brand focus:ring-brand/20"
+                                readOnly={isLocked}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <Label className="font-body text-[10px] text-zinc-400">Cidade</Label>
+                              <Input
+                                value={cidade}
+                                onChange={(e) => setCidade(e.target.value)}
+                                placeholder="Cidade"
+                                className="h-8 rounded-lg border-zinc-200 font-body text-xs focus:border-brand focus:ring-brand/20"
+                                readOnly={isLocked}
+                              />
+                            </div>
+                            <div className="w-16 shrink-0">
+                              <Label className="font-body text-[10px] text-zinc-400">UF</Label>
+                              <Input
+                                value={estado}
+                                onChange={(e) => setEstado(e.target.value)}
+                                placeholder="SP"
+                                className="h-8 rounded-lg border-zinc-200 font-body text-xs focus:border-brand focus:ring-brand/20"
+                                readOnly={isLocked}
+                                maxLength={2}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
                         <EditableField icon={<Phone className="h-4 w-4" />} label="Telefone" value={telefoneEmpresa} onSave={setTelefoneEmpresa} readOnly={isLocked} />
                         <EditableField icon={<Mail className="h-4 w-4" />} label="E-mail" value={emailEmpresa} onSave={setEmailEmpresa} readOnly={isLocked} />
+                        <EditableField icon={<ExternalLink className="h-4 w-4" />} label="Site" value={website} onSave={setWebsite} readOnly={isLocked} />
+                        <EditableField icon={<Instagram className="h-4 w-4" />} label="Instagram" value={instagramUrl} onSave={setInstagramUrl} readOnly={isLocked} />
+                        <EditableField icon={<UtensilsCrossed className="h-4 w-4" />} label="Cardápio" value={cardapioUrl} onSave={setCardapioUrl} readOnly={isLocked} />
                       </div>
                     </TabsContent>
 

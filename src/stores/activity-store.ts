@@ -15,6 +15,7 @@ interface ActivityState {
   // Status management
   completeActivity: (id: string, notes?: string) => void;
   cancelActivity: (id: string) => void;
+  postponeActivity: (id: string, newDueDate: string, newDueTime?: string) => void;
 
   // Computed
   getById: (id: string) => Activity | undefined;
@@ -75,6 +76,23 @@ export const useActivityStore = create<ActivityState>()(
           activities: state.activities.map((act) =>
             act.id === id
               ? { ...act, status: "cancelled" as ActivityStatus }
+              : act
+          ),
+        })),
+
+      postponeActivity: (id, newDueDate, newDueTime) =>
+        set((state) => ({
+          activities: state.activities.map((act) =>
+            act.id === id
+              ? {
+                  ...act,
+                  dueDate: newDueDate,
+                  dueTime: newDueTime ?? act.dueTime,
+                  status:
+                    act.status === "overdue"
+                      ? ("pending" as ActivityStatus)
+                      : act.status,
+                }
               : act
           ),
         })),
