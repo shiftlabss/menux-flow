@@ -161,7 +161,6 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
                         <NegotiationRoundCard 
                             key={round.id} 
                             round={round} 
-                            index={rounds.length - index} // Reverse index for display label? Or sequential? Let's use sequential: 1, 2, 3...
                             displayIndex={index + 1}
                             isLast={index === rounds.length - 1}
                         />

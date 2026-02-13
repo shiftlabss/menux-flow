@@ -14,6 +14,7 @@ import type {
   ProactiveSuggestion,
   SlashCommand,
   ActiveScreen,
+  JarvisMode,
 } from "@/types/intelligence";
 import { INTELLIGENCE_LIMITS } from "@/types/intelligence";
 import {
@@ -76,6 +77,8 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
   activeScreen: "other",
   remainingQueries: INTELLIGENCE_LIMITS.MAX_QUERIES_PER_HOUR,
   rateLimitResetAt: null,
+  jarvisMode: "focus",
+  isThinking: false,
 
   // ── Actions ────────────────────────────────────────────────────────────
 
@@ -440,4 +443,6 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
       rateLimitResetAt: null,
     });
   },
+
+  setJarvisMode: (mode) => set({ jarvisMode: mode }),
 }));

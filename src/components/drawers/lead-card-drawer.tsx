@@ -53,7 +53,6 @@ import {
   Wine,
   Clock3,
   Globe2,
-  Handshake,
   LayoutList,
   Target,
 } from "lucide-react";
@@ -102,6 +101,7 @@ import { mockActivities } from "@/lib/mock-data";
 import { stageFieldsConfig } from "@/lib/mock-stage-fields";
 import { mockNegotiationRounds } from "@/lib/mock-data";
 import type { NegotiationRound, NegotiationStatus, NegotiationType, NegotiationSummary } from "@/types";
+import { NegotiationTab } from "./lead-negotiation-tab";
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3062,17 +3062,7 @@ export default function LeadCardDrawer() {
 
                         {/* ── Tab: Negociação ───────────────────────────── */}
                         <TabsContent value="negociacao" className="mt-0 space-y-4">
-                            <PremiumCard
-                                title="Negociação"
-                                description="Detalhes da negociação"
-                                icon={Handshake}
-                                delay={0}
-                            >
-                                <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
-                                    <Handshake className="h-8 w-8 text-zinc-200 mb-2" />
-                                    <p className="font-heading text-xs font-medium text-zinc-400">Funcionalidades de negociação em breve</p>
-                                </div>
-                            </PremiumCard>
+                            <NegotiationTab dealId={mockLead.id} dealTitle={title} />
                         </TabsContent>
 
                         {/* ── Tab: Anotações ────────────────────────────── */}

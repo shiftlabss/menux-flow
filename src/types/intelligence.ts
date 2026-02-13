@@ -40,6 +40,8 @@ export type UserRoleIntelligence =
   | "comercial"
   | "cs";
 
+export type JarvisMode = "focus" | "audit" | "reply" | "proposal";
+
 /** Mapa de capacidades por perfil — seção 9.1 do documento */
 export interface IntelligencePermissions {
   canAccessIntelligence: boolean;
@@ -223,6 +225,12 @@ export interface CardContext {
     date: string;
     description?: string;
   };
+  /** Próxima atividade */
+  nextActivity?: {
+    type: string;
+    date: string;
+    description?: string;
+  };
   /** Atividades vencidas */
   overdueActivities: Activity[];
   /** Últimas 10 notas da timeline */
@@ -308,6 +316,8 @@ export interface IntelligenceState {
   remainingQueries: number;
   /** Timestamp de reset do rate limit */
   rateLimitResetAt: string | null;
+  /** Modo atual do Jarvis */
+  jarvisMode: JarvisMode;
 }
 
 export interface IntelligenceActions {
@@ -339,6 +349,8 @@ export interface IntelligenceActions {
   startNewConversation: () => void;
   /** Carrega conversa do histórico (somente leitura) */
   loadConversation: (id: string) => void;
+  /** Define modo do Jarvis */
+  setJarvisMode: (mode: JarvisMode) => void;
   /** Volta para conversa ativa (sai do histórico) */
   exitHistoryView: () => void;
   /** Abre/fecha painel de histórico */
