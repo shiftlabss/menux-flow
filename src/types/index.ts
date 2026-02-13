@@ -36,6 +36,7 @@ export interface Opportunity {
   notes?: string;
   slaDeadline?: string;
   neighborhood?: string;
+  metadata?: Record<string, any>;
 }
 
 // ===== Client Types =====

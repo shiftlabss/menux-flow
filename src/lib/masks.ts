@@ -49,6 +49,25 @@ export function isValidPhone(value: string): boolean {
   return true;
 }
 
+// ─── CEP ────────────────────────────────────────────────────────────────────
+
+/**
+ * Aplica máscara de CEP: 00000-000
+ */
+export function maskCep(value: string): string {
+  const digits = onlyDigits(value).slice(0, 8);
+  if (digits.length === 0) return "";
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+/**
+ * Normaliza CEP para apenas dígitos (8 dígitos).
+ */
+export function normalizeCep(value: string): string {
+  return onlyDigits(value).slice(0, 8);
+}
+
 // ─── CNPJ ───────────────────────────────────────────────────────────────────
 
 /**

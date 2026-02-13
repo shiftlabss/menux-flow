@@ -1,0 +1,365 @@
+
+> app@0.1.0 dev
+> next dev
+
+[32m✔[0m [33mConsole Ninja[0m extension is connected to [33mNext.js[0m, see [36mhttps://tinyurl.com/2vt8jxzw[0m
+⚠ Console Ninja Turbopack support is a PRO feature, [33mcurrently available to community users while in preview[0m
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.82:3000
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 880ms
+ GET / 307 in 982ms (compile: 845ms, render: 137ms)
+ GET /login 200 in 327ms (compile: 128ms, proxy.ts: 31ms, render: 169ms)
+ GET /manifest.webmanifest 200 in 206ms (compile: 191ms, render: 15ms)
+ GET /icons/icon-192x192.png 404 in 427ms (compile: 274ms, render: 153ms)
+ GET / 307 in 97ms (compile: 11ms, render: 85ms)
+ GET / 307 in 42ms (compile: 4ms, render: 38ms)
+ GET /manifest.webmanifest 200 in 9ms (compile: 4ms, render: 5ms)
+ GET /dashboard 200 in 362ms (compile: 159ms, proxy.ts: 2ms, render: 201ms)
+ GET /dashboard 200 in 86ms (compile: 7ms, proxy.ts: 8ms, render: 72ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 4ms, render: 2ms)
+ GET /icons/icon-192x192.png 404 in 56ms (compile: 10ms, render: 46ms)
+ GET /icons/icon-192x192.png 404 in 24ms (compile: 1656µs, render: 22ms)
+ GET /activities 200 in 1695ms (compile: 1678ms, proxy.ts: 5ms, render: 12ms)
+ GET /manifest.webmanifest 200 in 11ms (compile: 9ms, render: 1988µs)
+ GET /icons/icon-192x192.png 404 in 27ms (compile: 3ms, render: 24ms)
+ GET /pipes 200 in 129ms (compile: 117ms, proxy.ts: 3ms, render: 9ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 2ms)
+ GET /icons/icon-192x192.png 404 in 31ms (compile: 4ms, render: 27ms)
+✓ Compiled in 2.1s
+✓ Compiled in 917ms
+✓ Compiled in 1073ms
+ GET /manifest.webmanifest 200 in 14ms (compile: 8ms, render: 5ms)
+ GET /pipes 200 in 749ms (compile: 99ms, proxy.ts: 5ms, render: 645ms)
+ GET /dashboard 200 in 752ms (compile: 478ms, proxy.ts: 4ms, render: 270ms)
+ GET /manifest.webmanifest 200 in 13ms (compile: 11ms, render: 2ms)
+ GET /icons/icon-192x192.png 404 in 156ms (compile: 16ms, render: 140ms)
+ GET /icons/icon-192x192.png 404 in 102ms (compile: 9ms, render: 93ms)
+✓ Compiled in 813ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /manifest.webmanifest 200 in 17ms (compile: 5ms, render: 11ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 2ms, render: 6ms)
+ GET /dashboard 200 in 889ms (compile: 196ms, proxy.ts: 13ms, render: 679ms)
+ GET /pipes 200 in 882ms (compile: 602ms, proxy.ts: 16ms, render: 264ms)
+ GET /icons/icon-192x192.png 404 in 155ms (compile: 27ms, render: 127ms)
+ GET /icons/icon-192x192.png 404 in 64ms (compile: 6ms, render: 58ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard 200 in 1294ms (compile: 828ms, proxy.ts: 33ms, render: 433ms)
+✓ Compiled in 0ms
+ GET /manifest.webmanifest 200 in 116ms (compile: 105ms, render: 11ms)
+ GET /login 200 in 1634ms (compile: 666ms, proxy.ts: 13ms, render: 954ms)
+ GET /login 200 in 501ms (compile: 30ms, proxy.ts: 36ms, render: 436ms)
+ GET /manifest.webmanifest 200 in 14ms (compile: 8ms, render: 6ms)
+ GET /pipes 200 in 1817ms (compile: 251ms, proxy.ts: 11ms, render: 1555ms)
+ GET /login 200 in 453ms (compile: 80ms, proxy.ts: 85ms, render: 288ms)
+ GET /dashboard 200 in 599ms (compile: 25ms, proxy.ts: 101ms, render: 473ms)
+ GET /manifest.webmanifest 200 in 16ms (compile: 7ms, render: 9ms)
+ GET /icons/icon-192x192.png 404 in 178ms (compile: 45ms, render: 133ms)
+ GET /icons/icon-192x192.png 404 in 154ms (compile: 17ms, render: 137ms)
+ GET /icons/icon-192x192.png 404 in 50ms (compile: 6ms, render: 44ms)
+✓ Compiled in 567ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /manifest.webmanifest 200 in 8ms (compile: 4ms, render: 4ms)
+ GET /dashboard 200 in 934ms (compile: 206ms, proxy.ts: 30ms, render: 698ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 4ms, render: 2ms)
+ GET /pipes 200 in 878ms (compile: 193ms, proxy.ts: 445ms, render: 239ms)
+ GET /icons/icon-192x192.png 404 in 202ms (compile: 9ms, render: 194ms)
+ GET /icons/icon-192x192.png 404 in 83ms (compile: 7ms, render: 76ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 1594ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /pipes 200 in 793ms (compile: 157ms, proxy.ts: 20ms, render: 617ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard 200 in 821ms (compile: 286ms, proxy.ts: 20ms, render: 514ms)
+✓ Compiled in 0ms
+ GET /manifest.webmanifest 200 in 12ms (compile: 9ms, render: 4ms)
+ GET /pipes 200 in 222ms (compile: 5ms, proxy.ts: 5ms, render: 212ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 5ms, render: 3ms)
+ GET /dashboard 200 in 251ms (compile: 63ms, proxy.ts: 1850µs, render: 186ms)
+ GET /icons/icon-192x192.png 404 in 136ms (compile: 38ms, render: 98ms)
+ GET /icons/icon-192x192.png 404 in 402ms (compile: 5ms, render: 396ms)
+✓ Compiled in 587ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /login 200 in 859ms (compile: 140ms, proxy.ts: 9ms, render: 710ms)
+ GET /manifest.webmanifest 200 in 11ms (compile: 6ms, render: 5ms)
+ GET /login 200 in 686ms (compile: 514ms, proxy.ts: 4ms, render: 168ms)
+ GET /manifest.webmanifest 200 in 15ms (compile: 10ms, render: 5ms)
+ GET /login 200 in 132ms (compile: 9ms, proxy.ts: 19ms, render: 103ms)
+ GET /dashboard 200 in 738ms (compile: 113ms, proxy.ts: 9ms, render: 616ms)
+ GET /pipes 200 in 741ms (compile: 478ms, proxy.ts: 7ms, render: 256ms)
+ GET /manifest.webmanifest 200 in 11ms (compile: 8ms, render: 4ms)
+ GET /icons/icon-192x192.png 404 in 181ms (compile: 23ms, render: 157ms)
+ GET /icons/icon-192x192.png 404 in 147ms (compile: 30ms, render: 117ms)
+ GET /icons/icon-192x192.png 404 in 41ms (compile: 1965µs, render: 39ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 1046ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /pipes 200 in 854ms (compile: 331ms, proxy.ts: 13ms, render: 510ms)
+ GET /login 200 in 1516ms (compile: 5ms, proxy.ts: 5ms, render: 1505ms)
+ GET /login 200 in 1462ms (compile: 608ms, proxy.ts: 159ms, render: 695ms)
+ GET /manifest.webmanifest 200 in 15ms (compile: 10ms, render: 5ms)
+ GET /manifest.webmanifest 200 in 9ms (compile: 4ms, render: 5ms)
+ GET /login 200 in 652ms (compile: 71ms, proxy.ts: 473ms, render: 108ms)
+ GET /dashboard 200 in 1101ms (compile: 316ms, proxy.ts: 336ms, render: 449ms)
+ GET /pipes 200 in 708ms (compile: 444ms, proxy.ts: 68ms, render: 196ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+ GET /icons/icon-192x192.png 404 in 239ms (compile: 8ms, render: 230ms)
+ GET /icons/icon-192x192.png 404 in 148ms (compile: 14ms, render: 133ms)
+ GET /icons/icon-192x192.png 404 in 61ms (compile: 3ms, render: 58ms)
+✓ Compiled in 371ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard 200 in 708ms (compile: 141ms, proxy.ts: 5ms, render: 562ms)
+ GET /pipes 200 in 702ms (compile: 498ms, proxy.ts: 4ms, render: 200ms)
+ GET /manifest.webmanifest 200 in 9ms (compile: 5ms, render: 4ms)
+ GET /manifest.webmanifest 200 in 4ms (compile: 2ms, render: 1458µs)
+ GET /icons/icon-192x192.png 404 in 111ms (compile: 10ms, render: 102ms)
+ GET /icons/icon-192x192.png 404 in 56ms (compile: 6ms, render: 50ms)
+✓ Compiled in 1235ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /manifest.webmanifest 200 in 82ms (compile: 71ms, render: 11ms)
+ GET /manifest.webmanifest 200 in 11ms (compile: 9ms, render: 2ms)
+ GET /pipes 200 in 1275ms (compile: 230ms, proxy.ts: 6ms, render: 1040ms)
+ GET /dashboard 200 in 1270ms (compile: 721ms, proxy.ts: 15ms, render: 533ms)
+ GET /icons/icon-192x192.png 404 in 87ms (compile: 13ms, render: 74ms)
+ GET /icons/icon-192x192.png 404 in 40ms (compile: 3ms, render: 37ms)
+✓ Compiled in 1742ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /manifest.webmanifest 200 in 40ms (compile: 28ms, render: 12ms)
+ GET /manifest.webmanifest 200 in 17ms (compile: 4ms, render: 13ms)
+ GET /dashboard 200 in 2.7s (compile: 301ms, proxy.ts: 34ms, render: 2.3s)
+ GET /pipes 200 in 2.6s (compile: 1425ms, proxy.ts: 13ms, render: 1204ms)
+ GET /icons/icon-192x192.png 404 in 375ms (compile: 60ms, render: 315ms)
+ GET /icons/icon-192x192.png 404 in 177ms (compile: 49ms, render: 127ms)
+✓ Compiled in 1549ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /manifest.webmanifest 200 in 28ms (compile: 24ms, render: 4ms)
+ GET /manifest.webmanifest 200 in 14ms (compile: 7ms, render: 7ms)
+ GET /pipes 200 in 2.8s (compile: 561ms, proxy.ts: 13ms, render: 2.2s)
+ GET /dashboard 200 in 2.8s (compile: 1850ms, proxy.ts: 8ms, render: 950ms)
+ GET /icons/icon-192x192.png 404 in 221ms (compile: 51ms, render: 170ms)
+ GET /icons/icon-192x192.png 404 in 82ms (compile: 8ms, render: 74ms)
+✓ Compiled in 1590ms
+✓ Compiled in 1366ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /manifest.webmanifest 200 in 33ms (compile: 27ms, render: 7ms)
+ GET /login 200 in 1707ms (compile: 30ms, proxy.ts: 13ms, render: 1664ms)
+ GET /manifest.webmanifest 200 in 13ms (compile: 8ms, render: 4ms)
+ GET /login 200 in 803ms (compile: 544ms, proxy.ts: 11ms, render: 247ms)
+ GET /pipes 200 in 1768ms (compile: 336ms, proxy.ts: 7ms, render: 1425ms)
+ GET /dashboard 200 in 1666ms (compile: 188ms, proxy.ts: 748ms, render: 730ms)
+ GET /login 200 in 257ms (compile: 55ms, proxy.ts: 18ms, render: 183ms)
+ GET /manifest.webmanifest 200 in 12ms (compile: 5ms, render: 7ms)
+ GET /icons/icon-192x192.png 404 in 147ms (compile: 23ms, render: 124ms)
+ GET /icons/icon-192x192.png 404 in 593ms (compile: 46ms, render: 547ms)
+ GET /icons/icon-192x192.png 404 in 236ms (compile: 41ms, render: 194ms)
+ GET /dashboard 200 in 129ms (compile: 15ms, proxy.ts: 11ms, render: 104ms)
+ GET /manifest.webmanifest 200 in 13ms (compile: 2ms, render: 11ms)
+ GET /icons/icon-192x192.png 404 in 51ms (compile: 3ms, render: 48ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 1117ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/components/drawers/lead-card-drawer.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard 200 in 1241ms (compile: 290ms, proxy.ts: 12ms, render: 939ms)
+ GET /pipes 200 in 1237ms (compile: 937ms, proxy.ts: 4ms, render: 297ms)
+ GET /manifest.webmanifest 200 in 16ms (compile: 6ms, render: 9ms)
+ GET /manifest.webmanifest 200 in 15ms (compile: 8ms, render: 6ms)
+ GET /icons/icon-192x192.png 404 in 81ms (compile: 10ms, render: 71ms)
+ GET /icons/icon-192x192.png 404 in 38ms (compile: 3ms, render: 35ms)
+ GET /pipes 200 in 78ms (compile: 8ms, proxy.ts: 10ms, render: 60ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 3ms, render: 2ms)
+ GET /icons/icon-192x192.png 404 in 32ms (compile: 4ms, render: 28ms)
+✓ Compiled in 1301ms
+ GET /manifest.webmanifest 200 in 18ms (compile: 9ms, render: 9ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 4ms)
+ GET /pipes 200 in 1796ms (compile: 435ms, proxy.ts: 17ms, render: 1344ms)
+ GET /pipes 200 in 386ms (compile: 28ms, proxy.ts: 13ms, render: 345ms)
+ GET /icons/icon-192x192.png 404 in 152ms (compile: 54ms, render: 98ms)
+ GET /icons/icon-192x192.png 404 in 44ms (compile: 5ms, render: 40ms)
+✓ Compiled in 342ms
+✓ Compiled in 260ms
+✓ Compiled in 515ms
+ GET /login 200 in 497ms (compile: 217ms, proxy.ts: 32ms, render: 249ms)
+ GET /pipes 200 in 475ms (compile: 332ms, proxy.ts: 15ms, render: 128ms)
+ GET /login 200 in 100ms (compile: 6ms, proxy.ts: 3ms, render: 91ms)
+ GET /pipes 200 in 101ms (compile: 21ms, proxy.ts: 1744µs, render: 78ms)
+ GET /login 200 in 61ms (compile: 21ms, proxy.ts: 6ms, render: 35ms)
+ GET /pipes 200 in 61ms (compile: 5ms, proxy.ts: 3ms, render: 53ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 4ms, render: 4ms)
+ GET /icons/icon-192x192.png 404 in 116ms (compile: 3ms, render: 113ms)
+ GET /manifest.webmanifest 200 in 5ms (compile: 2ms, render: 3ms)
+ GET /icons/icon-192x192.png 404 in 27ms (compile: 3ms, render: 24ms)
+ GET /manifest.webmanifest 200 in 15ms (compile: 8ms, render: 7ms)
+ GET /pipes 200 in 449ms (compile: 13ms, proxy.ts: 11ms, render: 425ms)
+ GET /icons/icon-192x192.png 404 in 53ms (compile: 8ms, render: 46ms)
+✓ Compiled in 646ms
+✓ Compiled in 452ms
+✓ Compiled in 4.2s
+ GET /pipes 200 in 3.2s (compile: 984ms, proxy.ts: 15ms, render: 2.2s)
+ GET /pipes 200 in 1955ms (compile: 323ms, proxy.ts: 1558ms, render: 74ms)
+ GET /login 200 in 3.6s (compile: 87ms, proxy.ts: 119ms, render: 3.3s)
+ GET /login 200 in 2.4s (compile: 201ms, proxy.ts: 1613ms, render: 607ms)
+ GET /manifest.webmanifest 200 in 38ms (compile: 20ms, render: 18ms)
+ GET /pipes 200 in 3.6s (compile: 1119ms, proxy.ts: 23ms, render: 2.5s)
+ GET /login 200 in 437ms (compile: 33ms, proxy.ts: 5ms, render: 398ms)
+ GET /manifest.webmanifest 200 in 33ms (compile: 14ms, render: 20ms)
+ GET /icons/icon-192x192.png 404 in 678ms (compile: 370ms, render: 308ms)
+ GET /icons/icon-192x192.png 404 in 178ms (compile: 24ms, render: 154ms)
+✓ Compiled in 974ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /manifest.webmanifest 200 in 98ms (compile: 42ms, render: 56ms)
+ GET /pipes 200 in 3.9s (compile: 364ms, proxy.ts: 171ms, render: 3.3s)
+ GET /icons/icon-192x192.png 404 in 153ms (compile: 10ms, render: 143ms)
+✓ Compiled in 329ms
+✓ Compiled in 816ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /login 200 in 5.1s (compile: 67ms, proxy.ts: 140ms, render: 4.9s)
+ GET /login 200 in 4.7s (compile: 3.7s, proxy.ts: 90ms, render: 840ms)
+ GET /manifest.webmanifest 200 in 41ms (compile: 30ms, render: 12ms)
+ GET /pipes 200 in 5.1s (compile: 1134ms, proxy.ts: 21ms, render: 4.0s)
+ GET /login 200 in 327ms (compile: 25ms, proxy.ts: 13ms, render: 288ms)
+ GET /manifest.webmanifest 200 in 18ms (compile: 8ms, render: 9ms)
+ GET /icons/icon-192x192.png 404 in 224ms (compile: 20ms, render: 204ms)
+ GET /icons/icon-192x192.png 404 in 103ms (compile: 12ms, render: 91ms)
+ GET /pipes 200 in 169ms (compile: 28ms, proxy.ts: 15ms, render: 126ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 5ms, render: 3ms)
+ GET /icons/icon-192x192.png 404 in 109ms (compile: 7ms, render: 102ms)
+✓ Compiled in 362ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /manifest.webmanifest 200 in 17ms (compile: 7ms, render: 10ms)
+ GET /pipes 200 in 1153ms (compile: 224ms, proxy.ts: 35ms, render: 893ms)
+ GET /icons/icon-192x192.png 404 in 279ms (compile: 39ms, render: 240ms)
+✓ Compiled in 410ms
+✓ Compiled in 552ms
+✓ Compiled in 264ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 253ms
+ GET /manifest.webmanifest 200 in 11ms (compile: 6ms, render: 5ms)
+ GET /pipes 200 in 3.0s (compile: 554ms, proxy.ts: 87ms, render: 2.4s)
+ GET /icons/icon-192x192.png 404 in 66ms (compile: 16ms, render: 50ms)
+✓ Compiled in 354ms
+✓ Compiled in 275ms
+✓ Compiled in 245ms
+✓ Compiled in 539ms
+ GET /login 200 in 357ms (compile: 41ms, proxy.ts: 49ms, render: 268ms)
+ GET /pipes 200 in 311ms (compile: 158ms, proxy.ts: 20ms, render: 133ms)
+ GET /login 200 in 113ms (compile: 9ms, proxy.ts: 4ms, render: 99ms)
+ GET /pipes 200 in 112ms (compile: 21ms, proxy.ts: 3ms, render: 88ms)
+ GET /login 200 in 73ms (compile: 6ms, proxy.ts: 2ms, render: 65ms)
+ GET /pipes 200 in 73ms (compile: 19ms, proxy.ts: 4ms, render: 50ms)
+ GET /manifest.webmanifest 200 in 16ms (compile: 9ms, render: 7ms)
+ GET /icons/icon-192x192.png 404 in 44ms (compile: 15ms, render: 29ms)
+ GET /manifest.webmanifest 200 in 4ms (compile: 1591µs, render: 3ms)
+ GET /icons/icon-192x192.png 404 in 45ms (compile: 3ms, render: 42ms)
+✓ Compiled in 207ms
+✓ Compiled in 329ms
+ GET /login 200 in 342ms (compile: 8ms, proxy.ts: 47ms, render: 287ms)
+ GET /pipes 200 in 302ms (compile: 171ms, proxy.ts: 2ms, render: 130ms)
+ GET /login 200 in 88ms (compile: 22ms, proxy.ts: 6ms, render: 61ms)
+ GET /pipes 200 in 87ms (compile: 4ms, proxy.ts: 5ms, render: 78ms)
+ GET /login 200 in 51ms (compile: 19ms, proxy.ts: 4ms, render: 28ms)
+ GET /pipes 200 in 53ms (compile: 9ms, proxy.ts: 1831µs, render: 43ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 4ms, render: 3ms)
+ GET /icons/icon-192x192.png 404 in 48ms (compile: 6ms, render: 42ms)
+ GET /manifest.webmanifest 200 in 12ms (compile: 7ms, render: 5ms)
+ GET /icons/icon-192x192.png 404 in 34ms (compile: 12ms, render: 22ms)
+✓ Compiled in 289ms
+ GET /pipeline 404 in 85ms (compile: 17ms, render: 68ms)
+ GET /manifest.webmanifest 200 in 13ms (compile: 5ms, render: 8ms)
+ GET /icons/icon-192x192.png 404 in 183ms (compile: 47ms, render: 136ms)
+ GET / 307 in 337ms (compile: 14ms, render: 322ms)
+ GET /login 200 in 308ms (compile: 6ms, proxy.ts: 3ms, render: 299ms)
+ GET /manifest.webmanifest 200 in 8ms (compile: 4ms, render: 4ms)
+ GET /icons/icon-192x192.png 404 in 32ms (compile: 3ms, render: 30ms)
+ GET /dashboard 200 in 181ms (compile: 136ms, proxy.ts: 16ms, render: 29ms)
+ GET /manifest.webmanifest 200 in 12ms (compile: 8ms, render: 4ms)
+ GET /icons/icon-192x192.png 404 in 21ms (compile: 3ms, render: 19ms)
+ GET /pipes 200 in 594ms (compile: 95ms, proxy.ts: 6ms, render: 493ms)
+ GET /manifest.webmanifest 200 in 7ms (compile: 4ms, render: 4ms)
+ GET /icons/icon-192x192.png 404 in 25ms (compile: 2ms, render: 23ms)
+✓ Compiled in 327ms
+✓ Compiled in 375ms
+ GET /pipes 200 in 754ms (compile: 133ms, proxy.ts: 18ms, render: 604ms)
+ GET /pipes 200 in 760ms (compile: 170ms, proxy.ts: 22ms, render: 567ms)
+ GET /dashboard 200 in 865ms (compile: 303ms, proxy.ts: 12ms, render: 550ms)
+ GET /pipes 200 in 708ms (compile: 212ms, proxy.ts: 4ms, render: 491ms)
+ GET /pipes 200 in 717ms (compile: 56ms, proxy.ts: 193ms, render: 467ms)
+ GET /dashboard 200 in 517ms (compile: 56ms, proxy.ts: 35ms, render: 425ms)
+ GET /pipes 200 in 578ms (compile: 132ms, proxy.ts: 23ms, render: 423ms)
+ GET /pipes 200 in 599ms (compile: 178ms, proxy.ts: 19ms, render: 403ms)
+ GET /dashboard 200 in 427ms (compile: 17ms, proxy.ts: 8ms, render: 401ms)
+ GET /dashboard 200 in 1179ms (compile: 70ms, proxy.ts: 13ms, render: 1096ms)
+ GET /manifest.webmanifest 200 in 23ms (compile: 19ms, render: 3ms)
+ GET /manifest.webmanifest 200 in 9ms (compile: 8ms, render: 1404µs)
+ GET /dashboard 200 in 1028ms (compile: 72ms, proxy.ts: 21ms, render: 935ms)
+ GET /icons/icon-192x192.png 404 in 72ms (compile: 15ms, render: 57ms)
+ GET /icons/icon-192x192.png 404 in 78ms (compile: 29ms, render: 49ms)
+ GET /manifest.webmanifest 200 in 9ms (compile: 2ms, render: 7ms)
+ GET /icons/icon-192x192.png 404 in 31ms (compile: 3ms, render: 28ms)
+ GET /pipeline 404 in 70ms (compile: 6ms, render: 63ms)
+ GET /manifest.webmanifest 200 in 9ms (compile: 6ms, render: 2ms)
+ GET /icons/icon-192x192.png 404 in 27ms (compile: 1371µs, render: 25ms)
+ GET /pipes 200 in 135ms (compile: 4ms, proxy.ts: 5ms, render: 126ms)
+ GET /manifest.webmanifest 200 in 6ms (compile: 3ms, render: 3ms)
+ GET /icons/icon-192x192.png 404 in 49ms (compile: 12ms, render: 37ms)
+ GET /pipes 200 in 129ms (compile: 16ms, proxy.ts: 11ms, render: 102ms)
+ GET /manifest.webmanifest 200 in 13ms (compile: 10ms, render: 3ms)
+ GET /icons/icon-192x192.png 404 in 43ms (compile: 12ms, render: 31ms)
