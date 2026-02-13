@@ -100,6 +100,9 @@ import type { Temperature, PipelineStage } from "@/types";
 import { calculateLeadScore, calculateTemperature } from "@/lib/business-rules";
 import { mockActivities } from "@/lib/mock-data";
 import { stageFieldsConfig } from "@/lib/mock-stage-fields";
+import { mockNegotiationRounds } from "@/lib/mock-data";
+import type { NegotiationRound, NegotiationStatus, NegotiationType, NegotiationSummary } from "@/types";
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Types & Constants

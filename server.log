@@ -1651,3 +1651,20 @@ https://nextjs.org/docs/messages/module-not-found
 ✓ Compiled in 62ms
 ✓ Compiled in 59ms
 ✓ Compiled in 58ms
+✓ Compiled in 594ms
+✓ Compiled in 627ms
+✓ Compiled in 529ms
+ GET /manifest.webmanifest 200 in 77ms (compile: 41ms, render: 36ms)
+ GET /pipes 200 in 1466ms (compile: 226ms, proxy.ts: 13ms, render: 1228ms)
+ GET /icons/icon-192x192.png 404 in 309ms (compile: 241ms, render: 69ms)
+✓ Compiled in 1574ms
+✓ Compiled in 0ms
+ GET /manifest.webmanifest 200 in 33ms (compile: 20ms, render: 13ms)
+ GET /pipes 200 in 1757ms (compile: 403ms, proxy.ts: 16ms, render: 1338ms)
+ GET /pipes 200 in 1782ms (compile: 219ms, proxy.ts: 937ms, render: 627ms)
+ GET /manifest.webmanifest 200 in 45ms (compile: 38ms, render: 7ms)
+ GET /icons/icon-192x192.png 404 in 350ms (compile: 151ms, render: 199ms)
+ GET /icons/icon-192x192.png 404 in 88ms (compile: 7ms, render: 82ms)
+✓ Compiled in 478ms
+✓ Compiled in 76ms
+✓ Compiled in 58ms

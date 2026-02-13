@@ -288,3 +288,50 @@ export interface FilterState {
   tags: string[];
   search: string;
 }
+
+// ===== Negotiation Types =====
+
+export type NegotiationType = "proposal" | "counter" | "internal" | "agreement";
+
+export type NegotiationStatus =
+  | "none"
+  | "negotiating"
+  | "waiting_client"
+  | "waiting_approval"
+  | "agreed";
+
+export interface NegotiationRound {
+  id: string;
+  type: NegotiationType;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  // Values
+  monthlyValue?: number;
+  totalValue?: number;
+  setupValue?: number;
+  commissionValue?: number;
+  termMonths?: number;
+  discountPercentage?: number;
+  // Conditions
+  conditions: string[];
+  details?: string;
+  // Attachments
+  attachments?: {
+    id: string;
+    name: string;
+    url: string;
+    type: "pdf" | "image" | "link";
+  }[];
+  // Internal
+  isFinal?: boolean;
+  status?: "active" | "edited" | "superseded";
+}
+
+export interface NegotiationSummary {
+  status: NegotiationStatus;
+  lastRound?: NegotiationRound; // Latest round regardless of type
+  lastInternalOffer?: NegotiationRound;
+  lastClientCounter?: NegotiationRound;
+  finalAgreement?: NegotiationRound;
+}

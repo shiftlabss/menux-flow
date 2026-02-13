@@ -1,8 +1,8 @@
 "use client";
 
 // ============================================================================
-// Menux Intelligence — Message Component
-// Renderiza mensagens individuais do chat com Markdown, blocos copiáveis e ações
+// Menux Intelligence — Message Component (Premium Redesign)
+// WhatsApp-style bubbles with grouping, Markdown, copyable blocks and actions
 // Ref: docs/Menux Intelligence.md — seções 2.2.2, 6.1, 6.2
 // ============================================================================
 
@@ -47,7 +47,7 @@ function MessageContextBadge({ badge }: { badge: ContextBadge }) {
         : "Frio";
 
   return (
-    <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+    <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/60 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-700/40 dark:text-slate-400">
       <span>📋</span>
       <span>
         Baseado no card: <strong>{badge.cardName}</strong> ({badge.stage} ·{" "}
@@ -88,9 +88,9 @@ function CopyableBlockComponent({ block }: { block: CopyableBlock }) {
   }, [editedContent]);
 
   return (
-    <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/50">
+    <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/60 bg-white/80 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/40">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-3 py-1.5 dark:border-slate-700">
+      <div className="flex items-center justify-between border-b border-slate-100/60 px-3 py-1.5 dark:border-slate-700/40">
         <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
           {channelIcon}
           <span>{block.label ?? "Mensagem"}</span>
@@ -98,7 +98,7 @@ function CopyableBlockComponent({ block }: { block: CopyableBlock }) {
         <button
           onClick={handleCopy}
           className={cn(
-            "flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors",
+            "flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all duration-[120ms]",
             copied
               ? "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400"
               : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-700"
@@ -141,7 +141,7 @@ function CopyableBlockComponent({ block }: { block: CopyableBlock }) {
 
       {/* Character counter */}
       {block.charLimit && (
-        <div className="border-t border-slate-100 px-3 py-1 dark:border-slate-700">
+        <div className="border-t border-slate-100/60 px-3 py-1 dark:border-slate-700/40">
           <p
             className={cn(
               "text-right text-[10px] font-medium",
@@ -207,8 +207,9 @@ function SuggestedActionButton({
       onClick={handleClick}
       disabled={action.executed}
       className={cn(
-        "h-7 gap-1.5 text-xs",
-        action.executed && "opacity-50"
+        "h-7 gap-1.5 rounded-lg text-xs transition-all duration-[120ms]",
+        action.executed && "opacity-50",
+        !action.executed && "hover:translate-y-[-1px] hover:shadow-sm"
       )}
     >
       {action.executed ? (
@@ -224,7 +225,6 @@ function SuggestedActionButton({
 // ─── Markdown Simple Renderer ───────────────────────────────────────────
 
 function renderMarkdown(text: string): React.ReactNode {
-  // Parse bold, italic, inline code, tables, and lists
   const lines = text.split("\n");
   const elements: React.ReactNode[] = [];
   let inTable = false;
@@ -232,7 +232,6 @@ function renderMarkdown(text: string): React.ReactNode {
   let tableKey = 0;
 
   const processInline = (line: string, key: string): React.ReactNode => {
-    // Bold + italic, bold, italic, inline code, links
     const parts = line.split(/(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
     return parts.map((part, i) => {
       if (part.startsWith("***") && part.endsWith("***")) {
@@ -252,13 +251,12 @@ function renderMarkdown(text: string): React.ReactNode {
         return (
           <code
             key={`${key}-${i}`}
-            className="rounded bg-slate-100 px-1 py-0.5 font-mono text-[11px] text-purple-600 dark:bg-slate-700 dark:text-purple-400"
+            className="rounded bg-slate-100/80 px-1 py-0.5 font-mono text-[11px] text-purple-600 dark:bg-slate-700/60 dark:text-purple-400"
           >
             {part.slice(1, -1)}
           </code>
         );
       }
-      // Link rendering: [text](url)
       const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       if (linkMatch) {
         return (
@@ -287,7 +285,6 @@ function renderMarkdown(text: string): React.ReactNode {
         inTable = true;
         tableRows = [];
       }
-      // Skip separator row
       if (/^\|[\s\-:|]+\|$/.test(trimmed)) continue;
       const cells = trimmed
         .split("|")
@@ -296,18 +293,17 @@ function renderMarkdown(text: string): React.ReactNode {
       tableRows.push(cells);
       continue;
     } else if (inTable) {
-      // End of table
       inTable = false;
       const [header, ...body] = tableRows;
       elements.push(
         <div
           key={`table-${tableKey++}`}
-          className="my-2 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700"
+          className="my-2 overflow-x-auto rounded-xl border border-slate-200/60 shadow-sm dark:border-slate-700/60"
         >
           <table className="w-full text-xs">
             {header && (
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+                <tr className="border-b border-slate-200/60 bg-slate-50/80 dark:border-slate-700/60 dark:bg-slate-800/40">
                   {header.map((cell, ci) => (
                     <th
                       key={ci}
@@ -323,7 +319,7 @@ function renderMarkdown(text: string): React.ReactNode {
               {body.map((row, ri) => (
                 <tr
                   key={ri}
-                  className="border-b border-slate-100 last:border-0 dark:border-slate-700/50"
+                  className="border-b border-slate-100/40 last:border-0 dark:border-slate-700/30"
                 >
                   {row.map((cell, ci) => (
                     <td
@@ -404,7 +400,7 @@ function renderMarkdown(text: string): React.ReactNode {
       elements.push(
         <hr
           key={`hr-${i}`}
-          className="my-2 border-slate-200 dark:border-slate-700"
+          className="my-2 border-slate-200/60 dark:border-slate-700/60"
         />
       );
     }
@@ -426,12 +422,12 @@ function renderMarkdown(text: string): React.ReactNode {
     elements.push(
       <div
         key={`table-final`}
-        className="my-2 overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700"
+        className="my-2 overflow-x-auto rounded-xl border border-slate-200/60 shadow-sm dark:border-slate-700/60"
       >
         <table className="w-full text-xs">
           {header && (
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+              <tr className="border-b border-slate-200/60 bg-slate-50/80 dark:border-slate-700/60 dark:bg-slate-800/40">
                 {header.map((cell, ci) => (
                   <th
                     key={ci}
@@ -447,7 +443,7 @@ function renderMarkdown(text: string): React.ReactNode {
             {body.map((row, ri) => (
               <tr
                 key={ri}
-                className="border-b border-slate-100 last:border-0 dark:border-slate-700/50"
+                className="border-b border-slate-100/40 last:border-0 dark:border-slate-700/30"
               >
                 {row.map((cell, ci) => (
                   <td
@@ -474,27 +470,55 @@ interface IntelligenceMessageProps {
   message: Message;
   /** Se true, esconde ações e blocos copiáveis (modo histórico) — seção 7.2 */
   isReadOnly?: boolean;
+  /** Se true, esta mensagem está agrupada (não é a primeira do grupo) */
+  isGrouped?: boolean;
+  /** Se true, esta mensagem é a última do grupo (mostra timestamp) */
+  isLastInGroup?: boolean;
 }
 
 export const IntelligenceMessage = memo(function IntelligenceMessage({
   message,
   isReadOnly = false,
+  isGrouped = false,
+  isLastInGroup = true,
 }: IntelligenceMessageProps) {
   const isUser = message.role === "user";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: [0, 0, 0.2, 1] }}
-      className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}
+      transition={{ duration: 0.14, ease: [0, 0, 0.2, 1] }}
+      className={cn(
+        "flex w-full",
+        isUser ? "justify-end" : "justify-start",
+        // Tighter spacing for grouped messages
+        isGrouped ? "mt-0.5" : "mt-2"
+      )}
     >
       <div
         className={cn(
-          "rounded-xl px-3.5 py-2.5",
+          "px-3.5 py-2.5",
           isUser
-            ? "max-w-[80%] bg-blue-600 text-white"
-            : "max-w-[90%] bg-slate-100/80 text-slate-700 dark:bg-slate-800/40 dark:text-slate-300"
+            ? cn(
+                "max-w-[80%]",
+                "bg-gradient-to-br from-blue-500 to-blue-600 text-white",
+                "shadow-sm shadow-blue-500/15",
+                // WhatsApp-style bubble radius
+                isGrouped
+                  ? "rounded-[18px] rounded-tr-[6px]"
+                  : "rounded-[18px] rounded-tr-[6px]"
+              )
+            : cn(
+                "max-w-[90%]",
+                "bg-slate-100/80 text-slate-700",
+                "dark:bg-slate-800/40 dark:text-slate-300",
+                "shadow-sm shadow-slate-200/30 dark:shadow-slate-900/20",
+                // WhatsApp-style bubble radius
+                isGrouped
+                  ? "rounded-[18px] rounded-tl-[6px]"
+                  : "rounded-[18px] rounded-tl-[6px]"
+              )
         )}
       >
         {/* Context badge */}
@@ -505,7 +529,7 @@ export const IntelligenceMessage = memo(function IntelligenceMessage({
         {/* Content */}
         <div
           className={cn(
-            "font-body text-sm leading-relaxed",
+            "font-body text-[13px] leading-relaxed",
             isUser
               ? "[&_strong]:font-semibold"
               : "[&_strong]:font-semibold [&_code]:text-purple-600 dark:[&_code]:text-purple-400"
@@ -523,7 +547,7 @@ export const IntelligenceMessage = memo(function IntelligenceMessage({
           </div>
         )}
 
-        {/* Suggested actions — seção 6.2 (escondido em somente leitura — seção 7.2) */}
+        {/* Suggested actions — seção 6.2 */}
         {!isUser && !isReadOnly && message.suggestedActions && message.suggestedActions.length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {message.suggestedActions.map((action) => (
@@ -536,18 +560,20 @@ export const IntelligenceMessage = memo(function IntelligenceMessage({
           </div>
         )}
 
-        {/* Timestamp */}
-        <p
-          className={cn(
-            "mt-1 text-[10px]",
-            isUser ? "text-blue-200" : "text-slate-400"
-          )}
-        >
-          {new Date(message.timestamp).toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </p>
+        {/* Timestamp — only on last message in group */}
+        {isLastInGroup && (
+          <p
+            className={cn(
+              "mt-1 text-[10px]",
+              isUser ? "text-blue-200" : "text-slate-400"
+            )}
+          >
+            {new Date(message.timestamp).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        )}
       </div>
     </motion.div>
   );
