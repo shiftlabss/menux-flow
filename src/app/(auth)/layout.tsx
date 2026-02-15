@@ -4,6 +4,7 @@ import { GlobalSearch } from "@/components/shared/global-search";
 import { MobileBottomNav } from "@/components/shared/mobile-bottom-nav";
 import { IntelligenceProvider } from "@/components/intelligence/intelligence-provider";
 import { RouteTransition } from "@/components/layout/route-transition";
+import { ErrorBoundary } from "@/components/shared/error-boundary";
 
 export default function AuthLayout({
   children,
@@ -11,12 +12,18 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AppShell>
-      <RouteTransition>{children}</RouteTransition>
-      <GlobalDrawers />
-      <GlobalSearch />
-      <MobileBottomNav />
-      <IntelligenceProvider />
-    </AppShell>
+    <ErrorBoundary name="auth-layout">
+      <AppShell>
+        <RouteTransition>
+          <ErrorBoundary name="page-content">{children}</ErrorBoundary>
+        </RouteTransition>
+        <GlobalDrawers />
+        <GlobalSearch />
+        <MobileBottomNav />
+        <ErrorBoundary name="intelligence-panel">
+          <IntelligenceProvider />
+        </ErrorBoundary>
+      </AppShell>
+    </ErrorBoundary>
   );
 }
