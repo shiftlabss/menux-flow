@@ -10,16 +10,21 @@ import { LoseOpportunityModal } from "@/components/modals/lose-opportunity-modal
 import { InviteUserModal } from "@/components/modals/invite-user-modal";
 import { ConfirmDeleteModal } from "@/components/modals/confirm-delete-modal";
 import { ConfirmDeactivateModal } from "@/components/modals/confirm-deactivate-modal";
+import { useUIStore } from "@/stores/ui-store";
 
 export function GlobalDrawers() {
+  const { modalData, drawerData } = useUIStore();
+  const leadDrawerKey = String(modalData?.id ?? "default");
+  const clientDrawerKey = String(drawerData?.id ?? "default");
+
   return (
     <>
       {/* Drawers */}
-      <ClientCardDrawer />
+      <ClientCardDrawer key={clientDrawerKey} />
       <FiltersPanel context="pipes" />
 
       {/* Modals */}
-      <LeadCardDrawer />
+      <LeadCardDrawer key={leadDrawerKey} />
       <NewOpportunityModal />
       <NewActivityModal />
       <WinOpportunityModal />

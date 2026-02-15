@@ -1,37 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, startTransition } from "react";
+import { useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { useSidebarStore } from "@/stores/sidebar-store";
-import { useAuthStore } from "@/stores/auth-store";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isExpanded } = useSidebarStore();
-  const { setUser } = useAuthStore();
   const mainRef = useRef<HTMLDivElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  // Initialize auth store with Master role on mount (client-side only)
-  useEffect(() => {
-    startTransition(() => {
-      setMounted(true);
-    });
-    setUser(
-      {
-        id: "demo-user",
-        name: "Usuário Demo",
-        email: "demo@flow.com",
-        role: "master",
-        unitId: "unit-1",
-        unitName: "Unidade Principal",
-        isActive: true,
-      },
-      "demo-token"
-    );
-  }, [setUser]);
 
   // Handle scroll detection for sticky header state
   const handleScroll = () => {

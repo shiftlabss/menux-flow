@@ -7,6 +7,7 @@ import {
   useRef,
   useMemo,
   useEffect,
+  Suspense,
 } from "react";
 // External
 import {
@@ -62,7 +63,7 @@ import { PipelineSwitcher } from "@/components/pipeline/pipeline-switcher";
 // Main Page Component
 // ===================================================================
 
-export default function PipesPage() {
+function PipesPageContent() {
   const { openDrawer, openModal } = useUIStore();
   const { user } = useAuthStore();
   const router = useRouter();
@@ -699,5 +700,21 @@ export default function PipesPage() {
         />
       </motion.div>
     </TooltipProvider>
+  );
+}
+
+function PipesPageFallback() {
+  return (
+    <div className="premium-ambient min-h-[calc(100vh-72px)] p-6">
+      <PipelineSkeleton stageCount={6} />
+    </div>
+  );
+}
+
+export default function PipesPage() {
+  return (
+    <Suspense fallback={<PipesPageFallback />}>
+      <PipesPageContent />
+    </Suspense>
   );
 }

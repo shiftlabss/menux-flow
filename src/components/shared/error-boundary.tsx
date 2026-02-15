@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ErrorFallback } from "./error-fallback";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -38,7 +39,6 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       if (this.props.fallback) {
         return this.props.fallback;
       }
-      const ErrorFallback = require("./error-fallback").ErrorFallback;
       return <ErrorFallback error={this.state.error} onRetry={this.handleReset} />;
     }
     return this.props.children;

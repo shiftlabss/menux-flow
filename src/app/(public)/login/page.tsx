@@ -101,9 +101,22 @@ export default function LoginPage() {
 
   const [lockoutEnd, setLockoutEnd] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
+  const [redirectPath, setRedirectPath] = useState("/dashboard");
 
   const router = useRouter();
   const { setUser } = useAuthStore();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const rawRedirect = new URLSearchParams(window.location.search).get(
+      "redirect"
+    );
+    const safeRedirect =
+      rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+        ? rawRedirect
+        : "/dashboard";
+    setRedirectPath(safeRedirect);
+  }, []);
 
   const {
     register,
@@ -229,9 +242,10 @@ export default function LoginPage() {
           unitName: "Matriz",
           isActive: true,
         },
-        "mock-token"
+        "mock-token",
+        { rememberMe }
       );
-      router.push("/dashboard");
+      router.push(redirectPath);
     } catch {
       handleLoginFailure();
     } finally {

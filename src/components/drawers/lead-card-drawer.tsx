@@ -102,6 +102,7 @@ import { stageFieldsConfig } from "@/lib/mock-stage-fields";
 import { mockNegotiationRounds } from "@/lib/mock-data";
 import type { NegotiationRound, NegotiationStatus, NegotiationType, NegotiationSummary } from "@/types";
 import { NegotiationTab } from "./lead-negotiation-tab";
+import { useOpportunityStore } from "@/stores/opportunity-store";
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1715,53 +1716,85 @@ const getActivityIcon = (type: string) => {
 // ═══════════════════════════════════════════════════════════════════
 
 export default function LeadCardDrawer() {
-  const { modalType, closeModal } = useUIStore();
+  const { modalType, modalData, closeModal } = useUIStore();
   const isOpen = modalType === "lead-card";
+  const selectedLeadId = modalData?.id as string | undefined;
+  const opportunities = useOpportunityStore((state) => state.opportunities);
+  const selectedLead = useMemo(
+    () => opportunities.find((opportunity) => opportunity.id === selectedLeadId),
+    [opportunities, selectedLeadId]
+  );
+  const resolvedLead = useMemo(
+    () =>
+      selectedLead
+        ? {
+            ...mockLead,
+            id: selectedLead.id,
+            title: selectedLead.title,
+            clientName: selectedLead.clientName,
+            nomeFantasia: selectedLead.clientName || selectedLead.title,
+            value: selectedLead.value,
+            monthlyValue: selectedLead.monthlyValue,
+            stage: selectedLead.stage,
+            temperature: selectedLead.temperature,
+            responsibleId: selectedLead.responsibleId,
+            responsibleName: selectedLead.responsibleName,
+            tags: selectedLead.tags,
+            source: selectedLead.source ?? mockLead.source,
+            expectedCloseDate:
+              selectedLead.expectedCloseDate ?? mockLead.expectedCloseDate,
+            createdAt: selectedLead.createdAt,
+            updatedAt: selectedLead.updatedAt,
+            notes: selectedLead.notes ?? mockLead.notes,
+          }
+        : mockLead,
+    [selectedLead]
+  );
 
   // ── Deal state ───────────────────────────────────────────────
-  const [title, setTitle] = useState(mockLead.title);
-  const [value, setValue] = useState(mockLead.value);
-  const [monthlyValue, setMonthlyValue] = useState(mockLead.monthlyValue);
-  const [stage, setStage] = useState<PipelineStage>(mockLead.stage);
-  const [viewStage, setViewStage] = useState<PipelineStage>(mockLead.stage);
+  const [title, setTitle] = useState(resolvedLead.title);
+  const [value, setValue] = useState(resolvedLead.value);
+  const [monthlyValue, setMonthlyValue] = useState(resolvedLead.monthlyValue);
+  const [stage, setStage] = useState<PipelineStage>(resolvedLead.stage);
+  const [viewStage, setViewStage] = useState<PipelineStage>(resolvedLead.stage);
 
   // Sync viewStage when actual stage changes
   useEffect(() => {
     setViewStage(stage);
   }, [stage]);
   const [temperature, setTemperature] = useState<Temperature>(
-    mockLead.temperature,
+    resolvedLead.temperature,
   );
-  const [responsibleId, setResponsibleId] = useState(mockLead.responsibleId);
+  const [responsibleId, setResponsibleId] = useState(resolvedLead.responsibleId);
   const [responsibleName, setResponsibleName] = useState(
-    mockLead.responsibleName,
+    resolvedLead.responsibleName,
   );
-  const [tags, setTags] = useState(mockLead.tags);
+  const [tags, setTags] = useState(() => [...resolvedLead.tags]);
   const [newTag, setNewTag] = useState("");
   const [contacts, setContacts] = useState(mockContacts);
   const [dealStatus, setDealStatus] = useState<DealStatus>("open");
   const [expectedCloseDate, setExpectedCloseDate] = useState(
-    mockLead.expectedCloseDate,
+    resolvedLead.expectedCloseDate,
   );
-  const [source] = useState(mockLead.source);
+  const [source] = useState(resolvedLead.source);
 
   // Company fields — neste funil, sem CNPJ e sem Razão Social
-  const [nomeFantasia] = useState(mockLead.nomeFantasia);
-  const [segmento] = useState(mockLead.segmento);
-  const [cep, setCep] = useState(mockLead.cep);
-  const [logradouro, setLogradouro] = useState(mockLead.logradouro);
-  const [numero, setNumero] = useState(mockLead.numero);
-  const [complemento, setComplemento] = useState(mockLead.complemento);
-  const [bairro, setBairro] = useState(mockLead.bairro);
-  const [cidade, setCidade] = useState(mockLead.cidade);
-  const [estado, setEstado] = useState(mockLead.estado);
+  const [nomeFantasia] = useState(resolvedLead.nomeFantasia);
+  const [segmento] = useState(resolvedLead.segmento);
+  const [cep, setCep] = useState(resolvedLead.cep);
+  const [logradouro, setLogradouro] = useState(resolvedLead.logradouro);
+  const [numero, setNumero] = useState(resolvedLead.numero);
+  const [complemento, setComplemento] = useState(resolvedLead.complemento);
+  const [bairro, setBairro] = useState(resolvedLead.bairro);
+  const [cidade, setCidade] = useState(resolvedLead.cidade);
+  const [estado, setEstado] = useState(resolvedLead.estado);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
-  const [telefoneEmpresa] = useState(mockLead.telefoneEmpresa);
-  const [emailEmpresa] = useState(mockLead.emailEmpresa);
-  const [website, setWebsite] = useState(mockLead.website);
-  const [instagramUrl, setInstagramUrl] = useState(mockLead.instagram);
-  const [cardapioUrl, setCardapioUrl] = useState(mockLead.cardapio);
+  const [telefoneEmpresa] = useState(resolvedLead.telefoneEmpresa);
+  const [emailEmpresa] = useState(resolvedLead.emailEmpresa);
+  const [website, setWebsite] = useState(resolvedLead.website);
+  const [instagramUrl, setInstagramUrl] = useState(resolvedLead.instagram);
+  const [cardapioUrl, setCardapioUrl] = useState(resolvedLead.cardapio);
 
   // --- Company Refactor State ---
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -1797,9 +1830,9 @@ export default function LeadCardDrawer() {
 
   // --- Stage Fields State ---
   const [stageValues, setStageValues] = useState<Record<string, string | number | boolean | null | undefined>>(
-    mockLead.metadata?.stageValues || {}
+    resolvedLead.metadata?.stageValues || {}
   );
-  const [notes, setNotes] = useState(mockLead.notes || "");
+  const [notes, setNotes] = useState(resolvedLead.notes || "");
 
   const handleUpdateStageField = (fieldId: string, val: string | number | boolean | null | undefined) => {
     setStageValues((prev) => ({ ...prev, [fieldId]: val }));
@@ -1880,16 +1913,16 @@ export default function LeadCardDrawer() {
 
   // Computed
   const relatedActivities = useMemo(
-    () => mockActivities.filter((a) => a.opportunityId === mockLead.id),
-    [],
+    () => mockActivities.filter((a) => a.opportunityId === resolvedLead.id),
+    [resolvedLead.id],
   );
   const leadScore = useMemo(
-    () => calculateLeadScore(mockLead, relatedActivities),
-    [relatedActivities],
+    () => calculateLeadScore(resolvedLead, relatedActivities),
+    [resolvedLead, relatedActivities],
   );
   const suggestedTemperature = useMemo(
-    () => calculateTemperature(mockLead),
-    [],
+    () => calculateTemperature(resolvedLead),
+    [resolvedLead],
   );
 
   const isLocked = dealStatus !== "open";
@@ -1899,10 +1932,10 @@ export default function LeadCardDrawer() {
     if (isOpen) {
       trackEvent("view_opened", {
         entity_type: "deal",
-        entity_id: mockLead.id,
+        entity_id: resolvedLead.id,
       });
     }
-  }, [isOpen]);
+  }, [isOpen, resolvedLead.id]);
 
   // ── Handlers ─────────────────────────────────────────────────
 
@@ -1913,16 +1946,16 @@ export default function LeadCardDrawer() {
       trackEvent("stage_changed", {
         from_stage_id: prevStage,
         to_stage_id: newStage,
-        entity_id: mockLead.id,
+        entity_id: resolvedLead.id,
       });
       setStage(newStage);
       setStageBanner({ message: "Etapa atualizada", variant: "success" });
     },
-    [stage, isLocked],
+    [stage, isLocked, resolvedLead.id],
   );
 
   const handleMarkWon = useCallback(() => {
-    trackEvent("mark_won_clicked", { entity_id: mockLead.id });
+    trackEvent("mark_won_clicked", { entity_id: resolvedLead.id });
     setIsWinLoading(true);
     setTimeout(() => {
       setDealStatus("won");
@@ -1932,12 +1965,12 @@ export default function LeadCardDrawer() {
         message: "Oportunidade marcada como ganho",
         variant: "success",
       });
-      trackEvent("mark_won_succeeded", { entity_id: mockLead.id });
+      trackEvent("mark_won_succeeded", { entity_id: resolvedLead.id });
     }, 600);
-  }, []);
+  }, [resolvedLead.id]);
 
   const handleMarkLost = useCallback((reason: string) => {
-    trackEvent("mark_lost_clicked", { entity_id: mockLead.id, reason });
+    trackEvent("mark_lost_clicked", { entity_id: resolvedLead.id, reason });
     setIsLostLoading(true);
     setTimeout(() => {
       setDealStatus("lost");
@@ -1947,9 +1980,9 @@ export default function LeadCardDrawer() {
         message: `Oportunidade marcada como perdida — ${reason}`,
         variant: "info",
       });
-      trackEvent("mark_lost_succeeded", { entity_id: mockLead.id, reason });
+      trackEvent("mark_lost_succeeded", { entity_id: resolvedLead.id, reason });
     }, 600);
-  }, []);
+  }, [resolvedLead.id]);
 
   const handleAddTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim().toLowerCase())) {
@@ -3069,7 +3102,7 @@ export default function LeadCardDrawer() {
 
                         {/* ── Tab: Negociação ───────────────────────────── */}
                         <TabsContent value="negociacao" className="mt-0 space-y-4">
-                            <NegotiationTab dealId={mockLead.id} dealTitle={title} />
+                            <NegotiationTab dealId={resolvedLead.id} dealTitle={title} />
                         </TabsContent>
 
                         {/* ── Tab: Anotações ────────────────────────────── */}

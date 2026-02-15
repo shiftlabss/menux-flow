@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -129,8 +129,21 @@ function ActivateAccountContent() {
 
   function handleAvatarSelect(file: File) {
     setAvatarFile(file);
-    setAvatarPreview(URL.createObjectURL(file));
+    setAvatarPreview((previousPreview) => {
+      if (previousPreview) {
+        URL.revokeObjectURL(previousPreview);
+      }
+      return URL.createObjectURL(file);
+    });
   }
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   async function onSubmit(data: ActivateAccountFormData) {
     setIsSubmitting(true);

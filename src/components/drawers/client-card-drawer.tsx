@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   X,
   Mail,
@@ -72,6 +72,7 @@ import {
 import { useUIStore } from "@/stores/ui-store";
 import type { HealthScore, ClientStage } from "@/types";
 import { calculateHealthScore } from "@/lib/business-rules";
+import { useClientStore } from "@/stores/client-store";
 
 // ── Health config ───────────────────────────────────────────────────────────
 const healthConfig: Record<
@@ -723,31 +724,62 @@ function ChurnModal({
 
 // ── Main Component ──────────────────────────────────────────────────────────
 export function ClientCardDrawer() {
-  const { drawerType, closeDrawer, openModal } = useUIStore();
+  const { drawerType, drawerData, closeDrawer, openModal } = useUIStore();
   const isOpen = drawerType === "client-card";
+  const selectedClientId = drawerData?.id as string | undefined;
+  const clients = useClientStore((state) => state.clients);
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === selectedClientId),
+    [clients, selectedClientId]
+  );
+  const resolvedClient = useMemo(
+    () =>
+      selectedClient
+        ? {
+            ...mockClient,
+            id: selectedClient.id,
+            companyName: selectedClient.companyName,
+            cnpj: selectedClient.cnpj,
+            razaoSocial: selectedClient.companyName,
+            telefoneEmpresa: selectedClient.contactPhone,
+            emailEmpresa: selectedClient.contactEmail,
+            stage: selectedClient.stage,
+            healthScore: selectedClient.healthScore,
+            monthlyRevenue: selectedClient.monthlyRevenue,
+            contractStart: selectedClient.contractStart,
+            contractEnd: selectedClient.contractEnd,
+            responsibleId: selectedClient.responsibleId,
+            responsibleName: selectedClient.responsibleName,
+            tags: selectedClient.tags,
+            lastInteraction: selectedClient.lastInteraction,
+            notes: "",
+          }
+        : mockClient,
+    [selectedClient]
+  );
   // Health Score calculado dinamicamente
-  const computedHealth = calculateHealthScore(mockClient);
+  const computedHealth = calculateHealthScore(resolvedClient);
   const health = {
     ...healthConfig[computedHealth.category],
     numericScore: computedHealth.numericScore,
   };
 
   // State
-  const [stage, setStage] = useState<ClientStage>(mockClient.stage);
-  const [responsibleId, setResponsibleId] = useState(mockClient.responsibleId);
-  const [responsibleName, setResponsibleName] = useState(mockClient.responsibleName);
-  const [notes, setNotes] = useState(mockClient.notes);
-  const [tags, setTags] = useState(mockClient.tags);
+  const [stage, setStage] = useState<ClientStage>(resolvedClient.stage);
+  const [responsibleId, setResponsibleId] = useState(resolvedClient.responsibleId);
+  const [responsibleName, setResponsibleName] = useState(resolvedClient.responsibleName);
+  const [notes, setNotes] = useState(resolvedClient.notes);
+  const [tags, setTags] = useState(() => [...resolvedClient.tags]);
   const [newTag, setNewTag] = useState("");
   const [contacts, setContacts] = useState(mockContacts);
   const [showChurnModal, setShowChurnModal] = useState(false);
 
   // Company editable fields
-  const [cnpj, setCnpj] = useState(mockClient.cnpj);
-  const [razaoSocial, setRazaoSocial] = useState(mockClient.razaoSocial);
-  const [endereco, setEndereco] = useState(mockClient.endereco);
-  const [telefoneEmpresa, setTelefoneEmpresa] = useState(mockClient.telefoneEmpresa);
-  const [emailEmpresa, setEmailEmpresa] = useState(mockClient.emailEmpresa);
+  const [cnpj, setCnpj] = useState(resolvedClient.cnpj);
+  const [razaoSocial, setRazaoSocial] = useState(resolvedClient.razaoSocial);
+  const [endereco, setEndereco] = useState(resolvedClient.endereco);
+  const [telefoneEmpresa, setTelefoneEmpresa] = useState(resolvedClient.telefoneEmpresa);
+  const [emailEmpresa, setEmailEmpresa] = useState(resolvedClient.emailEmpresa);
 
   // Contact form
   const [showAddContact, setShowAddContact] = useState(false);
@@ -836,7 +868,7 @@ export function ClientCardDrawer() {
               <div className="flex-1">
                 <div className="flex items-center gap-3">
                   <SheetTitle className="font-heading text-xl font-semibold text-black">
-                    {mockClient.companyName}
+                    {resolvedClient.companyName}
                   </SheetTitle>
                   {/* Health Score Badge */}
                   <div
@@ -849,15 +881,15 @@ export function ClientCardDrawer() {
                     </span>
                   </div>
                   {/* Group Badge */}
-                  {mockClient.groupName && (
+                  {resolvedClient.groupName && (
                     <Badge className="gap-1 rounded-[10px] bg-zinc-100 text-zinc-600 font-body text-xs">
                       <Users className="h-3 w-3" />
-                      {mockClient.groupName}
+                      {resolvedClient.groupName}
                     </Badge>
                   )}
                 </div>
                 <p className="mt-0.5 font-body text-sm text-zinc-500">
-                  CNPJ: {mockClient.cnpj}
+                  CNPJ: {resolvedClient.cnpj}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -912,13 +944,13 @@ export function ClientCardDrawer() {
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-zinc-400" />
                   <span className="font-body text-sm text-zinc-600">
-                    MRR: <strong className="text-black">{formatCurrency(mockClient.monthlyRevenue)}</strong>
+                    MRR: <strong className="text-black">{formatCurrency(resolvedClient.monthlyRevenue)}</strong>
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-zinc-400" />
                   <span className="font-body text-sm text-zinc-600">
-                    Contrato: <strong className="text-black">{new Date(mockClient.contractStart).toLocaleDateString("pt-BR")}</strong>
+                    Contrato: <strong className="text-black">{new Date(resolvedClient.contractStart).toLocaleDateString("pt-BR")}</strong>
                   </span>
                 </div>
               </div>
@@ -974,7 +1006,7 @@ export function ClientCardDrawer() {
                     label="Receita Mensal"
                   >
                     <span className="font-body text-sm font-medium text-black">
-                      {formatCurrency(mockClient.monthlyRevenue)}/mes
+                      {formatCurrency(resolvedClient.monthlyRevenue)}/mes
                     </span>
                   </InfoRow>
                   <InfoRow
@@ -990,7 +1022,7 @@ export function ClientCardDrawer() {
                     label="Inicio do Contrato"
                   >
                     <span className="font-body text-sm font-medium text-black">
-                      {new Date(mockClient.contractStart).toLocaleDateString("pt-BR")}
+                      {new Date(resolvedClient.contractStart).toLocaleDateString("pt-BR")}
                     </span>
                   </InfoRow>
                   <InfoRow
@@ -998,8 +1030,8 @@ export function ClientCardDrawer() {
                     label="Ultima Interacao"
                   >
                     <span className="font-body text-sm font-medium text-black">
-                      {mockClient.lastInteraction
-                        ? new Date(mockClient.lastInteraction).toLocaleDateString("pt-BR")
+                      {resolvedClient.lastInteraction
+                        ? new Date(resolvedClient.lastInteraction).toLocaleDateString("pt-BR")
                         : "--"}
                     </span>
                   </InfoRow>
