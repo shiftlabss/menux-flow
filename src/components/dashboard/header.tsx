@@ -190,7 +190,7 @@ export function DashboardHeader() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
       className={cn(
-        "sticky top-[84px] z-30 rounded-[20px] border border-zinc-200/85 bg-zinc-50/95 backdrop-blur-sm",
+        "sticky top-4 z-30 rounded-[20px] border border-zinc-200/85 bg-zinc-50/95 backdrop-blur-sm",
         "transition-[padding,box-shadow] duration-160 ease-out",
         isScrolled
           ? "px-4 py-3 shadow-[0_18px_28px_-18px_rgba(15,23,42,0.38)]"

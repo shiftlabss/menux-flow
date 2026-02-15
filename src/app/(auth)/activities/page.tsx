@@ -1196,12 +1196,12 @@ export default function ActivitiesPage() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
-      className="space-y-5 p-4 md:p-6"
+      className="space-y-5 px-4 pb-4 pt-0 md:px-6 md:pb-6 md:pt-0"
     >
       <div
         className={cn(
-          "relative overflow-hidden rounded-[20px] border border-zinc-200/80 bg-zinc-50/55 p-5 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.4)] transition-shadow duration-120 ease-out md:p-6",
-          isPageScrolled && "shadow-[0_20px_36px_-20px_rgba(15,23,42,0.38)]"
+          "relative overflow-hidden rounded-[20px] border border-zinc-200/80 bg-zinc-50/55 px-5 pb-5 pt-3 shadow-[0_10px_22px_-20px_rgba(15,23,42,0.32)] transition-shadow duration-120 ease-out md:px-6 md:pb-6 md:pt-3",
+          isPageScrolled && "shadow-[0_14px_24px_-18px_rgba(15,23,42,0.32)]"
         )}
       >
         <div className="pointer-events-none absolute inset-0">

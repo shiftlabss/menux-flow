@@ -1,22 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { cn } from "@/lib/cn";
 import { useSidebarStore } from "@/stores/sidebar-store";
-import { Header } from "./header";
 import { Sidebar } from "./sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isExpanded } = useSidebarStore();
   const mainRef = useRef<HTMLDivElement>(null);
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  // Handle scroll detection for sticky header state
-  const handleScroll = () => {
-    if (mainRef.current) {
-      setIsScrolled(mainRef.current.scrollTop > 8);
-    }
-  };
 
   return (
     <div className="flex h-screen w-full overflow-hidden premium-mesh">
@@ -38,14 +29,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           marginLeft: isExpanded ? "15rem" : "4rem" // 60 (15rem) or 16 (4rem)
         }}
       >
-        {/* Top Header - Sticky/Fixed at top of Main Column */}
-        <Header isScrolled={isScrolled} />
-
         {/* Content Scroll Area */}
         <main
           ref={mainRef}
-          onScroll={handleScroll}
-          className="flex-1 overflow-y-auto overflow-x-hidden p-6 pb-24 md:pb-8 pt-[calc(72px+1.5rem)]"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-24 pt-4 md:pb-8"
         >
           {children}
         </main>
