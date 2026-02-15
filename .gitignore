@@ -27,6 +27,8 @@
 *.pem
 *.bak
 *.bak[0-9]*
+.vscode/
+.npmrc
 menux-flow-recovery/
 temp_build_env/
 tmp_node_modules/

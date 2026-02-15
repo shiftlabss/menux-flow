@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "clean": "rm -rf .next .npm_cache .npm_cache_clean menux-flow-recovery temp_build_env tmp_node_modules test_dir server.log tsconfig.tsbuildinfo",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest"
