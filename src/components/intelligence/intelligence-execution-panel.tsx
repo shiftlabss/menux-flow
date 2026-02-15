@@ -41,7 +41,7 @@ import { useExecutionPanelData } from "@/hooks/use-execution-panel-data";
 import { formatCurrencyBRL } from "@/lib/business-rules";
 
 export function IntelligenceExecutionPanel() {
-  const { contextCard, executeSlashCommand, proactiveSuggestions, dismissSuggestion } =
+  const { contextCard, executeSlashCommand, proactiveSuggestions, dismissSuggestion, menuxIntelligenceMode } =
     useIntelligenceStore();
   const { opportunities } = useOpportunityStore();
 
@@ -51,6 +51,39 @@ export function IntelligenceExecutionPanel() {
   const hasClient = !!contextCard;
 
   const pendingSuggestions = proactiveSuggestions.filter((s) => !s.dismissed);
+
+  // Mode-based section visibility
+  const sectionVisibility: Record<string, { suggestions: boolean; priorities: boolean; actions: boolean; insights: boolean; quickWins: boolean; risks: boolean }> = {
+    focus: { suggestions: true, priorities: true, actions: true, insights: false, quickWins: false, risks: false },
+    audit: { suggestions: false, priorities: false, actions: true, insights: true, quickWins: true, risks: true },
+    reply: { suggestions: true, priorities: true, actions: true, insights: false, quickWins: false, risks: false },
+    proposal: { suggestions: false, priorities: false, actions: true, insights: true, quickWins: true, risks: false },
+  };
+
+  const visible = sectionVisibility[menuxIntelligenceMode] ?? sectionVisibility.focus;
+
+  // Mode-based quick action filtering
+  const quickActionFilter: Record<string, string[]> = {
+    focus: ["whatsapp", "email", "agendar", "proposta", "resumo", "funil", "riscos", "planos"],
+    audit: ["resumo", "funil", "riscos", "planos"],
+    reply: ["whatsapp", "email", "agendar"],
+    proposal: ["proposta", "planos"],
+  };
+
+  const allowedQuickActions = quickActionFilter[menuxIntelligenceMode] ?? quickActionFilter.focus;
+
+  const allQuickActions = [
+    { key: "whatsapp", icon: <MessageSquare className="h-3.5 w-3.5" />, label: "WhatsApp", color: "border-emerald-300/25 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/18 hover:border-emerald-300/40", needsClient: true },
+    { key: "email", icon: <Mail className="h-3.5 w-3.5" />, label: "Email", color: "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/18 hover:border-cyan-300/40", needsClient: true },
+    { key: "agendar", icon: <Calendar className="h-3.5 w-3.5" />, label: "Follow-up", color: "border-violet-300/25 bg-violet-400/12 text-violet-100 hover:bg-violet-400/18 hover:border-violet-300/40", needsClient: true },
+    { key: "proposta", icon: <Target className="h-3.5 w-3.5" />, label: "Pitch", color: "border-amber-300/25 bg-amber-400/12 text-amber-100 hover:bg-amber-400/18 hover:border-amber-300/40", needsClient: true },
+    { key: "resumo", icon: <Sunrise className="h-3.5 w-3.5" />, label: "Resumo", color: "border-indigo-300/25 bg-indigo-400/12 text-indigo-100 hover:bg-indigo-400/18 hover:border-indigo-300/40", needsClient: false },
+    { key: "funil", icon: <TrendingUp className="h-3.5 w-3.5" />, label: "Funil", color: "border-blue-300/25 bg-blue-400/12 text-blue-100 hover:bg-blue-400/18 hover:border-blue-300/40", needsClient: false },
+    { key: "riscos", icon: <ShieldAlert className="h-3.5 w-3.5" />, label: "Riscos", color: "border-rose-300/25 bg-rose-400/12 text-rose-100 hover:bg-rose-400/18 hover:border-rose-300/40", needsClient: false },
+    { key: "planos", icon: <FileText className="h-3.5 w-3.5" />, label: "Planos", color: "border-slate-300/25 bg-slate-400/12 text-slate-100 hover:bg-slate-400/18 hover:border-slate-200/35", needsClient: false },
+  ];
+
+  const filteredQuickActions = allQuickActions.filter((a) => allowedQuickActions.includes(a.key));
 
   // Collapsible sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -100,7 +133,7 @@ export function IntelligenceExecutionPanel() {
     <div className="flex h-full flex-col overflow-y-auto bg-transparent">
       <div className="p-5 space-y-6">
         {/* Proactive Suggestions */}
-        {pendingSuggestions.length > 0 && (
+        {visible.suggestions && pendingSuggestions.length > 0 && (
           <section>
             <SectionHeader
               icon={<Sunrise className="h-4 w-4 text-violet-500" />}
@@ -187,7 +220,7 @@ export function IntelligenceExecutionPanel() {
         )}
 
         {/* Priorities */}
-        <section>
+        {visible.priorities && (<section>
           <SectionHeader
             icon={<Clock className="h-4 w-4 text-red-500" />}
             title="Prioridades de Hoje"
@@ -246,10 +279,10 @@ export function IntelligenceExecutionPanel() {
               </motion.div>
             )}
           </AnimatePresence>
-        </section>
+        </section>)}
 
         {/* Quick Actions */}
-        <section>
+        {visible.actions && (<section>
           <SectionHeader
             icon={<Zap className="h-4 w-4 text-amber-500 fill-amber-500" />}
             title="Acoes Rapidas"
@@ -268,71 +301,26 @@ export function IntelligenceExecutionPanel() {
               >
                 <TooltipProvider>
                   <div className="mt-3 grid grid-cols-1 gap-2 [@media(min-width:1200px)]:grid-cols-2">
-                    <QuickActionCard
-                      icon={<MessageSquare className="h-3.5 w-3.5" />}
-                      label="WhatsApp"
-                      color="border-emerald-300/25 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/18 hover:border-emerald-300/40"
-                      onClick={() => handleQuickAction("whatsapp")}
-                      disabled={!hasClient}
-                      tooltip={!hasClient ? "Selecione um cliente primeiro" : undefined}
-                    />
-                    <QuickActionCard
-                      icon={<Mail className="h-3.5 w-3.5" />}
-                      label="Email"
-                      color="border-cyan-300/25 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/18 hover:border-cyan-300/40"
-                      onClick={() => handleQuickAction("email")}
-                      disabled={!hasClient}
-                      tooltip={!hasClient ? "Selecione um cliente primeiro" : undefined}
-                    />
-                    <QuickActionCard
-                      icon={<Calendar className="h-3.5 w-3.5" />}
-                      label="Follow-up"
-                      color="border-violet-300/25 bg-violet-400/12 text-violet-100 hover:bg-violet-400/18 hover:border-violet-300/40"
-                      onClick={() => handleQuickAction("agendar")}
-                      disabled={!hasClient}
-                      tooltip={!hasClient ? "Selecione um cliente primeiro" : undefined}
-                    />
-                    <QuickActionCard
-                      icon={<Target className="h-3.5 w-3.5" />}
-                      label="Pitch"
-                      color="border-amber-300/25 bg-amber-400/12 text-amber-100 hover:bg-amber-400/18 hover:border-amber-300/40"
-                      onClick={() => handleQuickAction("proposta")}
-                      disabled={!hasClient}
-                      tooltip={!hasClient ? "Selecione um cliente primeiro" : undefined}
-                    />
-                    <QuickActionCard
-                      icon={<Sunrise className="h-3.5 w-3.5" />}
-                      label="Resumo"
-                      color="border-indigo-300/25 bg-indigo-400/12 text-indigo-100 hover:bg-indigo-400/18 hover:border-indigo-300/40"
-                      onClick={() => handleQuickAction("resumo")}
-                    />
-                    <QuickActionCard
-                      icon={<TrendingUp className="h-3.5 w-3.5" />}
-                      label="Funil"
-                      color="border-blue-300/25 bg-blue-400/12 text-blue-100 hover:bg-blue-400/18 hover:border-blue-300/40"
-                      onClick={() => handleQuickAction("funil")}
-                    />
-                    <QuickActionCard
-                      icon={<ShieldAlert className="h-3.5 w-3.5" />}
-                      label="Riscos"
-                      color="border-rose-300/25 bg-rose-400/12 text-rose-100 hover:bg-rose-400/18 hover:border-rose-300/40"
-                      onClick={() => handleQuickAction("riscos")}
-                    />
-                    <QuickActionCard
-                      icon={<FileText className="h-3.5 w-3.5" />}
-                      label="Planos"
-                      color="border-slate-300/25 bg-slate-400/12 text-slate-100 hover:bg-slate-400/18 hover:border-slate-200/35"
-                      onClick={() => handleQuickAction("planos")}
-                    />
+                    {filteredQuickActions.map((action) => (
+                      <QuickActionCard
+                        key={action.key}
+                        icon={action.icon}
+                        label={action.label}
+                        color={action.color}
+                        onClick={() => handleQuickAction(action.key)}
+                        disabled={action.needsClient && !hasClient}
+                        tooltip={action.needsClient && !hasClient ? "Selecione um cliente primeiro" : undefined}
+                      />
+                    ))}
                   </div>
                 </TooltipProvider>
               </motion.div>
             )}
           </AnimatePresence>
-        </section>
+        </section>)}
 
         {/* Smart Insights */}
-        {insights.length > 0 && (
+        {visible.insights && insights.length > 0 && (
           <section>
             <SectionHeader
               icon={<BarChart3 className="h-4 w-4 text-indigo-500" />}
@@ -377,7 +365,7 @@ export function IntelligenceExecutionPanel() {
         )}
 
         {/* Quick Wins */}
-        {quickWins.length > 0 && (
+        {visible.quickWins && quickWins.length > 0 && (
           <section>
             <SectionHeader
               icon={<Trophy className="h-4 w-4 text-emerald-500" />}
@@ -453,7 +441,7 @@ export function IntelligenceExecutionPanel() {
         )}
 
         {/* Risk Alerts */}
-        {riskAlerts.length > 0 && (
+        {visible.risks && riskAlerts.length > 0 && (
           <section>
             <SectionHeader
               icon={<ShieldAlert className="h-4 w-4 text-red-500" />}
