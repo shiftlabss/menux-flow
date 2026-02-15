@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   BarChart3,
   Users,
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
+import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { exportToCSV, exportToPDF, exportToExcel } from "@/lib/export";
 
@@ -557,10 +558,29 @@ function ReportViewer({
 // ---------------------------------------------------------------------------
 
 export default function ReportsPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
+
   const [activeReportId, setActiveReportId] = useState<string | null>(null);
   const activeReport = activeReportId
     ? mockReportData[activeReportId]
     : null;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="mt-2 h-4 w-72" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-52 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-8">

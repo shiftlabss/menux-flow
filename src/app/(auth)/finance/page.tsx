@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   TrendingUp,
   Clock,
@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { exportToCSV, exportToPDF, exportToExcel } from "@/lib/export";
 import type { CommissionStatus } from "@/types";
@@ -293,6 +294,9 @@ const allSellers = [
 // ===== Component =====
 
 export default function FinancePage() {
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
+
   // Period selector state
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
@@ -510,6 +514,34 @@ export default function FinancePage() {
   function pct(value: number, total: number) {
     if (total === 0) return 0;
     return Math.round((value / total) * 100);
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-44" />
+            <Skeleton className="mt-2 h-4 w-56" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-40 rounded-full" />
+            <Skeleton className="h-9 w-28 rounded-full" />
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-4">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <Skeleton className="h-7 w-44" />
+          <Skeleton className="h-9 w-9 rounded-full" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
   }
 
   return (

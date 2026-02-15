@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Trophy,
   Target,
@@ -40,6 +40,7 @@ import { motion } from "framer-motion";
 import type { Goal } from "@/types";
 import { useGoalStore } from "@/stores/goal-store";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ---------------------------------------------------------------------------
 // Framer Motion Variants
@@ -574,6 +575,29 @@ function NewGoalDialog() {
 
 export default function GoalsPage() {
   const { goals } = useGoalStore();
+
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="mt-2 h-4 w-72" />
+          </div>
+          <Skeleton className="h-10 w-32 rounded-full" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-44 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-72 rounded-xl" />
+      </div>
+    );
+  }
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-8">

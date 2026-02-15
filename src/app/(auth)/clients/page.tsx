@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import {
   Search,
   Heart,
@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import type { Client, ClientStage, HealthScore } from "@/types";
 import { useUIStore } from "@/stores/ui-store";
@@ -343,6 +344,9 @@ export default function ClientsPage() {
   const draggedCardRef = useRef<string | null>(null);
   const dragOverStageRef = useRef<ClientStage | null>(null);
 
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
+
   const [activeFunnel, setActiveFunnel] = useState<FunnelType>("onboarding");
   const [searchQuery, setSearchQuery] = useState("");
   const [healthFilter, setHealthFilter] = useState<HealthScore | "all">("all");
@@ -439,6 +443,35 @@ export default function ClientsPage() {
       return true;
     });
   }, [activeFunnel, searchQuery, healthFilter, responsibleFilter, allClients]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="mt-2 h-4 w-64" />
+          </div>
+        </div>
+        <Skeleton className="h-10 w-56 rounded-full" />
+        <div className="flex flex-wrap items-center gap-3">
+          <Skeleton className="h-9 w-64 rounded-xl" />
+          <Skeleton className="h-9 w-32 rounded-full" />
+          <Skeleton className="h-9 w-32 rounded-full" />
+        </div>
+        <div className="flex gap-3 overflow-hidden">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="w-[300px] shrink-0 space-y-2 rounded-xl bg-zinc-50 p-3">
+              <Skeleton className="h-6 w-24" />
+              {Array.from({ length: 3 }).map((_, j) => (
+                <Skeleton key={j} className="h-28 rounded-xl" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-6">

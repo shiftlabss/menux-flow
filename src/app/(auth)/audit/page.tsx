@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   Search,
   ChevronDown,
@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Select,
@@ -456,6 +457,9 @@ function AuditRow({
 // ---------------------------------------------------------------------------
 
 export default function AuditPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
+
   const [entityFilter, setEntityFilter] = useState("all");
   const [userFilter, setUserFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -505,6 +509,26 @@ export default function AuditPage() {
 
   const hasActiveFilters =
     entityFilter !== "all" || userFilter !== "all" || dateFrom || dateTo;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Skeleton className="h-8 w-52" />
+            <Skeleton className="mt-2 h-4 w-72" />
+          </div>
+          <Skeleton className="h-8 w-56 rounded-lg" />
+        </div>
+        <Skeleton className="h-14 rounded-xl" />
+        <div className="space-y-2 rounded-xl border border-zinc-200 p-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-6">

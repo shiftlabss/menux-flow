@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useUIStore } from "@/stores/ui-store";
 import { useActivityStore } from "@/stores/activity-store";
 import type { ActivityType, ActivityStatus } from "@/types";
@@ -22,6 +23,9 @@ import { screenContainer, sectionEnter, listItemReveal } from "@/lib/motion";
 export default function ActivitiesPage() {
   const { openDrawer } = useUIStore();
   const { activities } = useActivityStore();
+
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
 
@@ -117,6 +121,29 @@ export default function ActivitiesPage() {
   }
 
   // ── Render ───────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-7 w-48" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-24 rounded-full" />
+            <Skeleton className="h-9 w-32 rounded-full" />
+          </div>
+        </div>
+        <Skeleton className="h-10 w-full rounded-xl" />
+        <div className="flex gap-6">
+          <div className="min-w-0 flex-1 space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="hidden h-80 w-64 rounded-xl lg:block" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
