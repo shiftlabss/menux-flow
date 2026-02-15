@@ -124,12 +124,11 @@ export function SlashCommandMenu({
         transition={{ duration: 0.15 }}
         className={cn(
           "absolute bottom-full left-0 right-0 mb-2 max-h-[320px] overflow-y-auto",
-          "rounded-xl border border-slate-200 bg-white shadow-xl",
-          "dark:border-slate-700 dark:bg-slate-900"
+          "rounded-xl border border-white/14 bg-slate-950/96 shadow-2xl shadow-black/35 backdrop-blur-xl"
         )}
       >
         {/* Section header */}
-        <div className="sticky top-0 border-b border-slate-100 bg-white/95 px-3 py-2 backdrop-blur-sm dark:border-slate-700/50 dark:bg-slate-900/95">
+        <div className="sticky top-0 border-b border-white/10 bg-slate-950/92 px-3 py-2 backdrop-blur-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Comandos rápidos
           </p>
@@ -153,8 +152,8 @@ export function SlashCommandMenu({
                 className={cn(
                   "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors",
                   index === selectedIndex
-                    ? "bg-slate-100 dark:bg-slate-800"
-                    : "hover:bg-slate-50 dark:hover:bg-slate-800/50",
+                    ? "bg-white/10"
+                    : "hover:bg-white/7",
                   needsCard && "opacity-50 cursor-not-allowed"
                 )}
                 disabled={needsCard}
@@ -165,21 +164,21 @@ export function SlashCommandMenu({
                 }
               >
                 {/* Icon */}
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-base dark:bg-slate-800">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/8 text-base">
                   {cmd.icon}
                 </span>
 
                 {/* Content */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-body text-sm font-medium text-slate-800 dark:text-slate-200">
+                    <span className="font-body text-sm font-medium text-slate-100">
                       {cmd.label}
                     </span>
-                    <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                    <code className="rounded border border-white/10 bg-white/8 px-1.5 py-0.5 font-mono text-[10px] text-slate-300">
                       {cmd.command}
                     </code>
                   </div>
-                  <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="truncate text-[11px] text-slate-400">
                     {cmd.description}
                   </p>
                 </div>
@@ -190,8 +189,8 @@ export function SlashCommandMenu({
                     className={cn(
                       "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium",
                       hasCard
-                        ? "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                        : "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+                        ? "bg-emerald-500/18 text-emerald-100"
+                        : "bg-amber-500/18 text-amber-100"
                     )}
                   >
                     {hasCard ? "✅ Card" : "⚠️ Requer card"}

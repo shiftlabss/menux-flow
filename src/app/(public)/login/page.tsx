@@ -135,7 +135,7 @@ function clearPersistedLockoutState() {
 // ---------------------------------------------------------------------------
 const brandingBullets = [
   { icon: Zap, text: "Raio X do funil em tempo real" },
-  { icon: Brain, text: "Jarvis Comercial com Intelligence" },
+  { icon: Brain, text: "Menux Intelligence aplicada ao comercial" },
   { icon: Target, text: "Atividades e SLAs com foco no que importa" },
 ];
 
@@ -519,7 +519,7 @@ export default function LoginPage() {
                   Operação comercial elegante, previsível e sem ruído.
                 </h1>
                 <p className="mt-4 max-w-[480px] font-body text-[15px] leading-relaxed text-slate-200/90">
-                  Centralize pipeline, inteligência e execução em uma experiência
+                  Centralize pipeline, Menux Intelligence e execução em uma experiência
                   única, com clareza para decidir e velocidade para agir.
                 </p>
               </div>
@@ -580,7 +580,7 @@ export default function LoginPage() {
                 </div>
                 <div className="mb-4 rounded-[14px] border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 lg:hidden">
                   <p className="font-body text-xs text-zinc-600">
-                    Raio X do funil, Intelligence e execução em um único fluxo.
+                    Raio X do funil, Menux Intelligence e execução em um único fluxo.
                   </p>
                 </div>
                 <p className="mb-2 font-body text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">

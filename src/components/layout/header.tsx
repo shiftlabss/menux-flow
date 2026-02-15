@@ -40,6 +40,7 @@ export function Header({ isScrolled = false }: HeaderProps) {
     "/goals": "Metas",
     "/reports": "Relatórios",
     "/audit": "Auditoria",
+    "/intelligence": "Menux Intelligence",
   };
 
   function getBreadcrumb(): string | null {

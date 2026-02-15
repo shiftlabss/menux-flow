@@ -12,22 +12,26 @@ export default function IntelligenceError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[Intelligence Page Error]", error);
+    console.error("[Menux Intelligence Page Error]", error);
   }, [error]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] items-center justify-center bg-zinc-50">
-      <div className="text-center max-w-md px-4">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
-          <AlertTriangle className="h-8 w-8 text-red-500" />
+    <div className="menux-intelligence-theme flex h-[calc(100vh-4rem)] items-center justify-center rounded-[22px] border border-white/12">
+      <div className="menux-intelligence-surface max-w-md rounded-[20px] px-6 py-8 text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-300/35 bg-red-500/14">
+          <AlertTriangle className="h-8 w-8 text-red-200" />
         </div>
-        <h2 className="text-lg font-bold text-zinc-800 mb-2">
-          Erro na Intelligence
+        <h2 className="mb-2 text-lg font-bold text-slate-100">
+          Erro na Menux Intelligence
         </h2>
-        <p className="text-sm text-zinc-500 mb-4">
-          {error.message || "Ocorreu um erro inesperado ao carregar o Jarvis."}
+        <p className="mb-4 text-sm text-slate-300">
+          {error.message || "Ocorreu um erro inesperado ao carregar a Menux Intelligence."}
         </p>
-        <Button onClick={reset} variant="outline">
+        <Button
+          onClick={reset}
+          variant="outline"
+          className="border-white/16 bg-white/8 text-slate-100 hover:bg-white/12"
+        >
           Tentar novamente
         </Button>
       </div>

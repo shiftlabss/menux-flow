@@ -19,7 +19,7 @@ import { ClientPickerModal } from "./client-picker-modal";
 import type { SlashCommandDefinition, SlashCommand } from "@/types/intelligence";
 import { INTELLIGENCE_LIMITS } from "@/types/intelligence";
 
-export function JarvisFullConsole() {
+export function MenuxIntelligenceFullConsole() {
   const [inputValue, setInputValue] = useState("");
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [pendingCommand, setPendingCommand] = useState<SlashCommandDefinition | null>(null);
@@ -142,7 +142,7 @@ export function JarvisFullConsole() {
       : "Digite uma mensagem ou /comando...";
 
   return (
-    <div className="premium-grain relative flex h-full flex-col bg-linear-to-b from-slate-50 via-slate-50 to-slate-100/85">
+    <div className="relative flex h-full flex-col bg-transparent">
       {/* History Panel (overlay) */}
       <ConversationHistory />
 
@@ -156,14 +156,14 @@ export function JarvisFullConsole() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="flex items-center justify-between border-b border-amber-200 bg-amber-50 px-4 py-2"
+            className="flex items-center justify-between border-b border-amber-300/25 bg-amber-500/12 px-4 py-2 backdrop-blur-sm"
           >
-            <p className="text-xs font-medium text-amber-700">
+            <p className="text-xs font-medium text-amber-200">
               Visualizando conversa do historico (somente leitura)
             </p>
             <button
               onClick={() => useIntelligenceStore.getState().exitHistoryView()}
-              className="text-xs font-semibold text-amber-700 underline hover:text-amber-900"
+              className="text-xs font-semibold text-amber-100 underline hover:text-amber-50"
             >
               Voltar para conversa ativa
             </button>
@@ -179,7 +179,7 @@ export function JarvisFullConsole() {
         <div className="flex flex-col pb-4 max-w-3xl mx-auto w-full">
           {/* Day Divider */}
           <div className="flex justify-center my-4">
-            <span className="bg-white border border-zinc-200 px-3 py-1 rounded-full text-[10px] font-medium text-zinc-400 shadow-sm uppercase tracking-wide">
+            <span className="rounded-full border border-white/18 bg-white/8 px-3 py-1 text-[10px] font-medium uppercase tracking-wide text-slate-300 shadow-sm">
               {new Date().toLocaleDateString("pt-BR", {
                 weekday: "short",
                 day: "2-digit",
@@ -202,13 +202,13 @@ export function JarvisFullConsole() {
           {/* Typing Indicator */}
           {isTyping && (
             <div className="flex gap-3 mt-2">
-              <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-brand to-cyan-600 text-white shadow-sm ring-2 ring-white">
+              <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500/80 to-blue-500/85 text-white shadow-sm ring-2 ring-white/20">
                 <Sparkles className="h-4 w-4" />
               </div>
-              <div className="flex items-center gap-1.5 h-10 bg-white rounded-2xl rounded-tl-sm px-4 shadow-sm border border-zinc-100/50">
-                <span className="premium-glow-dot h-2 w-2 rounded-full bg-zinc-400 animate-bounce [animation-delay:-0.3s]" />
-                <span className="premium-glow-dot h-2 w-2 rounded-full bg-zinc-400 animate-bounce [animation-delay:-0.15s]" />
-                <span className="premium-glow-dot h-2 w-2 rounded-full bg-zinc-400 animate-bounce" />
+              <div className="flex h-10 items-center gap-1.5 rounded-2xl rounded-tl-sm border border-white/12 bg-slate-900/55 px-4 shadow-sm">
+                <span className="premium-glow-dot h-2 w-2 animate-bounce rounded-full bg-slate-300 [animation-delay:-0.3s]" />
+                <span className="premium-glow-dot h-2 w-2 animate-bounce rounded-full bg-slate-300 [animation-delay:-0.15s]" />
+                <span className="premium-glow-dot h-2 w-2 animate-bounce rounded-full bg-slate-300" />
               </div>
             </div>
           )}
@@ -219,15 +219,15 @@ export function JarvisFullConsole() {
           {/* Empty state */}
           {displayMessages.length === 0 && !isTyping && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-cyan-600 text-white shadow-lg">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/80 to-blue-500/85 text-white shadow-lg">
                 <Sparkles className="h-8 w-8" />
               </div>
-              <h3 className="font-heading text-lg font-bold text-zinc-800 mb-1">
-                Jarvis Comercial
+              <h3 className="mb-1 font-heading text-lg font-bold text-slate-100">
+                Menux Intelligence
               </h3>
-              <p className="text-sm text-zinc-500 max-w-sm">
+              <p className="max-w-sm text-sm text-slate-300">
                 Seu assistente de vendas inteligente. Faça perguntas, use comandos
-                com <kbd className="bg-zinc-100 border border-zinc-200 rounded px-1 text-xs">/</kbd> ou selecione um cliente para comecar.
+                com <kbd className="rounded border border-white/18 bg-white/8 px-1 text-xs text-slate-100">/</kbd> ou selecione um cliente para comecar.
               </p>
             </div>
           )}
@@ -240,7 +240,7 @@ export function JarvisFullConsole() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28, ease: [0.22, 0.61, 0.36, 1] }}
-          className="bg-slate-50/80 p-4 pt-2 backdrop-blur-sm"
+          className="border-t border-white/10 bg-slate-950/28 p-4 pt-2 backdrop-blur-sm"
         >
           <div className="max-w-3xl mx-auto relative">
             {/* Slash Command Menu */}
@@ -257,7 +257,7 @@ export function JarvisFullConsole() {
             {/* Pending command badge */}
             {pendingCommand && (
               <div className="flex items-center gap-2 mb-2 px-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-3 py-1 text-xs font-medium text-brand-strong">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/30 bg-cyan-300/14 px-3 py-1 text-xs font-medium text-cyan-100">
                   <Command className="h-3 w-3" />
                   {pendingCommand.command}
                 </span>
@@ -267,7 +267,7 @@ export function JarvisFullConsole() {
                     setInputValue("");
                     setShowSlashMenu(false);
                   }}
-                  className="text-[10px] text-zinc-400 hover:text-zinc-600"
+                  className="text-[10px] text-slate-400 hover:text-slate-100"
                 >
                   Cancelar
                 </button>
@@ -277,13 +277,13 @@ export function JarvisFullConsole() {
             {/* Context card badge */}
             {contextCard && !pendingCommand && (
               <div className="flex items-center gap-2 mb-2 px-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-400/14 px-3 py-1 text-xs font-medium text-emerald-100">
                   {contextCard.temperature === "hot" ? "🔥" : contextCard.temperature === "warm" ? "🌡️" : "❄️"}
                   {contextCard.cardName} · {contextCard.stageLabel}
                 </span>
                 <button
                   onClick={() => useIntelligenceStore.getState().setContextCard(null)}
-                  className="text-[10px] text-zinc-400 hover:text-zinc-600"
+                  className="text-[10px] text-slate-400 hover:text-slate-100"
                 >
                   Remover
                 </button>
@@ -292,8 +292,8 @@ export function JarvisFullConsole() {
 
             <div
               className={cn(
-                "premium-shine relative flex items-end gap-2 rounded-[26px] border border-zinc-200 bg-white p-2 shadow-xl shadow-zinc-200/50 transition-all duration-200",
-                "focus-within:border-brand/30 focus-within:ring-2 focus-within:ring-brand/15"
+                "relative flex items-end gap-2 rounded-[26px] border border-white/12 bg-slate-900/58 p-2 shadow-xl shadow-black/35 transition-all duration-200",
+                "focus-within:border-cyan-300/35 focus-within:ring-2 focus-within:ring-cyan-300/20"
               )}
             >
               <div className="flex-1 py-3 min-h-[44px]">
@@ -311,7 +311,7 @@ export function JarvisFullConsole() {
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={INTELLIGENCE_LIMITS.MAX_USER_MESSAGE_LENGTH}
-                  className="w-full bg-transparent border-none outline-none text-sm placeholder:text-zinc-400 font-medium pl-2"
+                  className="w-full border-none bg-transparent pl-2 text-sm font-medium text-slate-100 outline-none placeholder:text-slate-400"
                   disabled={isTyping}
                 />
               </div>
@@ -323,7 +323,7 @@ export function JarvisFullConsole() {
                     "h-10 w-10 rounded-full shadow-md transition-all duration-200",
                     inputValue
                       ? "bg-brand text-white shadow-brand/20 hover:bg-brand-strong"
-                      : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
+                      : "bg-slate-700/70 text-slate-300 hover:bg-slate-700"
                   )}
                   disabled={!inputValue.trim() || isTyping}
                   onClick={handleSend}
@@ -333,28 +333,28 @@ export function JarvisFullConsole() {
               </div>
             </div>
 
-            <div className="flex justify-between px-4 mt-3">
-              <div className="flex gap-4 text-[10px] text-zinc-400 font-medium">
+            <div className="mt-3 flex justify-between px-4">
+              <div className="flex gap-4 text-[10px] font-medium text-slate-400">
                 <span className="flex items-center gap-1.5">
-                  <kbd className="bg-white border border-zinc-200 rounded px-1 min-w-[18px] h-[18px] flex items-center justify-center font-sans">
+                  <kbd className="flex h-[18px] min-w-[18px] items-center justify-center rounded border border-white/16 bg-white/8 px-1 font-sans">
                     ↵
                   </kbd>
                   Enviar
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <kbd className="bg-white border border-zinc-200 rounded px-1 min-w-[18px] h-[18px] flex items-center justify-center font-sans">
+                  <kbd className="flex h-[18px] min-w-[18px] items-center justify-center rounded border border-white/16 bg-white/8 px-1 font-sans">
                     /
                   </kbd>
                   Comandos
                 </span>
                 {remainingQueries < 10 && (
-                  <span className="text-amber-500">
+                  <span className="text-amber-300">
                     {remainingQueries} consultas restantes
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-zinc-300">
-                Jarvis pode cometer erros. Verifique as informacoes.
+              <p className="text-[10px] text-slate-500">
+                Menux Intelligence pode cometer erros. Verifique as informacoes.
               </p>
             </div>
           </div>
@@ -386,19 +386,19 @@ function ProactiveBanner() {
 
   const priorityConfig = {
     high: {
-      bg: "bg-red-50 border-red-200",
-      text: "text-red-700",
-      icon: <AlertTriangle className="h-4 w-4 text-red-500" />,
+      bg: "border-red-300/30 bg-red-500/12",
+      text: "text-red-100",
+      icon: <AlertTriangle className="h-4 w-4 text-red-200" />,
     },
     medium: {
-      bg: "bg-amber-50 border-amber-200",
-      text: "text-amber-700",
-      icon: <TrendingUp className="h-4 w-4 text-amber-500" />,
+      bg: "border-amber-300/30 bg-amber-500/12",
+      text: "text-amber-100",
+      icon: <TrendingUp className="h-4 w-4 text-amber-200" />,
     },
     low: {
-      bg: "bg-blue-50 border-blue-200",
-      text: "text-blue-700",
-      icon: <Lightbulb className="h-4 w-4 text-blue-500" />,
+      bg: "border-cyan-300/30 bg-cyan-500/12",
+      text: "text-cyan-100",
+      icon: <Lightbulb className="h-4 w-4 text-cyan-200" />,
     },
   };
 
@@ -424,7 +424,7 @@ function ProactiveBanner() {
               ? `${topSuggestion.cardName} — ${topSuggestion.message}`
               : topSuggestion.message}
           </p>
-          <p className="text-[10px] text-zinc-500 truncate capitalize">
+          <p className="truncate text-[10px] capitalize text-slate-400">
             {topSuggestion.type.replace(/-/g, " ")}
           </p>
         </div>
@@ -439,17 +439,17 @@ function ProactiveBanner() {
           className={cn(
             "shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold transition-colors",
             topSuggestion.priority === "high"
-              ? "bg-red-100 text-red-700 hover:bg-red-200"
+              ? "bg-red-500/20 text-red-100 hover:bg-red-500/28"
               : topSuggestion.priority === "medium"
-                ? "bg-amber-100 text-amber-700 hover:bg-amber-200"
-                : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                ? "bg-amber-500/20 text-amber-100 hover:bg-amber-500/28"
+                : "bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/28"
           )}
         >
           Investigar
         </button>
         <button
           onClick={() => dismissSuggestion(topSuggestion.id)}
-          className="shrink-0 rounded-full p-1 text-zinc-400 hover:text-zinc-600 hover:bg-white/60 transition-colors"
+          className="shrink-0 rounded-full p-1 text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-100"
           title="Dispensar"
         >
           <X className="h-3.5 w-3.5" />

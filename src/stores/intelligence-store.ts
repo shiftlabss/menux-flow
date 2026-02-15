@@ -74,7 +74,7 @@ function getPipelineContext() {
     const activities = useActivityStore.getState().activities;
     return computePipelineContext(opportunities, activities, user.id, user.role);
   } catch (err) {
-    console.error("[Intelligence] Erro ao computar pipeline context:", err);
+    console.error("[Menux Intelligence] Erro ao computar pipeline context:", err);
     return null;
   }
 }
@@ -99,7 +99,7 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
   activeScreen: "other",
   remainingQueries: INTELLIGENCE_LIMITS.MAX_QUERIES_PER_HOUR,
   rateLimitResetAt: null,
-  jarvisMode: "focus",
+  menuxIntelligenceMode: "focus",
   isThinking: false,
 
   // ── Actions ────────────────────────────────────────────────────────────
@@ -466,5 +466,5 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
     });
   },
 
-  setJarvisMode: (mode) => set({ jarvisMode: mode }),
+  setMenuxIntelligenceMode: (mode) => set({ menuxIntelligenceMode: mode }),
 }));

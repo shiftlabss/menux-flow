@@ -11,11 +11,11 @@ import { motion } from "framer-motion";
 export function TypingIndicator() {
   return (
     <div className="flex justify-start">
-      <div className="flex items-center gap-1 rounded-xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/40">
+      <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-slate-900/58 px-4 py-3">
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
-            className="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-slate-500"
+            className="h-1.5 w-1.5 rounded-full bg-slate-300"
             animate={{ y: [0, -4, 0] }}
             transition={{
               duration: 0.6,

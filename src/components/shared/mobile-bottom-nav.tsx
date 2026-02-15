@@ -45,7 +45,7 @@ const moreNavItems: NavItem[] = [
     matchPrefix: "/settings",
     icon: Settings,
   },
-  { label: "Intelligence", href: "/intelligence", icon: Sparkles },
+  { label: "Menux Intelligence", href: "/intelligence", icon: Sparkles },
 ];
 
 // ── Mobile Bottom Nav ──────────────────────────────────────────────

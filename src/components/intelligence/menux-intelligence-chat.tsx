@@ -5,7 +5,7 @@ import { Send, Sparkles } from "lucide-react";
 import { useIntelligenceStore } from "@/stores/intelligence-store";
 import { IntelligenceMessage } from "./intelligence-message";
 
-export function JarvisChat() {
+export function MenuxIntelligenceChat() {
   const { messages, isTyping, sendMessage } = useIntelligenceStore();
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -23,13 +23,13 @@ export function JarvisChat() {
   };
 
   return (
-    <div className="flex flex-col h-[40%] min-h-[300px] border-t border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950">
+    <div className="flex h-[40%] min-h-[300px] flex-col border-t border-white/10 bg-transparent">
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
              <Sparkles className="h-8 w-8 text-slate-300 mb-2" />
-             <p className="text-xs text-slate-400">Jarvis está pronto.</p>
+             <p className="text-xs text-slate-400">Menux Intelligence está pronta.</p>
           </div>
         ) : (
           messages.map((msg) => (
@@ -53,19 +53,19 @@ export function JarvisChat() {
       </div>
 
       {/* Composer Area */}
-      <div className="p-4 bg-slate-50/50 border-t border-slate-100 dark:bg-slate-900/50 dark:border-slate-800">
-        <div className="relative flex items-center gap-2 bg-white rounded-xl border border-slate-200 px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all dark:bg-slate-900 dark:border-slate-700">
+      <div className="border-t border-white/10 bg-slate-950/28 p-4">
+        <div className="relative flex items-center gap-2 rounded-xl border border-white/14 bg-slate-900/58 px-3 py-2 shadow-lg shadow-black/25 transition-all focus-within:border-cyan-300/35 focus-within:ring-2 focus-within:ring-cyan-300/20">
            <span className="text-slate-400 font-mono text-lg">/</span>
            <input
              ref={inputRef}
              type="text"
              placeholder="Digite um comando ou mensagem..."
-             className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 placeholder:text-slate-400 dark:text-slate-200"
+             className="flex-1 border-none bg-transparent text-sm text-slate-100 outline-none placeholder:text-slate-400"
              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
            />
            <button 
              onClick={handleSend}
-             className="p-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+             className="rounded-lg bg-cyan-600 p-1.5 text-white shadow-sm transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
            >
              <Send className="h-3.5 w-3.5" />
            </button>

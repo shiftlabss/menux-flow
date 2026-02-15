@@ -13,14 +13,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useIntelligenceStore } from "@/stores/intelligence-store";
-import type { JarvisMode } from "./jarvis-header";
+import type { MenuxIntelligenceMode } from "./menux-intelligence-header";
 
-interface JarvisConsoleProps {
+interface MenuxIntelligenceConsoleProps {
   onAction: (action: string) => void;
 }
 
-export function JarvisConsole({ onAction }: JarvisConsoleProps) {
-  const { jarvisMode, contextCard } = useIntelligenceStore();
+export function MenuxIntelligenceConsole({ onAction }: MenuxIntelligenceConsoleProps) {
+  const { menuxIntelligenceMode, contextCard } = useIntelligenceStore();
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
@@ -33,7 +33,7 @@ export function JarvisConsole({ onAction }: JarvisConsoleProps) {
        <PriorityModule />
 
        {/* Module B: Suggested Commands */}
-       <CommandSuggestions mode={jarvisMode as JarvisMode} onAction={onAction} />
+       <CommandSuggestions mode={menuxIntelligenceMode as MenuxIntelligenceMode} onAction={onAction} />
 
        {/* Module C: Quick Actions (Only if client selected) */}
        {contextCard && (
@@ -52,22 +52,22 @@ function PriorityModule() {
         <Clock className="h-3 w-3" /> Prioridades de Hoje
       </h4>
       <div className="space-y-2">
-         <div className="p-3 rounded-xl bg-white border border-slate-100 shadow-sm flex items-start gap-3 hover:shadow-md transition-shadow cursor-pointer group dark:bg-slate-900 dark:border-slate-800">
-            <div className="mt-0.5 p-1.5 rounded-md bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+         <div className="group flex cursor-pointer items-start gap-3 rounded-xl border border-white/14 bg-white/7 p-3 shadow-sm transition-shadow hover:shadow-md">
+            <div className="mt-0.5 rounded-md bg-red-500/18 p-1.5 text-red-100">
                <AlertCircle className="h-3.5 w-3.5" />
             </div>
             <div className="flex-1">
-               <p className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 transition-colors">Follow-up: Clinica Odonto Plus</p>
+               <p className="text-xs font-medium text-slate-100 transition-colors group-hover:text-cyan-200">Follow-up: Clinica Odonto Plus</p>
                <p className="text-[10px] text-slate-400 mt-0.5">Atrasado há 2 dias • Proposta enviada</p>
             </div>
          </div>
          
-         <div className="p-3 rounded-xl bg-white border border-slate-100 shadow-sm flex items-start gap-3 hover:shadow-md transition-shadow cursor-pointer group dark:bg-slate-900 dark:border-slate-800">
-            <div className="mt-0.5 p-1.5 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+         <div className="group flex cursor-pointer items-start gap-3 rounded-xl border border-white/14 bg-white/7 p-3 shadow-sm transition-shadow hover:shadow-md">
+            <div className="mt-0.5 rounded-md bg-amber-500/18 p-1.5 text-amber-100">
                <Calendar className="h-3.5 w-3.5" />
             </div>
             <div className="flex-1">
-               <p className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-indigo-600 transition-colors">Reunião: Construtora Horizonte</p>
+               <p className="text-xs font-medium text-slate-100 transition-colors group-hover:text-cyan-200">Reunião: Construtora Horizonte</p>
                <p className="text-[10px] text-slate-400 mt-0.5">Hoje às 14:00 • Apresentação de Proposta</p>
             </div>
          </div>
@@ -76,7 +76,7 @@ function PriorityModule() {
   );
 }
 
-function CommandSuggestions({ mode, onAction }: { mode: JarvisMode; onAction: (cmd: string) => void }) {
+function CommandSuggestions({ mode, onAction }: { mode: MenuxIntelligenceMode; onAction: (cmd: string) => void }) {
   // Define commands per mode
   const commands = {
     focus: [
@@ -107,7 +107,7 @@ function CommandSuggestions({ mode, onAction }: { mode: JarvisMode; onAction: (c
   return (
     <section>
       <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
-        <Zap className="h-3 w-3" /> Ações do Jarvis
+        <Zap className="h-3 w-3" /> Ações da Menux Intelligence
       </h4>
       <div className="grid grid-cols-2 gap-2">
         {activeCommands.map((item) => (
@@ -115,11 +115,11 @@ function CommandSuggestions({ mode, onAction }: { mode: JarvisMode; onAction: (c
             key={item.id}
             onClick={() => onAction(item.cmd)}
             className={cn(
-               "text-left p-3 rounded-xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white hover:border-indigo-200 hover:shadow-sm hover:from-indigo-50/50 hover:to-white transition-all group dark:border-slate-800 dark:bg-slate-900/40 dark:from-slate-900 dark:to-slate-900 dark:hover:border-indigo-900",
+               "group rounded-xl border border-white/14 bg-white/7 p-3 text-left transition-all hover:border-cyan-300/35 hover:bg-white/10 hover:shadow-sm",
             )}
           >
-             <p className="text-xs font-semibold text-slate-700 group-hover:text-indigo-700 dark:text-slate-300 dark:group-hover:text-indigo-400">{item.label}</p>
-             <p className="text-[10px] text-slate-400 leading-snug mt-1 group-hover:text-slate-500 dark:text-slate-500">{item.desc}</p>
+             <p className="text-xs font-semibold text-slate-100 group-hover:text-cyan-100">{item.label}</p>
+             <p className="mt-1 text-[10px] leading-snug text-slate-400 group-hover:text-slate-300">{item.desc}</p>
           </button>
         ))}
       </div>
@@ -136,10 +136,10 @@ function QuickActionsModule() {
        
        <div className="flex flex-col gap-2">
           {/* Action Row */}
-          <div className="bg-white rounded-xl border border-slate-100 p-1 flex items-center gap-1 dark:bg-slate-900 dark:border-slate-800">
-             <QuickActionButton icon={CheckCircle2} label="Nova Atividade" color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-900/20" />
-             <QuickActionButton icon={MessageCircle} label="Reg. Conversa" color="text-blue-500" bg="bg-blue-50 dark:bg-blue-900/20" />
-             <QuickActionButton icon={BarChart3} label="Reg. Visita" color="text-purple-500" bg="bg-purple-50 dark:bg-purple-900/20" />
+          <div className="flex items-center gap-1 rounded-xl border border-white/14 bg-white/7 p-1">
+             <QuickActionButton icon={CheckCircle2} label="Nova Atividade" color="text-emerald-100" bg="bg-emerald-400/18" />
+             <QuickActionButton icon={MessageCircle} label="Reg. Conversa" color="text-cyan-100" bg="bg-cyan-400/18" />
+             <QuickActionButton icon={BarChart3} label="Reg. Visita" color="text-violet-100" bg="bg-violet-400/18" />
           </div>
        </div>
     </section>
@@ -148,11 +148,11 @@ function QuickActionsModule() {
 
 function QuickActionButton({ icon: Icon, label, color, bg }: { icon: React.ComponentType<{ className?: string }>; label: string; color: string; bg: string }) {
   return (
-    <button className="flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg hover:bg-slate-50 transition-colors group dark:hover:bg-slate-800">
+    <button className="group flex flex-1 flex-col items-center gap-1.5 rounded-lg px-2 py-3 transition-colors hover:bg-white/10">
        <div className={cn("p-2 rounded-lg transition-transform group-hover:scale-110", bg, color)}>
           <Icon className="h-4 w-4" />
        </div>
-       <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">{label}</span>
+       <span className="text-[10px] font-medium text-slate-300">{label}</span>
     </button>
   )
 }

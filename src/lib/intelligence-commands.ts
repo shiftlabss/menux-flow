@@ -108,7 +108,7 @@ export const SLASH_COMMANDS: SlashCommandDefinition[] = [
     command: "/ajuda",
     label: "O que você pode fazer?",
     icon: "❓",
-    description: "Lista capacidades da Intelligence com exemplos",
+    description: "Lista capacidades da Menux Intelligence com exemplos",
     requiresCard: false,
     availableFor: ["comercial", "cs", "admin", "master"],
     requiresInput: false,
@@ -216,6 +216,6 @@ export function getInputPlaceholder(
     case "dashboard":
       return "Como posso te ajudar hoje?";
     default:
-      return "Fale com a Intelligence...";
+      return "Fale com a Menux Intelligence...";
   }
 }

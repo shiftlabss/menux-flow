@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils";
 
 type ViewMode = "list" | "agenda" | "timeline";
 type SlaFilter = "all" | "breached" | "risk";
-type SectionKey = "jarvis" | "overdue" | "today" | "next7";
+type SectionKey = "intelligence" | "overdue" | "today" | "next7";
 
 type RecommendationActionState = "idle" | "loading" | "success" | "error";
 type ActivityFeedbackState =
@@ -56,7 +56,7 @@ type ActivityFeedbackState =
   | "postpone-success"
   | "error";
 
-interface JarvisRecommendation {
+interface MenuxIntelligenceRecommendation {
   id: string;
   activityId: string;
   title: string;
@@ -282,7 +282,7 @@ function buildRecommendations(
   activities: Activity[],
   now: Date,
   seed: number
-): JarvisRecommendation[] {
+): MenuxIntelligenceRecommendation[] {
   const sorted = [...activities].sort((a, b) => {
     const aDue = parseDateISO(a.dueDate).getTime();
     const bDue = parseDateISO(b.dueDate).getTime();
@@ -309,7 +309,7 @@ function buildRecommendations(
     const overdue = isActivityOverdue(activity, now);
 
     return {
-      id: `jarvis-rec-${activity.id}`,
+      id: `intelligence-rec-${activity.id}`,
       activityId: activity.id,
       title: index === 0 ? "Faça isso agora" : "Ação recomendada",
       context,
@@ -429,14 +429,14 @@ export default function ActivitiesPage() {
   const [filterSla, setFilterSla] = useState<SlaFilter>("all");
 
   const [collapsedSections, setCollapsedSections] = useState<Record<SectionKey, boolean>>({
-    jarvis: false,
+    intelligence: false,
     overdue: false,
     today: false,
     next7: false,
   });
 
   const [sectionErrors, setSectionErrors] = useState<Record<SectionKey, string | null>>({
-    jarvis: null,
+    intelligence: null,
     overdue: null,
     today: null,
     next7: null,
@@ -633,7 +633,7 @@ export default function ActivitiesPage() {
     return Math.round((completedCount / weekSlice.length) * 100);
   }, [filteredActivities, now]);
 
-  const jarvisRecommendations = useMemo(
+  const menuxIntelligenceRecommendations = useMemo(
     () => buildRecommendations(executionActivities, now, planSeed),
     [executionActivities, now, planSeed]
   );
@@ -752,14 +752,14 @@ export default function ActivitiesPage() {
 
   const handleGeneratePlan = useCallback(() => {
     setIsPlanning(true);
-    setSectionErrors((prev) => ({ ...prev, jarvis: null }));
+    setSectionErrors((prev) => ({ ...prev, intelligence: null }));
 
     schedule(() => {
       if (executionActivities.length === 0) {
         setIsPlanning(false);
         setSectionErrors((prev) => ({
           ...prev,
-          jarvis: "Não há atividades ativas para montar um plano agora.",
+          intelligence: "Não há atividades ativas para montar um plano agora.",
         }));
         return;
       }
@@ -774,7 +774,7 @@ export default function ActivitiesPage() {
   }, [executionActivities.length, schedule]);
 
   const handleExecuteRecommendation = useCallback(
-    (recommendation: JarvisRecommendation) => {
+    (recommendation: MenuxIntelligenceRecommendation) => {
       setRecommendationStates((prev) => ({
         ...prev,
         [recommendation.id]: "loading",
@@ -953,7 +953,7 @@ export default function ActivitiesPage() {
   }, [filteredActivities]);
 
   const renderSectionBody = useCallback(
-    (items: Activity[], sectionKey: Exclude<SectionKey, "jarvis">) => {
+    (items: Activity[], sectionKey: Exclude<SectionKey, "intelligence">) => {
       if (sectionErrors[sectionKey]) {
         return (
           <InlineSectionError
@@ -1471,34 +1471,34 @@ export default function ActivitiesPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(320px,3fr)]">
         <div className="space-y-4">
           <ExecutionSection
-            title="O que o Jarvis recomenda agora"
-            count={jarvisRecommendations.length}
-            collapsed={collapsedSections.jarvis}
-            onToggle={() => toggleSection("jarvis")}
+            title="O que a Menux Intelligence recomenda agora"
+            count={menuxIntelligenceRecommendations.length}
+            collapsed={collapsedSections.intelligence}
+            onToggle={() => toggleSection("intelligence")}
             tone="violet"
           >
-            {sectionErrors.jarvis ? (
+            {sectionErrors.intelligence ? (
               <InlineSectionError
-                message={sectionErrors.jarvis}
+                message={sectionErrors.intelligence}
                 onRetry={() => {
-                  setSectionErrors((prev) => ({ ...prev, jarvis: null }));
+                  setSectionErrors((prev) => ({ ...prev, intelligence: null }));
                   handleGeneratePlan();
                 }}
               />
             ) : isLoading ? (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <Skeleton key={`jarvis-skeleton-${index}`} className="h-40 rounded-[18px]" />
+                  <Skeleton key={`intelligence-skeleton-${index}`} className="h-40 rounded-[18px]" />
                 ))}
               </div>
-            ) : jarvisRecommendations.length === 0 ? (
-              <div className="rounded-[16px] border border-zinc-200 bg-zinc-50 px-4 py-4">
-                <p className="font-body text-sm text-zinc-600">
+            ) : menuxIntelligenceRecommendations.length === 0 ? (
+              <div className="rounded-[16px] border border-cyan-300/22 bg-slate-900/58 px-4 py-4">
+                <p className="font-body text-sm text-slate-300">
                   Sem recomendações no momento.
                 </p>
                 <Button
                   size="sm"
-                  className="mt-3 rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                  className="mt-3 rounded-full border border-cyan-300/25 bg-cyan-500/18 text-cyan-50 hover:bg-cyan-500/28"
                   onClick={handleGeneratePlan}
                 >
                   <Sparkles className="h-3.5 w-3.5" />
@@ -1507,36 +1507,36 @@ export default function ActivitiesPage() {
               </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {jarvisRecommendations.map((recommendation) => {
+                {menuxIntelligenceRecommendations.map((recommendation) => {
                   const state = recommendationStates[recommendation.id] || "idle";
 
                   return (
                     <article
                       key={recommendation.id}
-                      className="rounded-[18px] border border-zinc-200 bg-white p-4 shadow-sm transition-all duration-140 hover:-translate-y-[2px] hover:shadow-[0_14px_28px_-18px_rgba(15,23,42,0.5)]"
+                      className="rounded-[18px] border border-cyan-300/20 bg-slate-900/58 p-4 shadow-[0_14px_30px_-20px_rgba(2,6,23,0.75)] transition-all duration-140 hover:-translate-y-[2px] hover:border-cyan-300/35 hover:shadow-[0_18px_34px_-18px_rgba(34,211,238,0.28)]"
                     >
                       <div className="mb-3 flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-violet-100 text-violet-600">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-cyan-300/25 bg-cyan-500/16 text-cyan-100">
                             <Bot className="h-4 w-4" />
                           </div>
                           <div>
-                            <p className="font-heading text-sm font-semibold text-zinc-900">
+                            <p className="font-heading text-sm font-semibold text-slate-100">
                               {recommendation.title}
                             </p>
-                            <p className="font-body text-xs text-zinc-500">{recommendation.context}</p>
+                            <p className="font-body text-xs text-slate-400">{recommendation.context}</p>
                           </div>
                         </div>
                       </div>
 
-                      <p className="min-h-[40px] font-body text-xs leading-relaxed text-zinc-600">
-                        <span className="font-medium text-zinc-700">Por que:</span> {recommendation.why}
+                      <p className="min-h-[40px] font-body text-xs leading-relaxed text-slate-300">
+                        <span className="font-medium text-slate-100">Por que:</span> {recommendation.why}
                       </p>
 
                       <div className="mt-3 flex items-center gap-2">
                         <Button
                           size="sm"
-                          className="h-8 flex-1 rounded-full bg-zinc-900 text-xs text-white hover:bg-zinc-800"
+                          className="h-8 flex-1 rounded-full border border-cyan-300/24 bg-cyan-500/18 text-xs text-cyan-50 hover:bg-cyan-500/28"
                           disabled={state === "loading"}
                           onClick={() => handleExecuteRecommendation(recommendation)}
                         >
@@ -1557,7 +1557,7 @@ export default function ActivitiesPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 rounded-full text-xs"
+                          className="h-8 rounded-full border-white/16 bg-white/6 text-xs text-slate-200 hover:bg-white/10"
                           onClick={() =>
                             handleViewActivityFromRecommendation(recommendation.activityId)
                           }
@@ -1722,11 +1722,11 @@ export default function ActivitiesPage() {
             isPageScrolled && "xl:drop-shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
           )}
         >
-          <div className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4 shadow-sm md:p-5">
+          <div className="menux-intelligence-theme space-y-4 rounded-[20px] border border-cyan-300/18 p-4 shadow-[0_18px_34px_-20px_rgba(2,6,23,0.8)] md:p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-heading text-lg font-semibold text-zinc-900">Menux Intelligence</h2>
-                <p className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
+                <h2 className="font-heading text-lg font-semibold text-slate-100">Menux Intelligence</h2>
+                <p className="mt-1 flex items-center gap-2 text-xs text-slate-300">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
                   Online
                 </p>
@@ -1734,7 +1734,7 @@ export default function ActivitiesPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full"
+                className="rounded-full border-white/16 bg-white/8 text-slate-100 hover:bg-white/12"
                 onClick={handleGeneratePlan}
                 disabled={isPlanning}
               >
@@ -1747,8 +1747,8 @@ export default function ActivitiesPage() {
               </Button>
             </div>
 
-            <div className="rounded-[16px] border border-zinc-200 bg-zinc-50/80 p-3.5">
-              <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <div className="rounded-[16px] border border-white/14 bg-white/7 p-3.5">
+              <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-slate-300">
                 Diagnóstico do dia
               </p>
               <div className="space-y-1.5 text-sm">
@@ -1763,7 +1763,7 @@ export default function ActivitiesPage() {
               </div>
               <Button
                 size="sm"
-                className="mt-3 h-8 w-full rounded-full bg-zinc-900 text-xs text-white hover:bg-zinc-800"
+                className="mt-3 h-8 w-full rounded-full border border-cyan-300/22 bg-cyan-500/18 text-xs text-cyan-50 hover:bg-cyan-500/28"
                 onClick={handleGeneratePlan}
               >
                 <WandSparkles className="h-3.5 w-3.5" />
@@ -1771,8 +1771,8 @@ export default function ActivitiesPage() {
               </Button>
             </div>
 
-            <div className="rounded-[16px] border border-zinc-200 bg-zinc-50/80 p-3.5">
-              <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <div className="rounded-[16px] border border-white/14 bg-white/7 p-3.5">
+              <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-slate-300">
                 Sugestões rápidas
               </p>
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
@@ -1783,13 +1783,13 @@ export default function ActivitiesPage() {
                       key={command.id}
                       onClick={() => handleRunCommand(command.id)}
                       disabled={loading}
-                      className="flex items-center justify-between rounded-[12px] border border-zinc-200 bg-white px-3 py-2 text-left text-xs text-zinc-700 transition-colors duration-120 hover:bg-zinc-100 disabled:opacity-70"
+                      className="flex items-center justify-between rounded-[12px] border border-white/14 bg-white/8 px-3 py-2 text-left text-xs text-slate-200 transition-colors duration-120 hover:bg-white/12 disabled:opacity-70"
                     >
                       <span>{command.label}</span>
                       {loading ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <ArrowRight className="h-3.5 w-3.5 text-zinc-400" />
+                        <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
                       )}
                     </button>
                   );
@@ -1806,8 +1806,8 @@ export default function ActivitiesPage() {
                     className={cn(
                       "mt-3 rounded-[12px] border px-3 py-2 text-xs",
                       commandResult.status === "success"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-red-200 bg-red-50 text-red-700"
+                        ? "border-emerald-300/28 bg-emerald-500/14 text-emerald-100"
+                        : "border-red-300/30 bg-red-500/14 text-red-100"
                     )}
                   >
                     {commandResult.text}
@@ -1816,15 +1816,15 @@ export default function ActivitiesPage() {
               </AnimatePresence>
             </div>
 
-            <div className="rounded-[16px] border border-zinc-200 bg-zinc-50/80 p-3.5">
-              <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <div className="rounded-[16px] border border-white/14 bg-white/7 p-3.5">
+              <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-slate-300">
                 Mensagens prontas
               </p>
 
               {selectedActivity ? (
                 <SelectedActivityMessages activity={selectedActivity} now={now} />
               ) : (
-                <div className="rounded-[12px] border border-dashed border-zinc-300 bg-white px-3 py-3 text-xs text-zinc-500">
+                <div className="rounded-[12px] border border-dashed border-white/20 bg-white/6 px-3 py-3 text-xs text-slate-300">
                   Selecione uma atividade para ver mensagens sugeridas aqui.
                 </div>
               )}
@@ -1853,9 +1853,9 @@ function ExecutionSection({
 }) {
   const toneStyles: Record<typeof tone, { badge: string; icon: string; border: string }> = {
     violet: {
-      badge: "bg-violet-100 text-violet-700",
-      icon: "text-violet-600",
-      border: "border-violet-200/70",
+      badge: "border border-cyan-300/25 bg-cyan-500/18 text-cyan-100",
+      icon: "text-cyan-200",
+      border: "border-cyan-300/20",
     },
     danger: {
       badge: "bg-red-100 text-red-700",
@@ -1875,9 +1875,18 @@ function ExecutionSection({
   };
 
   const style = toneStyles[tone];
+  const isIntelligenceTone = tone === "violet";
 
   return (
-    <section className={cn("rounded-[20px] border bg-white p-4 shadow-sm md:p-5", style.border)}>
+    <section
+      className={cn(
+        "rounded-[20px] border p-4 shadow-sm md:p-5",
+        style.border,
+        isIntelligenceTone
+          ? "bg-slate-950/55 shadow-[0_16px_30px_-20px_rgba(2,6,23,0.82)]"
+          : "bg-white"
+      )}
+    >
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between"
@@ -1892,15 +1901,22 @@ function ExecutionSection({
           ) : (
             <CircleDashed className={cn("h-4 w-4", style.icon)} />
           )}
-          <h3 className="font-heading text-[15px] font-semibold text-zinc-900">{title}</h3>
+          <h3
+            className={cn(
+              "font-heading text-[15px] font-semibold",
+              isIntelligenceTone ? "text-slate-100" : "text-zinc-900"
+            )}
+          >
+            {title}
+          </h3>
           <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", style.badge)}>
             {count}
           </span>
         </div>
         {collapsed ? (
-          <ChevronDown className="h-4 w-4 text-zinc-500" />
+          <ChevronDown className={cn("h-4 w-4", isIntelligenceTone ? "text-slate-300" : "text-zinc-500")} />
         ) : (
-          <ChevronUp className="h-4 w-4 text-zinc-500" />
+          <ChevronUp className={cn("h-4 w-4", isIntelligenceTone ? "text-slate-300" : "text-zinc-500")} />
         )}
       </button>
 
@@ -2140,42 +2156,42 @@ function ExecutionActivityCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-8 rounded-full px-3 text-xs"
+              className="h-8 rounded-full border-cyan-300/24 bg-cyan-500/14 px-3 text-xs text-cyan-700 hover:bg-cyan-500/22 hover:text-cyan-900"
               onClick={onSelectIntelligence}
             >
-              <Sparkles className="h-3.5 w-3.5 text-violet-500" />
-              Intelligence
+              <Sparkles className="h-3.5 w-3.5 text-cyan-600" />
+              Menux Intelligence
             </Button>
           </PopoverTrigger>
           <PopoverContent
             align="start"
             sideOffset={8}
-            className="w-[min(92vw,340px)] rounded-[16px] border-zinc-200 p-3"
+            className="w-[min(92vw,340px)] rounded-[16px] border-white/14 bg-slate-950/94 p-3 text-slate-100 shadow-2xl shadow-black/40 backdrop-blur-xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Sugestões do Jarvis
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+              Sugestões da Menux Intelligence
             </p>
-            <div className="space-y-2 rounded-[12px] border border-zinc-200 bg-zinc-50 p-2.5">
-              <p className="text-[11px] font-medium text-zinc-700">Mensagem pronta</p>
-              <p className="text-xs leading-relaxed text-zinc-600">{insight.message}</p>
+            <div className="space-y-2 rounded-[12px] border border-white/14 bg-white/8 p-2.5">
+              <p className="text-[11px] font-medium text-slate-200">Mensagem pronta</p>
+              <p className="text-xs leading-relaxed text-slate-300">{insight.message}</p>
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 rounded-full px-2.5 text-[11px]"
+                className="h-7 rounded-full border-white/14 bg-white/7 px-2.5 text-[11px] text-slate-100 hover:bg-white/11"
                 onClick={handleCopyMessage}
               >
                 <Copy className="h-3 w-3" />
                 {copied ? "Copiado" : "Copiar"}
               </Button>
             </div>
-            <div className="mt-2 rounded-[12px] border border-zinc-200 bg-zinc-50 p-2.5">
-              <p className="text-[11px] font-medium text-zinc-700">Próximo passo</p>
-              <p className="text-xs text-zinc-600">{insight.nextStep}</p>
+            <div className="mt-2 rounded-[12px] border border-white/14 bg-white/8 p-2.5">
+              <p className="text-[11px] font-medium text-slate-200">Próximo passo</p>
+              <p className="text-xs text-slate-300">{insight.nextStep}</p>
             </div>
-            <div className="mt-2 rounded-[12px] border border-zinc-200 bg-zinc-50 p-2.5">
-              <p className="text-[11px] font-medium text-zinc-700">Risco se ignorar</p>
-              <p className="text-xs text-zinc-600">{insight.risk}</p>
+            <div className="mt-2 rounded-[12px] border border-white/14 bg-white/8 p-2.5">
+              <p className="text-[11px] font-medium text-slate-200">Risco se ignorar</p>
+              <p className="text-xs text-slate-300">{insight.risk}</p>
             </div>
           </PopoverContent>
         </Popover>
@@ -2269,7 +2285,7 @@ function ExecutionActivityCard({
 
                   <Button
                     size="sm"
-                    className="mt-3 h-8 w-full rounded-full bg-violet-600 text-xs text-white hover:bg-violet-700"
+                    className="mt-3 h-8 w-full rounded-full border border-cyan-300/22 bg-cyan-500/18 text-xs text-cyan-50 hover:bg-cyan-500/28"
                     onClick={onGenerateFollowup}
                   >
                     <Sparkles className="h-3.5 w-3.5" />
@@ -2326,23 +2342,23 @@ function SelectedActivityMessages({
 
   return (
     <div className="space-y-2">
-      <div className="rounded-[12px] border border-zinc-200 bg-white px-3 py-2.5">
-        <p className="truncate text-xs font-medium text-zinc-700">{activity.title}</p>
-        <p className="mt-0.5 text-[11px] text-zinc-500">
+      <div className="rounded-[12px] border border-white/14 bg-white/8 px-3 py-2.5">
+        <p className="truncate text-xs font-medium text-slate-100">{activity.title}</p>
+        <p className="mt-0.5 text-[11px] text-slate-400">
           {activity.clientName || activity.opportunityTitle || "Sem contexto"}
         </p>
       </div>
 
       {templates.map((template) => (
-        <div key={template.id} className="rounded-[12px] border border-zinc-200 bg-white px-3 py-2.5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        <div key={template.id} className="rounded-[12px] border border-white/14 bg-white/8 px-3 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300">
             {template.title}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-700">{template.body}</p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-200">{template.body}</p>
           <Button
             size="sm"
             variant="outline"
-            className="mt-2 h-7 rounded-full px-2.5 text-[11px]"
+            className="mt-2 h-7 rounded-full border-white/14 bg-white/7 px-2.5 text-[11px] text-slate-100 hover:bg-white/11"
             onClick={() => handleCopy(template.id, template.body)}
           >
             <Copy className="h-3 w-3" />
@@ -2364,15 +2380,15 @@ function DiagnosticItem({
   tone: "success" | "warning" | "danger" | "neutral";
 }) {
   const toneClass: Record<typeof tone, string> = {
-    success: "text-emerald-700",
-    warning: "text-amber-700",
-    danger: "text-red-700",
-    neutral: "text-zinc-700",
+    success: "text-emerald-100",
+    warning: "text-amber-100",
+    danger: "text-red-100",
+    neutral: "text-slate-100",
   };
 
   return (
-    <div className="flex items-center justify-between rounded-[10px] bg-white px-2.5 py-2">
-      <span className="text-zinc-600">{label}</span>
+    <div className="flex items-center justify-between rounded-[10px] border border-white/10 bg-white/7 px-2.5 py-2">
+      <span className="text-slate-300">{label}</span>
       <span className={cn("font-semibold", toneClass[tone])}>{value}</span>
     </div>
   );

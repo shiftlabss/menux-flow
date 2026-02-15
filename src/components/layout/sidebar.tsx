@@ -289,7 +289,7 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Intelligence Button */}
+        {/* Menux Intelligence Button */}
         <div className="px-3 pb-3">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -326,7 +326,7 @@ export function Sidebar() {
                       transition={{ duration: 0.15 }}
                       className="overflow-hidden whitespace-nowrap font-heading font-semibold"
                     >
-                      Intelligence
+                      Menux Intelligence
                     </motion.span>
                   )}
                 </AnimatePresence>

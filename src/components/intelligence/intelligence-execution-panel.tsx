@@ -97,14 +97,14 @@ export function IntelligenceExecutionPanel() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-zinc-50/50">
+    <div className="flex h-full flex-col overflow-y-auto bg-transparent">
       <div className="p-5 space-y-6">
         {/* Proactive Suggestions */}
         {pendingSuggestions.length > 0 && (
           <section>
             <SectionHeader
               icon={<Sunrise className="h-4 w-4 text-violet-500" />}
-              title="Sugestoes do Jarvis"
+              title="Sugestoes da Menux Intelligence"
               count={pendingSuggestions.length}
               expanded={expandedSections.suggestions}
               onToggle={() => toggleSection("suggestions")}
@@ -129,17 +129,17 @@ export function IntelligenceExecutionPanel() {
                         className={cn(
                           "rounded-lg border p-3 text-xs",
                           suggestion.priority === "high"
-                            ? "border-red-200 bg-red-50"
+                            ? "border-red-300/35 bg-red-500/12"
                             : suggestion.priority === "medium"
-                              ? "border-amber-200 bg-amber-50"
-                              : "border-zinc-200 bg-white"
+                              ? "border-amber-300/35 bg-amber-500/12"
+                              : "border-white/14 bg-white/7"
                         )}
                       >
                         <p className={cn(
                           "leading-relaxed",
-                          suggestion.priority === "high" ? "text-red-800" :
-                          suggestion.priority === "medium" ? "text-amber-800" :
-                          "text-zinc-700"
+                          suggestion.priority === "high" ? "text-red-100" :
+                          suggestion.priority === "medium" ? "text-amber-100" :
+                          "text-slate-200"
                         )}>
                           {suggestion.message}
                         </p>
@@ -165,14 +165,14 @@ export function IntelligenceExecutionPanel() {
                                   });
                                 }
                               }}
-                              className="text-[10px] font-medium text-indigo-600 hover:text-indigo-700"
+                              className="text-[10px] font-medium text-cyan-200 hover:text-cyan-100"
                             >
                               Investigar →
                             </button>
                           )}
                           <button
                             onClick={() => dismissSuggestion(suggestion.id)}
-                            className="text-[10px] text-zinc-400 hover:text-zinc-600 ml-auto"
+                            className="ml-auto text-[10px] text-slate-400 hover:text-slate-200"
                           >
                             Dispensar
                           </button>
@@ -237,8 +237,8 @@ export function IntelligenceExecutionPanel() {
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-zinc-200 bg-white p-3 text-center mt-3">
-                    <p className="text-xs text-zinc-500">
+                  <div className="rounded-lg border border-white/14 bg-slate-900/55 p-3 text-center mt-3">
+                    <p className="text-xs text-slate-400">
                       ✅ Nenhuma prioridade urgente.
                     </p>
                   </div>
@@ -271,7 +271,7 @@ export function IntelligenceExecutionPanel() {
                     <QuickActionCard
                       icon={<MessageSquare className="h-3.5 w-3.5" />}
                       label="WhatsApp"
-                      color="text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100"
+                      color="border-emerald-300/25 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/18 hover:border-emerald-300/40"
                       onClick={() => handleQuickAction("whatsapp")}
                       disabled={!hasClient}
                       tooltip={!hasClient ? "Selecione um cliente primeiro" : undefined}
@@ -279,7 +279,7 @@ export function IntelligenceExecutionPanel() {
                     <QuickActionCard
                       icon={<Mail className="h-3.5 w-3.5" />}
                       label="Email"
-                      color="text-blue-600 bg-blue-50 border-blue-100 hover:bg-blue-100"
+                      color="border-cyan-300/25 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/18 hover:border-cyan-300/40"
                       onClick={() => handleQuickAction("email")}
                       disabled={!hasClient}
                       tooltip={!hasClient ? "Selecione um cliente primeiro" : undefined}
@@ -287,7 +287,7 @@ export function IntelligenceExecutionPanel() {
                     <QuickActionCard
                       icon={<Calendar className="h-3.5 w-3.5" />}
                       label="Follow-up"
-                      color="text-purple-600 bg-purple-50 border-purple-100 hover:bg-purple-100"
+                      color="border-violet-300/25 bg-violet-400/12 text-violet-100 hover:bg-violet-400/18 hover:border-violet-300/40"
                       onClick={() => handleQuickAction("agendar")}
                       disabled={!hasClient}
                       tooltip={!hasClient ? "Selecione um cliente primeiro" : undefined}
@@ -295,7 +295,7 @@ export function IntelligenceExecutionPanel() {
                     <QuickActionCard
                       icon={<Target className="h-3.5 w-3.5" />}
                       label="Pitch"
-                      color="text-amber-600 bg-amber-50 border-amber-100 hover:bg-amber-100"
+                      color="border-amber-300/25 bg-amber-400/12 text-amber-100 hover:bg-amber-400/18 hover:border-amber-300/40"
                       onClick={() => handleQuickAction("proposta")}
                       disabled={!hasClient}
                       tooltip={!hasClient ? "Selecione um cliente primeiro" : undefined}
@@ -303,25 +303,25 @@ export function IntelligenceExecutionPanel() {
                     <QuickActionCard
                       icon={<Sunrise className="h-3.5 w-3.5" />}
                       label="Resumo"
-                      color="text-violet-600 bg-violet-50 border-violet-100 hover:bg-violet-100"
+                      color="border-indigo-300/25 bg-indigo-400/12 text-indigo-100 hover:bg-indigo-400/18 hover:border-indigo-300/40"
                       onClick={() => handleQuickAction("resumo")}
                     />
                     <QuickActionCard
                       icon={<TrendingUp className="h-3.5 w-3.5" />}
                       label="Funil"
-                      color="text-indigo-600 bg-indigo-50 border-indigo-100 hover:bg-indigo-100"
+                      color="border-blue-300/25 bg-blue-400/12 text-blue-100 hover:bg-blue-400/18 hover:border-blue-300/40"
                       onClick={() => handleQuickAction("funil")}
                     />
                     <QuickActionCard
                       icon={<ShieldAlert className="h-3.5 w-3.5" />}
                       label="Riscos"
-                      color="text-red-600 bg-red-50 border-red-100 hover:bg-red-100"
+                      color="border-rose-300/25 bg-rose-400/12 text-rose-100 hover:bg-rose-400/18 hover:border-rose-300/40"
                       onClick={() => handleQuickAction("riscos")}
                     />
                     <QuickActionCard
                       icon={<FileText className="h-3.5 w-3.5" />}
                       label="Planos"
-                      color="text-rose-600 bg-rose-50 border-rose-100 hover:bg-rose-100"
+                      color="border-slate-300/25 bg-slate-400/12 text-slate-100 hover:bg-slate-400/18 hover:border-slate-200/35"
                       onClick={() => handleQuickAction("planos")}
                     />
                   </div>
@@ -419,13 +419,13 @@ export function IntelligenceExecutionPanel() {
                             });
                           }
                         }}
-                        className="group flex items-center gap-3 p-3 rounded-lg border border-emerald-100 bg-white hover:border-emerald-200 hover:shadow-sm transition-all cursor-pointer"
+                        className="group flex cursor-pointer items-center gap-3 rounded-lg border border-emerald-300/24 bg-emerald-400/8 p-3 transition-all hover:border-emerald-300/38 hover:shadow-sm"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-xs text-zinc-900 group-hover:text-emerald-700 transition-colors line-clamp-1">
+                          <p className="line-clamp-1 text-xs font-medium text-slate-100 transition-colors group-hover:text-emerald-100">
                             {qw.clientName}
                           </p>
-                          <p className="text-[10px] text-zinc-500 mt-0.5">
+                          <p className="text-[10px] text-slate-400 mt-0.5">
                             {qw.reason} · {formatCurrencyBRL(qw.value)}/mes
                           </p>
                         </div>
@@ -434,10 +434,10 @@ export function IntelligenceExecutionPanel() {
                             className={cn(
                               "h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold",
                               qw.probability >= 70
-                                ? "bg-emerald-100 text-emerald-700"
+                                ? "bg-emerald-400/20 text-emerald-100"
                                 : qw.probability >= 50
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-zinc-100 text-zinc-600"
+                                  ? "bg-amber-400/20 text-amber-100"
+                                  : "bg-slate-700/70 text-slate-200"
                             )}
                           >
                             {qw.probability}%
@@ -479,16 +479,16 @@ export function IntelligenceExecutionPanel() {
                         className={cn(
                           "rounded-lg border p-3",
                           alert.severity === "critical"
-                            ? "border-red-200 bg-red-50"
-                            : "border-amber-200 bg-amber-50"
+                            ? "border-red-300/35 bg-red-500/12"
+                            : "border-amber-300/35 bg-amber-500/12"
                         )}
                       >
                         <p
                           className={cn(
                             "font-medium text-xs",
                             alert.severity === "critical"
-                              ? "text-red-800"
-                              : "text-amber-800"
+                              ? "text-red-100"
+                              : "text-amber-100"
                           )}
                         >
                           {alert.title}
@@ -497,8 +497,8 @@ export function IntelligenceExecutionPanel() {
                           className={cn(
                             "text-[10px] mt-0.5",
                             alert.severity === "critical"
-                              ? "text-red-600"
-                              : "text-amber-600"
+                              ? "text-red-200"
+                              : "text-amber-200"
                           )}
                         >
                           {alert.description}
@@ -584,7 +584,7 @@ function SectionHeader({
       className="flex items-center gap-2 w-full px-1 group"
     >
       {icon}
-      <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-zinc-500 flex-1 text-left">
+      <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-slate-400 flex-1 text-left">
         {title}
       </h3>
       {typeof count === "number" && count > 0 && (
@@ -592,21 +592,21 @@ function SectionHeader({
           className={cn(
             "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
             accentColor === "red"
-              ? "bg-red-100 text-red-700"
+              ? "bg-red-500/22 text-red-100"
               : accentColor === "amber"
-                ? "bg-amber-100 text-amber-700"
+                ? "bg-amber-500/22 text-amber-100"
                 : accentColor === "emerald"
-                  ? "bg-emerald-100 text-emerald-700"
+                  ? "bg-emerald-500/22 text-emerald-100"
                   : accentColor === "violet"
-                    ? "bg-violet-100 text-violet-700"
-                    : "bg-indigo-100 text-indigo-700"
+                    ? "bg-violet-500/22 text-violet-100"
+                    : "bg-indigo-500/22 text-indigo-100"
           )}
         >
           {count}
         </span>
       )}
       {onToggle && (
-        <span className="text-zinc-400 group-hover:text-zinc-600 transition-colors">
+        <span className="text-slate-500 group-hover:text-slate-300 transition-colors">
           {expanded ? (
             <ChevronUp className="h-3.5 w-3.5" />
           ) : (
@@ -637,41 +637,41 @@ function PriorityCard({
       className={cn(
         "group flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer",
         severity === "critical"
-          ? "border-red-200 bg-red-50 hover:border-red-300"
+          ? "border-red-300/30 bg-red-500/11 hover:border-red-300/45"
           : severity === "warning"
-            ? "border-amber-200 bg-amber-50 hover:border-amber-300"
-            : "border-zinc-200 bg-white hover:border-indigo-200"
+            ? "border-amber-300/30 bg-amber-500/11 hover:border-amber-300/45"
+            : "border-white/14 bg-white/7 hover:border-cyan-300/30"
       )}
     >
       <div
         className={cn(
           "h-6 w-6 shrink-0 rounded-full flex items-center justify-center mt-0.5",
           severity === "critical"
-            ? "bg-red-100"
+            ? "bg-red-400/20"
             : severity === "warning"
-              ? "bg-amber-100"
-              : "bg-zinc-100"
+              ? "bg-amber-400/20"
+              : "bg-slate-700/65"
         )}
       >
         {type === "overdue" ? (
-          <AlertTriangle className={cn("h-3 w-3", severity === "critical" ? "text-red-600" : "text-amber-600")} />
+          <AlertTriangle className={cn("h-3 w-3", severity === "critical" ? "text-red-100" : "text-amber-100")} />
         ) : type === "sla-warning" ? (
-          <Clock className="h-3 w-3 text-red-600" />
+          <Clock className="h-3 w-3 text-red-100" />
         ) : type === "hot-idle" ? (
-          <Zap className="h-3 w-3 text-amber-600 fill-amber-600" />
+          <Zap className="h-3 w-3 fill-amber-100 text-amber-100" />
         ) : (
-          <Calendar className="h-3 w-3 text-zinc-600" />
+          <Calendar className="h-3 w-3 text-slate-200" />
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-xs text-zinc-900 line-clamp-1">
+        <p className="font-medium text-xs text-slate-100 line-clamp-1">
           {title}
         </p>
-        <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-1">
+        <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
           {subtitle}
         </p>
       </div>
-      <ArrowRight className="h-3 w-3 text-zinc-400 group-hover:text-zinc-600 group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+      <ArrowRight className="h-3 w-3 text-slate-500 group-hover:text-slate-300 group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
     </div>
   );
 }
@@ -698,7 +698,7 @@ function QuickActionCard({
       className={cn(
         "flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg border transition-all text-sm font-medium",
         disabled
-          ? "opacity-50 cursor-not-allowed bg-zinc-50 border-zinc-200 text-zinc-400"
+          ? "cursor-not-allowed border-white/10 bg-slate-900/35 text-slate-500 opacity-50"
           : color
       )}
     >
@@ -733,18 +733,18 @@ function InsightCard({
   onAction?: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-indigo-100 bg-white p-3 relative overflow-hidden group">
+    <div className="group relative overflow-hidden rounded-lg border border-indigo-300/22 bg-indigo-400/8 p-3">
       <div className="flex items-center justify-between mb-1">
-        <span className="font-semibold text-xs text-zinc-800">{title}</span>
+        <span className="font-semibold text-xs text-slate-100">{title}</span>
         {metric && (
           <span
             className={cn(
               "text-xs font-bold",
               metric.trend === "up"
-                ? "text-emerald-600"
+                ? "text-emerald-200"
                 : metric.trend === "down"
-                  ? "text-red-600"
-                  : "text-zinc-500"
+                  ? "text-red-200"
+                  : "text-slate-400"
             )}
           >
             {metric.value}{" "}
@@ -752,11 +752,11 @@ function InsightCard({
           </span>
         )}
       </div>
-      <p className="text-[10px] text-zinc-600 leading-relaxed">{description}</p>
+      <p className="text-[10px] text-slate-300 leading-relaxed">{description}</p>
       {actionLabel && onAction && (
         <Button
           variant="link"
-          className="h-auto p-0 text-[10px] text-indigo-600 mt-1 hover:text-indigo-700"
+          className="mt-1 h-auto p-0 text-[10px] text-cyan-200 hover:text-cyan-100"
           onClick={onAction}
         >
           {actionLabel} <ArrowRight className="h-2.5 w-2.5 ml-0.5" />

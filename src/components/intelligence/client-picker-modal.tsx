@@ -27,9 +27,9 @@ import { formatCurrencyBRL } from "@/lib/business-rules";
 
 function TemperatureBadge({ temp }: { temp: Temperature }) {
   const config = {
-    hot: { emoji: "🔥", label: "Quente", cls: "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400" },
-    warm: { emoji: "🌡️", label: "Morno", cls: "bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" },
-    cold: { emoji: "❄️", label: "Frio", cls: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
+    hot: { emoji: "🔥", label: "Quente", cls: "bg-red-500/18 text-red-100" },
+    warm: { emoji: "🌡️", label: "Morno", cls: "bg-amber-500/18 text-amber-100" },
+    cold: { emoji: "❄️", label: "Frio", cls: "bg-cyan-500/18 text-cyan-100" },
   };
   const c = config[temp];
   return (
@@ -41,7 +41,7 @@ function TemperatureBadge({ temp }: { temp: Temperature }) {
 
 function StagePill({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
+    <span className="inline-flex items-center rounded-full bg-indigo-500/18 px-2 py-0.5 text-[10px] font-medium text-indigo-100">
       {label}
     </span>
   );
@@ -192,30 +192,30 @@ export function ClientPickerModal() {
 
   return (
     <Dialog open={isClientPickerOpen} onOpenChange={(open) => !open && closeClientPicker()}>
-      <DialogContent className="max-w-[520px] gap-0 p-0 sm:max-w-[520px]">
+      <DialogContent className="max-w-[520px] gap-0 border-white/14 bg-slate-950/92 p-0 text-slate-100 shadow-2xl shadow-black/40 backdrop-blur-xl sm:max-w-[520px]">
         {/* Header — 1. seção 2.3.2 */}
-        <DialogHeader className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-          <DialogTitle className="flex items-center gap-2 font-heading text-base">
-            <Users className="h-4.5 w-4.5 text-purple-500" />
+        <DialogHeader className="border-b border-white/10 px-5 py-4">
+          <DialogTitle className="flex items-center gap-2 font-heading text-base text-slate-100">
+            <Users className="h-4.5 w-4.5 text-cyan-200" />
             Selecionar cliente
           </DialogTitle>
         </DialogHeader>
 
         {/* Search — 2. seção 2.3.2 */}
-        <div className="border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+        <div className="border-b border-white/10 px-5 py-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               placeholder="Buscar por nome, CNPJ ou contato..."
               value={clientPickerSearch}
               onChange={(e) => setClientPickerSearch(e.target.value)}
-              className="pl-9 text-sm"
+              className="border-white/16 bg-white/7 pl-9 text-sm text-slate-100 placeholder:text-slate-400"
               autoFocus
             />
             {clientPickerSearch && (
               <button
                 onClick={() => setClientPickerSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-100"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -224,7 +224,7 @@ export function ClientPickerModal() {
         </div>
 
         {/* Temperature Filters — 3. seção 2.3.2 */}
-        <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-2.5 dark:border-slate-800">
+        <div className="flex items-center gap-2 border-b border-white/10 px-5 py-2.5">
           {(["hot", "warm", "cold"] as Temperature[]).map((temp) => {
             const isActive = clientPickerFilters.temperature?.includes(temp);
             const emoji = temp === "hot" ? "🔥" : temp === "warm" ? "🌡️" : "❄️";
@@ -236,8 +236,8 @@ export function ClientPickerModal() {
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors",
                   isActive
-                    ? "bg-purple-100 text-purple-700 ring-1 ring-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:ring-purple-700"
-                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                    ? "bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-300/35"
+                    : "bg-white/8 text-slate-300 hover:bg-white/12"
                 )}
               >
                 {emoji} {label}
@@ -248,7 +248,7 @@ export function ClientPickerModal() {
           {(clientPickerFilters.temperature?.length || clientPickerSearch) && (
             <button
               onClick={clearFilters}
-              className="ml-auto text-[11px] font-medium text-purple-500 hover:text-purple-700"
+              className="ml-auto text-[11px] font-medium text-cyan-200 hover:text-cyan-100"
             >
               Limpar filtros
             </button>
@@ -263,12 +263,12 @@ export function ClientPickerModal() {
                 <button
                   key={item.id}
                   onClick={() => selectClient(item)}
-                  className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  className="flex w-full items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:border-white/12 hover:bg-white/7"
                 >
                   {/* Company info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate font-body text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      <span className="truncate font-body text-sm font-semibold text-slate-100">
                         {item.companyName}
                       </span>
                       {item.segment && (
@@ -291,7 +291,7 @@ export function ClientPickerModal() {
                   {/* Value */}
                   {item.value && item.value > 0 && (
                     <div className="shrink-0 text-right">
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <p className="text-xs font-semibold text-slate-200">
                         {formatCurrencyBRL(item.value)}
                       </p>
                       <p className="text-[10px] text-slate-400">/mês</p>
@@ -302,8 +302,8 @@ export function ClientPickerModal() {
             ) : (
               /* Empty state — seção 11 */
               <div className="flex flex-col items-center justify-center py-12">
-                <Users className="mb-3 h-8 w-8 text-slate-300" />
-                <p className="font-body text-sm text-slate-500">
+                <Users className="mb-3 h-8 w-8 text-slate-500" />
+                <p className="font-body text-sm text-slate-400">
                   {clientPickerSearch
                     ? `Nenhum cliente encontrado para "${clientPickerSearch}". Tente outro nome ou limpe os filtros.`
                     : "Você ainda não tem clientes neste pipe. Pode me fazer perguntas gerais ou consultar a base Menux."}
@@ -311,7 +311,7 @@ export function ClientPickerModal() {
                 {clientPickerSearch && (
                   <button
                     onClick={clearFilters}
-                    className="mt-2 text-sm font-medium text-purple-500 hover:text-purple-700"
+                    className="mt-2 text-sm font-medium text-cyan-200 hover:text-cyan-100"
                   >
                     Limpar filtros
                   </button>
@@ -322,7 +322,7 @@ export function ClientPickerModal() {
         </ScrollArea>
 
         {/* Footer — 5. seção 2.3.2 */}
-        <div className="border-t border-slate-100 px-5 py-2.5 dark:border-slate-800">
+        <div className="border-t border-white/10 px-5 py-2.5">
           <p className="text-[11px] text-slate-400">
             Mostrando {filteredItems.length} de {items.length} clientes
           </p>

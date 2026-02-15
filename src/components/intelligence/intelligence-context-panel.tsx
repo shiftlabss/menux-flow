@@ -102,32 +102,32 @@ export function IntelligenceContextPanel() {
 
   const colorForIndex = (i: number) => {
     const colors = [
-      "bg-blue-100 text-blue-600",
-      "bg-emerald-100 text-emerald-600",
-      "bg-amber-100 text-amber-600",
-      "bg-indigo-100 text-indigo-600",
-      "bg-rose-100 text-rose-600",
-      "bg-cyan-100 text-cyan-600",
+      "bg-blue-400/18 text-blue-100",
+      "bg-emerald-400/18 text-emerald-100",
+      "bg-amber-400/18 text-amber-100",
+      "bg-indigo-400/18 text-indigo-100",
+      "bg-rose-400/18 text-rose-100",
+      "bg-cyan-400/18 text-cyan-100",
     ];
     return colors[i % colors.length];
   };
 
   return (
-    <div className="premium-grain flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-transparent text-slate-200">
       {/* Search Block */}
-      <div className="p-4 border-b border-zinc-100 shrink-0">
+      <div className="shrink-0 border-b border-white/10 p-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Buscar cliente, deal ou tag..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 rounded-xl border-zinc-200 bg-zinc-50 focus:bg-white transition-all font-body text-sm"
+            className="h-10 rounded-xl border-white/16 bg-slate-900/55 pl-9 font-body text-sm text-slate-100 placeholder:text-slate-400 transition-all focus:bg-slate-900/70"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-100"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -143,18 +143,18 @@ export function IntelligenceContextPanel() {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mx-2 mt-2 rounded-xl border border-brand/20 bg-brand/10 p-4 shadow-sm"
+              className="mx-2 mt-2 rounded-xl border border-cyan-300/22 bg-cyan-400/12 p-4 shadow-sm"
             >
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/70 text-sm font-bold text-white">
                     {initials(contextCard.cardName)}
                   </div>
                   <div>
-                    <h3 className="font-heading font-semibold text-zinc-900 leading-tight">
+                    <h3 className="font-heading font-semibold text-slate-100 leading-tight">
                       {contextCard.cardName}
                     </h3>
-                    <p className="text-xs text-zinc-500 flex items-center gap-1">
+                    <p className="flex items-center gap-1 text-xs text-slate-300">
                       {temperatureEmoji(contextCard.temperature)}
                       {contextCard.stageLabel}
                       {contextCard.leadScore ? ` · ${contextCard.leadScore} pts` : ""}
@@ -164,7 +164,7 @@ export function IntelligenceContextPanel() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 -mr-2 text-zinc-400 hover:text-zinc-600"
+                  className="h-6 w-6 -mr-2 text-slate-400 hover:text-slate-100"
                   onClick={() => setContextCard(null)}
                 >
                   <X className="h-4 w-4" />
@@ -172,19 +172,19 @@ export function IntelligenceContextPanel() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-white rounded-lg p-2 border border-zinc-100">
-                  <span className="text-[10px] text-zinc-400 uppercase font-semibold">
+                <div className="rounded-lg border border-white/14 bg-slate-950/42 p-2">
+                  <span className="text-[10px] uppercase font-semibold text-slate-400">
                     Fase
                   </span>
-                  <p className="text-xs font-medium text-zinc-700">
+                  <p className="text-xs font-medium text-slate-200">
                     {contextCard.stageLabel}
                   </p>
                 </div>
-                <div className="bg-white rounded-lg p-2 border border-zinc-100">
-                  <span className="text-[10px] text-zinc-400 uppercase font-semibold">
+                <div className="rounded-lg border border-white/14 bg-slate-950/42 p-2">
+                  <span className="text-[10px] uppercase font-semibold text-slate-400">
                     Tags
                   </span>
-                  <p className="text-xs font-medium text-zinc-700">
+                  <p className="text-xs font-medium text-slate-200">
                     {contextCard.tags.length > 0 ? contextCard.tags.join(", ") : "—"}
                   </p>
                 </div>
@@ -194,7 +194,7 @@ export function IntelligenceContextPanel() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex-1 h-8 text-xs"
+                  className="h-8 flex-1 border-white/14 bg-white/6 text-xs text-slate-100 hover:bg-white/10"
                   onClick={() => {
                     useIntelligenceStore
                       .getState()
@@ -206,7 +206,7 @@ export function IntelligenceContextPanel() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex-1 h-8 text-xs"
+                  className="h-8 flex-1 border-white/14 bg-white/6 text-xs text-slate-100 hover:bg-white/10"
                   onClick={() => {
                     useIntelligenceStore
                       .getState()
@@ -222,7 +222,7 @@ export function IntelligenceContextPanel() {
           {/* Search Results */}
           {searchResults !== null ? (
             <div className="px-2">
-              <h4 className="font-heading text-xs uppercase tracking-wider text-zinc-500 font-semibold mb-2 px-2">
+              <h4 className="font-heading text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">
                 Resultados ({searchResults.length})
               </h4>
               {searchResults.length > 0 ? (
@@ -239,7 +239,7 @@ export function IntelligenceContextPanel() {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-zinc-400 px-2">
+                <p className="text-xs text-slate-400 px-2">
                   Nenhum resultado para &ldquo;{searchQuery}&rdquo;
                 </p>
               )}
@@ -250,7 +250,7 @@ export function IntelligenceContextPanel() {
               {priorities.length > 0 && (
                 <div className="px-2">
                   <div className="flex items-center justify-between mb-2 px-2">
-                    <h4 className="font-heading text-xs uppercase tracking-wider text-zinc-500 font-semibold">
+                    <h4 className="font-heading text-xs uppercase tracking-wider text-slate-400 font-semibold">
                       Prioridades
                     </h4>
                     <Badge variant="secondary" className="text-[10px] h-4 px-1">
@@ -268,19 +268,19 @@ export function IntelligenceContextPanel() {
                           "w-full text-left flex items-start gap-3 p-2.5 rounded-lg transition-all group",
                           contextCard?.cardId === item.entityId
                             ? "border-brand/20 bg-brand/10 shadow-sm ring-1 ring-brand/20"
-                            : "hover:bg-zinc-50 border border-transparent"
+                            : "border border-transparent hover:bg-white/6"
                         )}
                       >
-                        <div className="mt-0.5 h-2 w-2 rounded-full bg-orange-500 shadow-orange-200 shrink-0" />
+                        <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-amber-400 shadow-amber-300/40" />
                         <div className="flex-1 min-w-0">
-                          <p className="mb-1 text-sm leading-none font-medium text-zinc-800 group-hover:text-brand-strong">
+                          <p className="mb-1 text-sm leading-none font-medium text-slate-100 group-hover:text-cyan-200">
                             {item.companyName}
                           </p>
-                          <p className="text-xs text-zinc-500 line-clamp-1">
+                          <p className="line-clamp-1 text-xs text-slate-400">
                             {item.stageLabel}
                           </p>
                           {item.lastContact && (
-                            <div className="flex items-center gap-1 mt-1.5 text-[10px] text-zinc-400">
+                            <div className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400">
                               <Clock className="h-3 w-3" />
                               {relativeTime(item.lastContact)}
                             </div>
@@ -295,7 +295,7 @@ export function IntelligenceContextPanel() {
               {/* Recent Section */}
               {recents.length > 0 && (
                 <div className="px-2">
-                  <h4 className="font-heading text-xs uppercase tracking-wider text-zinc-500 font-semibold mb-2 px-2">
+                  <h4 className="font-heading text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">
                     Recentes
                   </h4>
                   <div className="space-y-1">
@@ -316,11 +316,11 @@ export function IntelligenceContextPanel() {
               {/* Empty state */}
               {allItems.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                  <Users className="h-8 w-8 text-zinc-300 mb-3" />
-                  <p className="text-sm text-zinc-500 mb-2">
+                  <Users className="mb-3 h-8 w-8 text-slate-500" />
+                  <p className="mb-2 text-sm text-slate-300">
                     Nenhum cliente encontrado
                   </p>
-                  <p className="text-xs text-zinc-400">
+                  <p className="text-xs text-slate-400">
                     Seus leads e oportunidades aparecerão aqui automaticamente.
                   </p>
                 </div>
@@ -331,7 +331,7 @@ export function IntelligenceContextPanel() {
                 <div className="px-2">
                   <button
                     onClick={openClientPicker}
-                    className="flex w-full items-center gap-2 p-2 text-xs font-medium text-brand hover:text-brand-strong transition-colors"
+                    className="flex w-full items-center gap-2 p-2 text-xs font-medium text-cyan-200 transition-colors hover:text-cyan-100"
                   >
                     <Users className="h-3.5 w-3.5" />
                     Ver todos os clientes ({allItems.length})
@@ -368,7 +368,7 @@ function ClientRow({
         "w-full text-left flex items-center gap-3 p-2 rounded-lg transition-all group",
         isSelected
           ? "border-brand/20 bg-brand/10 shadow-sm ring-1 ring-brand/20"
-          : "hover:bg-zinc-50 border border-transparent"
+          : "border border-transparent hover:bg-white/6"
       )}
     >
       <div
@@ -380,10 +380,10 @@ function ClientRow({
         {initials}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="truncate text-sm font-medium text-zinc-800 group-hover:text-brand-strong">
+        <p className="truncate text-sm font-medium text-slate-100 group-hover:text-cyan-200">
           {item.companyName}
         </p>
-        <p className="text-xs text-zinc-500 truncate flex items-center gap-1">
+        <p className="flex items-center gap-1 truncate text-xs text-slate-400">
           {temperatureEmoji(item.temperature)} {item.stageLabel}
         </p>
       </div>

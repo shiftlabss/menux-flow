@@ -45,7 +45,7 @@ export type UserRoleIntelligence =
   | "comercial"
   | "cs";
 
-export type JarvisMode = "focus" | "audit" | "reply" | "proposal";
+export type MenuxIntelligenceMode = "focus" | "audit" | "reply" | "proposal";
 
 /** Mapa de capacidades por perfil — seção 9.1 do documento */
 export interface IntelligencePermissions {
@@ -335,8 +335,8 @@ export interface IntelligenceState {
   remainingQueries: number;
   /** Timestamp de reset do rate limit */
   rateLimitResetAt: string | null;
-  /** Modo atual do Jarvis */
-  jarvisMode: JarvisMode;
+  /** Modo atual da Menux Intelligence */
+  menuxIntelligenceMode: MenuxIntelligenceMode;
 }
 
 export interface IntelligenceActions {
@@ -368,8 +368,8 @@ export interface IntelligenceActions {
   startNewConversation: () => void;
   /** Carrega conversa do histórico (somente leitura) */
   loadConversation: (id: string) => void;
-  /** Define modo do Jarvis */
-  setJarvisMode: (mode: JarvisMode) => void;
+  /** Define modo da Menux Intelligence */
+  setMenuxIntelligenceMode: (mode: MenuxIntelligenceMode) => void;
   /** Volta para conversa ativa (sai do histórico) */
   exitHistoryView: () => void;
   /** Abre/fecha painel de histórico */

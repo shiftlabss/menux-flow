@@ -47,7 +47,7 @@ function MessageContextBadge({ badge }: { badge: ContextBadge }) {
         : "Frio";
 
   return (
-    <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/60 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-700/40 dark:text-slate-400">
+    <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/14 bg-white/8 px-2.5 py-1 text-[11px] font-medium text-slate-300">
       <span>📋</span>
       <span>
         Baseado no card: <strong>{badge.cardName}</strong> ({badge.stage} ·{" "}
@@ -89,10 +89,10 @@ function CopyableBlockComponent({ block }: { block: CopyableBlock }) {
   }, [editedContent]);
 
   return (
-    <div className="mt-2 overflow-hidden rounded-xl border border-slate-200/60 bg-white/80 shadow-sm dark:border-slate-700/60 dark:bg-slate-800/40">
+    <div className="mt-2 overflow-hidden rounded-xl border border-white/14 bg-slate-900/58 shadow-lg shadow-black/25">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100/60 px-3 py-1.5 dark:border-slate-700/40">
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+      <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300">
           {channelIcon}
           <span>{block.label ?? "Mensagem"}</span>
         </div>
@@ -101,10 +101,10 @@ function CopyableBlockComponent({ block }: { block: CopyableBlock }) {
           className={cn(
             "flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-medium transition-all duration-[120ms]",
             copied
-              ? "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+              ? "bg-emerald-500/20 text-emerald-100"
               : copyError
-                ? "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-700"
+                ? "bg-red-500/20 text-red-100"
+                : "text-slate-300 hover:bg-white/9"
           )}
         >
           {copied ? (
@@ -133,14 +133,14 @@ function CopyableBlockComponent({ block }: { block: CopyableBlock }) {
             value={editedContent}
             onChange={(e) => setEditedContent(e.target.value)}
             onBlur={() => setIsEditing(false)}
-            className="w-full resize-none rounded border-none bg-transparent font-body text-sm text-slate-700 outline-none dark:text-slate-300"
+            className="w-full resize-none rounded border-none bg-transparent font-body text-sm text-slate-200 outline-none"
             rows={Math.min(editedContent.split("\n").length + 1, 8)}
             autoFocus
           />
         ) : (
           <p
             onClick={() => setIsEditing(true)}
-            className="cursor-text whitespace-pre-wrap font-body text-sm leading-relaxed text-slate-700 dark:text-slate-300"
+            className="cursor-text whitespace-pre-wrap font-body text-sm leading-relaxed text-slate-200"
           >
             {editedContent}
           </p>
@@ -149,11 +149,11 @@ function CopyableBlockComponent({ block }: { block: CopyableBlock }) {
 
       {/* Character counter */}
       {block.charLimit && (
-        <div className="border-t border-slate-100/60 px-3 py-1 dark:border-slate-700/40">
+        <div className="border-t border-white/10 px-3 py-1">
           <p
             className={cn(
               "text-right text-[10px] font-medium",
-              overLimit ? "text-red-500" : "text-slate-400"
+              overLimit ? "text-red-200" : "text-slate-400"
             )}
           >
             {charCount}/{block.charLimit} caracteres
@@ -248,7 +248,7 @@ function renderMarkdown(text: string): React.ReactNode {
         return (
           <code
             key={`${key}-${i}`}
-            className="rounded bg-slate-100/80 px-1 py-0.5 font-mono text-[11px] text-purple-600 dark:bg-slate-700/60 dark:text-purple-400"
+            className="rounded border border-white/10 bg-white/8 px-1 py-0.5 font-mono text-[11px] text-cyan-200"
           >
             {part.slice(1, -1)}
           </code>
@@ -262,7 +262,7 @@ function renderMarkdown(text: string): React.ReactNode {
             href={linkMatch[2]}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium text-blue-500 underline underline-offset-2 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            className="font-medium text-cyan-200 underline underline-offset-2 hover:text-cyan-100"
           >
             {linkMatch[1]}
           </a>
@@ -295,16 +295,16 @@ function renderMarkdown(text: string): React.ReactNode {
       elements.push(
         <div
           key={`table-${tableKey++}`}
-          className="my-2 overflow-x-auto rounded-xl border border-slate-200/60 shadow-sm dark:border-slate-700/60"
+          className="my-2 overflow-x-auto rounded-xl border border-white/12 shadow-lg shadow-black/20"
         >
           <table className="w-full text-xs">
             {header && (
               <thead>
-                <tr className="border-b border-slate-200/60 bg-slate-50/80 dark:border-slate-700/60 dark:bg-slate-800/40">
+                <tr className="border-b border-white/12 bg-white/8">
                   {header.map((cell, ci) => (
                     <th
                       key={ci}
-                      className="px-2.5 py-1.5 text-left font-semibold text-slate-600 dark:text-slate-400"
+                      className="px-2.5 py-1.5 text-left font-semibold text-slate-200"
                     >
                       {processInline(cell, `th-${tableKey}-${ci}`)}
                     </th>
@@ -316,12 +316,12 @@ function renderMarkdown(text: string): React.ReactNode {
               {body.map((row, ri) => (
                 <tr
                   key={ri}
-                  className="border-b border-slate-100/40 last:border-0 dark:border-slate-700/30"
+                  className="border-b border-white/8 last:border-0"
                 >
                   {row.map((cell, ci) => (
                     <td
                       key={ci}
-                      className="px-2.5 py-1.5 text-slate-600 dark:text-slate-400"
+                      className="px-2.5 py-1.5 text-slate-300"
                     >
                       {processInline(cell, `td-${tableKey}-${ri}-${ci}`)}
                     </td>
@@ -340,7 +340,7 @@ function renderMarkdown(text: string): React.ReactNode {
       elements.push(
         <h4
           key={`h4-${i}`}
-          className="mb-1 mt-3 font-heading text-xs font-bold text-slate-800 dark:text-slate-200"
+          className="mb-1 mt-3 font-heading text-xs font-bold text-slate-100"
         >
           {processInline(trimmed.slice(4), `h4i-${i}`)}
         </h4>
@@ -349,7 +349,7 @@ function renderMarkdown(text: string): React.ReactNode {
       elements.push(
         <h3
           key={`h3-${i}`}
-          className="mb-1 mt-3 font-heading text-sm font-bold text-slate-800 dark:text-slate-200"
+          className="mb-1 mt-3 font-heading text-sm font-bold text-slate-100"
         >
           {processInline(trimmed.slice(3), `h3i-${i}`)}
         </h3>
@@ -358,7 +358,7 @@ function renderMarkdown(text: string): React.ReactNode {
       elements.push(
         <h2
           key={`h2-${i}`}
-          className="mb-1.5 mt-3 font-heading text-sm font-bold text-slate-900 dark:text-slate-100"
+          className="mb-1.5 mt-3 font-heading text-sm font-bold text-slate-50"
         >
           {processInline(trimmed.slice(2), `h2i-${i}`)}
         </h2>
@@ -373,7 +373,7 @@ function renderMarkdown(text: string): React.ReactNode {
           className="flex gap-1.5"
           style={{ paddingLeft: `${Math.max(0, indent * 4)}px` }}
         >
-          <span className="mt-1 shrink-0 text-slate-400">•</span>
+          <span className="mt-1 shrink-0 text-slate-500">•</span>
           <span>{processInline(trimmed.slice(2), `lii-${i}`)}</span>
         </div>
       );
@@ -384,7 +384,7 @@ function renderMarkdown(text: string): React.ReactNode {
       if (match) {
         elements.push(
           <div key={`ol-${i}`} className="flex gap-1.5">
-            <span className="shrink-0 font-medium text-slate-500">
+            <span className="shrink-0 font-medium text-slate-400">
               {match[1]}.
             </span>
             <span>{processInline(match[2], `oli-${i}`)}</span>
@@ -397,7 +397,7 @@ function renderMarkdown(text: string): React.ReactNode {
       elements.push(
         <hr
           key={`hr-${i}`}
-          className="my-2 border-slate-200/60 dark:border-slate-700/60"
+          className="my-2 border-white/12"
         />
       );
     }
@@ -419,16 +419,16 @@ function renderMarkdown(text: string): React.ReactNode {
     elements.push(
       <div
         key={`table-final`}
-        className="my-2 overflow-x-auto rounded-xl border border-slate-200/60 shadow-sm dark:border-slate-700/60"
+        className="my-2 overflow-x-auto rounded-xl border border-white/12 shadow-lg shadow-black/20"
       >
         <table className="w-full text-xs">
           {header && (
             <thead>
-              <tr className="border-b border-slate-200/60 bg-slate-50/80 dark:border-slate-700/60 dark:bg-slate-800/40">
+              <tr className="border-b border-white/12 bg-white/8">
                 {header.map((cell, ci) => (
                   <th
                     key={ci}
-                    className="px-2.5 py-1.5 text-left font-semibold text-slate-600 dark:text-slate-400"
+                    className="px-2.5 py-1.5 text-left font-semibold text-slate-200"
                   >
                     {processInline(cell, `thf-${ci}`)}
                   </th>
@@ -440,12 +440,12 @@ function renderMarkdown(text: string): React.ReactNode {
             {body.map((row, ri) => (
               <tr
                 key={ri}
-                className="border-b border-slate-100/40 last:border-0 dark:border-slate-700/30"
+                className="border-b border-white/8 last:border-0"
               >
                 {row.map((cell, ci) => (
                   <td
                     key={ci}
-                    className="px-2.5 py-1.5 text-slate-600 dark:text-slate-400"
+                    className="px-2.5 py-1.5 text-slate-300"
                   >
                     {processInline(cell, `tdf-${ri}-${ci}`)}
                   </td>
@@ -499,8 +499,8 @@ export const IntelligenceMessage = memo(function IntelligenceMessage({
           isUser
             ? cn(
                 "max-w-[80%]",
-                "bg-gradient-to-br from-blue-500 to-blue-600 text-white",
-                "shadow-sm shadow-blue-500/15",
+                "bg-gradient-to-br from-cyan-600 to-blue-700 text-white",
+                "shadow-lg shadow-cyan-900/30",
                 // WhatsApp-style bubble radius
                 isGrouped
                   ? "rounded-[18px] rounded-tr-[6px]"
@@ -508,9 +508,8 @@ export const IntelligenceMessage = memo(function IntelligenceMessage({
               )
             : cn(
                 "max-w-[90%]",
-                "bg-slate-100/80 text-slate-700",
-                "dark:bg-slate-800/40 dark:text-slate-300",
-                "shadow-sm shadow-slate-200/30 dark:shadow-slate-900/20",
+                "border border-white/12 bg-slate-900/58 text-slate-200",
+                "shadow-lg shadow-black/25",
                 // WhatsApp-style bubble radius
                 isGrouped
                   ? "rounded-[18px] rounded-tl-[6px]"
@@ -529,7 +528,7 @@ export const IntelligenceMessage = memo(function IntelligenceMessage({
             "font-body text-[13px] leading-relaxed",
             isUser
               ? "[&_strong]:font-semibold"
-              : "[&_strong]:font-semibold [&_code]:text-purple-600 dark:[&_code]:text-purple-400"
+              : "[&_strong]:font-semibold [&_code]:text-cyan-200"
           )}
         >
           {isUser ? message.content : renderMarkdown(message.content)}
@@ -562,7 +561,7 @@ export const IntelligenceMessage = memo(function IntelligenceMessage({
           <p
             className={cn(
               "mt-1 text-[10px]",
-              isUser ? "text-blue-200" : "text-slate-400"
+              isUser ? "text-cyan-100/90" : "text-slate-400"
             )}
           >
             {new Date(message.timestamp).toLocaleTimeString("pt-BR", {
