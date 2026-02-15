@@ -52,7 +52,7 @@ export function MenuxIntelligenceFullHeader() {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={transition.panel}
-      className="sticky top-0 z-10 flex flex-col border-b border-white/12 bg-slate-950/35 px-6 py-3 backdrop-blur-xl"
+      className="sticky top-0 z-[100] flex flex-col border-b border-white/12 bg-slate-950/35 px-6 py-3 backdrop-blur-xl"
     >
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">

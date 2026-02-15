@@ -7,7 +7,6 @@
 
 import { Send, Sparkles, Command, X, AlertTriangle, Lightbulb, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/cn";
 import { useState, useRef, useEffect, useCallback, useMemo, startTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,8 +22,9 @@ export function MenuxIntelligenceFullConsole() {
   const [inputValue, setInputValue] = useState("");
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [pendingCommand, setPendingCommand] = useState<SlashCommandDefinition | null>(null);
-  const scrollEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   const {
     messages,
@@ -45,13 +45,29 @@ export function MenuxIntelligenceFullConsole() {
     }
   }, [greetingSent, initConversation]);
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToLatest = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const viewport = chatScrollRef.current;
+    if (!viewport) return;
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior,
     });
+  }, []);
+
+  const handleChatScroll = useCallback(() => {
+    const viewport = chatScrollRef.current;
+    if (!viewport) return;
+    const distanceToBottom =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    setIsAtBottom(distanceToBottom <= 36);
+  }, []);
+
+  // Auto-scroll to bottom on new messages when user is near bottom
+  useEffect(() => {
+    if (!isAtBottom) return;
+    const frame = requestAnimationFrame(() => scrollToLatest("smooth"));
     return () => cancelAnimationFrame(frame);
-  }, [messages, isTyping]);
+  }, [messages, isTyping, isAtBottom, scrollToLatest]);
 
   // Display messages: either active conversation or history
   const displayMessages = viewingHistoryConversation
@@ -59,6 +75,11 @@ export function MenuxIntelligenceFullConsole() {
     : messages;
 
   const isReadOnly = !!viewingHistoryConversation;
+  const showJumpToLatest = !isAtBottom && displayMessages.length > 0;
+
+  useEffect(() => {
+    handleChatScroll();
+  }, [displayMessages.length, handleChatScroll]);
 
   // Detect slash command input
   useEffect(() => {
@@ -175,7 +196,11 @@ export function MenuxIntelligenceFullConsole() {
       <ProactiveBanner />
 
       {/* Chat Area */}
-      <ScrollArea className="flex-1 p-4">
+      <div
+        ref={chatScrollRef}
+        onScroll={handleChatScroll}
+        className="flex-1 overflow-y-auto p-4"
+      >
         <div className="flex flex-col pb-4 max-w-3xl mx-auto w-full">
           {/* Day Divider */}
           <div className="flex justify-center my-4">
@@ -213,9 +238,6 @@ export function MenuxIntelligenceFullConsole() {
             </div>
           )}
 
-          {/* Auto-scroll anchor */}
-          <div ref={scrollEndRef} />
-
           {/* Empty state */}
           {displayMessages.length === 0 && !isTyping && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -232,7 +254,25 @@ export function MenuxIntelligenceFullConsole() {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
+
+      <AnimatePresence>
+        {showJumpToLatest && (
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            onClick={() => {
+              scrollToLatest("smooth");
+              setIsAtBottom(true);
+            }}
+            className="absolute bottom-[104px] right-6 z-20 rounded-full border border-cyan-300/25 bg-slate-950/92 px-3 py-1.5 text-xs font-medium text-cyan-100 shadow-lg shadow-black/35 transition-colors hover:bg-slate-900"
+          >
+            Nova mensagem
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Composer Area */}
       {!isReadOnly && (

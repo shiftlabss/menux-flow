@@ -267,7 +267,7 @@ export function IntelligenceExecutionPanel() {
                 className="overflow-hidden"
               >
                 <TooltipProvider>
-                  <div className="grid grid-cols-2 gap-2 mt-3">
+                  <div className="mt-3 grid grid-cols-1 gap-2 [@media(min-width:1200px)]:grid-cols-2">
                     <QuickActionCard
                       icon={<MessageSquare className="h-3.5 w-3.5" />}
                       label="WhatsApp"
@@ -696,7 +696,7 @@ function QuickActionCard({
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       className={cn(
-        "flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-lg border transition-all text-sm font-medium",
+        "flex h-20 flex-col items-center justify-center gap-1.5 rounded-lg border p-2.5 text-sm font-medium transition-all",
         disabled
           ? "cursor-not-allowed border-white/10 bg-slate-900/35 text-slate-500 opacity-50"
           : color

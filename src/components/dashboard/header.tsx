@@ -157,9 +157,9 @@ export function DashboardHeader() {
           {/* Menux Intelligence Action */}
           <Button
             onClick={handleIntelligenceOpen}
-            className="premium-shine gap-2 rounded-full bg-brand text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-strong hover:shadow-xl hover:shadow-brand/30 active:scale-95"
+            className="menux-intelligence-btn premium-shine gap-2 rounded-full transition-all active:scale-95"
           >
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
             Menux Intelligence
           </Button>
         </motion.div>

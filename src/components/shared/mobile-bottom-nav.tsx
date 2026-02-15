@@ -52,6 +52,7 @@ const moreNavItems: NavItem[] = [
 export function MobileBottomNav() {
   const pathname = usePathname();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const isIntelligencePage = pathname.startsWith("/intelligence");
 
   const isActive = (item: NavItem) => {
     const target = item.matchPrefix ?? item.href;
@@ -95,9 +96,11 @@ export function MobileBottomNav() {
             onClick={() => setIsMoreOpen(true)}
             className={cn(
               "premium-shine flex h-full flex-1 flex-col items-center justify-center gap-1 rounded-xl transition-colors",
-              isMoreActive
-                ? "bg-brand/10 text-brand-strong"
-                : "text-zinc-400 hover:text-zinc-600"
+              isIntelligencePage
+                ? "menux-intelligence-btn-soft text-slate-100"
+                : isMoreActive
+                  ? "bg-brand/10 text-brand-strong"
+                  : "text-zinc-400 hover:text-zinc-600"
             )}
           >
             <MoreHorizontal className="size-5" />
@@ -117,6 +120,7 @@ export function MobileBottomNav() {
             {moreNavItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item);
+              const isIntelligenceItem = item.href === "/intelligence";
 
               return (
                 <Link
@@ -125,12 +129,22 @@ export function MobileBottomNav() {
                   onClick={() => setIsMoreOpen(false)}
                   className={cn(
                     "flex items-center gap-3 px-4 py-3 rounded-[10px] transition-colors",
-                    active
-                      ? "bg-brand/10 text-brand"
-                      : "text-zinc-700 hover:bg-zinc-100"
+                    isIntelligenceItem &&
+                      (active
+                        ? "menux-intelligence-btn"
+                        : "menux-intelligence-btn-soft"),
+                    !isIntelligenceItem &&
+                      (active
+                        ? "bg-brand/10 text-brand"
+                        : "text-zinc-700 hover:bg-zinc-100")
                   )}
                 >
-                  <Icon className="size-5" />
+                  <Icon
+                    className={cn(
+                      "size-5",
+                      isIntelligenceItem && "text-cyan-100"
+                    )}
+                  />
                   <span className="font-body text-sm font-medium">
                     {item.label}
                   </span>

@@ -298,8 +298,8 @@ export function Sidebar() {
                 className={cn(
                   "premium-shine group flex items-center gap-3 rounded-[15px] px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   pathname === "/intelligence"
-                    ? "group relative flex items-center gap-3 overflow-hidden rounded-xl bg-linear-to-r from-brand to-cyan-600 px-3 py-2.5 text-white shadow-lg shadow-brand/20 transition-all hover:shadow-brand/30"
-                    : "border border-zinc-200 bg-white/85 text-zinc-600 hover:border-brand/20 hover:bg-brand/5 hover:text-brand-strong hover:shadow-sm"
+                    ? "menux-intelligence-btn text-slate-100"
+                    : "menux-intelligence-btn-soft"
                 )}
                 onClick={() => {
                   if (!isDesktop) setIsMobileOpen(false);
@@ -309,7 +309,7 @@ export function Sidebar() {
                   <Sparkles
                     className={cn(
                       "h-5 w-5 transition-transform duration-300",
-                      pathname === "/intelligence" ? "text-white" : "text-brand",
+                      pathname === "/intelligence" ? "text-cyan-100" : "text-cyan-200",
                       "group-hover:scale-110"
                     )}
                   />

@@ -9,7 +9,6 @@ import { Search, Clock, X, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { motion } from "framer-motion";
@@ -30,6 +29,7 @@ const stageLabels: Record<string, string> = {
 
 export function IntelligenceContextPanel() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isListScrolled, setIsListScrolled] = useState(false);
   const { contextCard, selectClient, setContextCard, openClientPicker } =
     useIntelligenceStore();
   const { opportunities } = useOpportunityStore();
@@ -115,7 +115,12 @@ export function IntelligenceContextPanel() {
   return (
     <div className="flex h-full flex-col bg-transparent text-slate-200">
       {/* Search Block */}
-      <div className="shrink-0 border-b border-white/10 p-4">
+      <div
+        className={cn(
+          "sticky top-0 z-10 shrink-0 border-b border-white/10 bg-slate-950/36 p-4 backdrop-blur-sm transition-shadow duration-120 ease-out",
+          isListScrolled && "shadow-[0_14px_22px_-18px_rgba(2,6,23,0.9)]"
+        )}
+      >
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
@@ -136,7 +141,13 @@ export function IntelligenceContextPanel() {
       </div>
 
       {/* Content Area */}
-      <ScrollArea className="flex-1 h-full">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto"
+        onScroll={(event) => {
+          const target = event.currentTarget;
+          setIsListScrolled(target.scrollTop > 6);
+        }}
+      >
         <div className="flex flex-col p-2 gap-6 pb-20">
           {/* Selected Client Card */}
           {contextCard && (
@@ -341,7 +352,7 @@ export function IntelligenceContextPanel() {
             </>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
