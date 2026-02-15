@@ -26,6 +26,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useUIStore } from "@/stores/ui-store";
 import { useActivityStore } from "@/stores/activity-store";
+import { useAuthStore } from "@/stores/auth-store";
 import type { Activity, ActivityStatus, ActivityType } from "@/types";
 import { allActivityTypes, typeColors, typeIconComponents, typeLabels } from "./components/config";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,6 +42,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 import { cn } from "@/lib/utils";
 
 type ViewMode = "list" | "agenda" | "timeline";
@@ -130,6 +132,22 @@ function formatDateFull(dateStr: string): string {
     day: "2-digit",
     month: "short",
   });
+}
+
+function formatCompactDateLabel(date: Date): string {
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  }).formatToParts(date);
+  const weekday = (parts.find((part) => part.type === "weekday")?.value ?? "")
+    .replaceAll(".", "")
+    .trim();
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  const month = (parts.find((part) => part.type === "month")?.value ?? "")
+    .replaceAll(".", "")
+    .trim();
+  return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${day} ${month}`;
 }
 
 function initials(name: string): string {
@@ -411,6 +429,7 @@ const RAIL_COMMANDS = [
 
 export default function ActivitiesPage() {
   const { openDrawer } = useUIStore();
+  const { user } = useAuthStore();
   const { activities, completeActivity, postponeActivity } = useActivityStore();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -578,6 +597,13 @@ export default function ActivitiesPage() {
 
   const overdueCount = overdueActivities.length;
   const riskCount = executionActivities.filter((activity) => isSlaRisk(activity, now)).length;
+  const headerMetaText = useMemo(
+    () =>
+      `${formatCompactDateLabel(now)} · Olá, ${
+        user?.name?.trim().split(" ")[0] ?? "Admin"
+      }`,
+    [now, user?.name]
+  );
 
   const typeCounts = useMemo(() => {
     const counts: Record<ActivityType, number> = {
@@ -1198,78 +1224,69 @@ export default function ActivitiesPage() {
       transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
       className="space-y-5 px-4 pb-4 pt-0 md:px-6 md:pb-6 md:pt-0"
     >
-      <div
+      <ModuleCommandHeader
+        title="Atividades"
+        description="Execução do dia, com prioridades e próximos passos."
         className={cn(
-          "relative overflow-hidden rounded-[20px] border border-zinc-200/80 bg-zinc-50/55 px-5 pb-5 pt-3 shadow-[0_10px_22px_-20px_rgba(15,23,42,0.32)] transition-shadow duration-120 ease-out md:px-6 md:pb-6 md:pt-3",
+          "border-zinc-200/80 bg-zinc-50/88",
           isPageScrolled && "shadow-[0_14px_24px_-18px_rgba(15,23,42,0.32)]"
         )}
-      >
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-white/70 to-transparent" />
-        </div>
-
-        <div className="relative z-10 space-y-4">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div>
-              <h1 className="font-heading text-3xl font-semibold tracking-tight text-zinc-950">
-                Atividades
-              </h1>
-              <p className="mt-1 font-body text-sm text-zinc-600">
-                Execução do dia, com prioridades e próximos passos.
-              </p>
+        meta={headerMetaText}
+        chips={[
+          {
+            id: "overdue",
+            label: `${overdueCount} atrasadas`,
+            icon: <AlertTriangle className="h-3.5 w-3.5" />,
+            tone: overdueCount > 0 ? "danger" : "neutral",
+          },
+          {
+            id: "today",
+            label: `${todayActivities.length} para hoje`,
+            icon: <CalendarClock className="h-3.5 w-3.5" />,
+            tone: todayActivities.length > 0 ? "info" : "neutral",
+          },
+          hasActiveFilters
+            ? {
+                id: "active-filters",
+                label: `${activeFilterChips.length} filtros ativos`,
+                icon: <Filter className="h-3.5 w-3.5" />,
+                tone: "warning",
+                onClick: () => setIsFilterOpen(true),
+              }
+            : {
+                id: "sla-risk",
+                label: `${riskCount} SLAs em risco`,
+                icon: <CircleAlert className="h-3.5 w-3.5" />,
+                tone: riskCount > 0 ? "warning" : "success",
+              },
+        ]}
+        actions={
+          <>
+            <div className="flex items-center gap-1 rounded-full border border-zinc-200/90 bg-white/90 p-1 shadow-sm">
+              {[
+                { key: "list" as const, label: "Lista", icon: List },
+                { key: "agenda" as const, label: "Agenda", icon: CalendarDays },
+                { key: "timeline" as const, label: "Timeline", icon: GitCommitVertical },
+              ].map((mode) => {
+                const active = viewMode === mode.key;
+                return (
+                  <button
+                    key={mode.key}
+                    onClick={() => setViewMode(mode.key)}
+                    className={cn(
+                      "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-120 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-50",
+                      active
+                        ? "bg-brand text-white shadow-[0_6px_14px_-8px_rgba(29,78,216,0.7)]"
+                        : "text-zinc-600 hover:bg-zinc-100/90"
+                    )}
+                  >
+                    <mode.icon className="h-3.5 w-3.5" />
+                    <span>{mode.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 rounded-full border border-zinc-200/90 bg-white/90 p-1 shadow-sm">
-                {[
-                  { key: "list" as const, label: "Lista", icon: List },
-                  { key: "agenda" as const, label: "Agenda", icon: CalendarDays },
-                  { key: "timeline" as const, label: "Timeline", icon: GitCommitVertical },
-                ].map((mode) => {
-                  const active = viewMode === mode.key;
-                  return (
-                    <button
-                      key={mode.key}
-                      onClick={() => setViewMode(mode.key)}
-                      className={cn(
-                        "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-120 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-50",
-                        active
-                          ? "bg-brand text-white shadow-[0_6px_14px_-8px_rgba(29,78,216,0.7)]"
-                          : "text-zinc-600 hover:bg-zinc-100/90"
-                      )}
-                    >
-                      <mode.icon className="h-3.5 w-3.5" />
-                      <span>{mode.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <Button
-                variant="outline"
-                className="rounded-full border-zinc-200 bg-white/90 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
-                onClick={handleGeneratePlan}
-                disabled={isPlanning}
-              >
-                {isPlanning ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <WandSparkles className="h-4 w-4" />
-                )}
-                Pedir plano do dia
-              </Button>
-
-              <Button
-                className="rounded-full bg-zinc-900 text-white transition-all duration-120 ease-out hover:bg-zinc-800 active:scale-[0.98] focus-visible:ring-zinc-300"
-                onClick={() => openDrawer("new-activity")}
-              >
-                <Plus className="h-4 w-4" />
-                Nova atividade
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
             <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -1437,36 +1454,31 @@ export default function ActivitiesPage() {
                 Limpar tudo
               </Button>
             )}
-          </div>
 
-          <AnimatePresence>
-            {activeFilterChips.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -3 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -3 }}
-                transition={{ duration: 0.16, ease: "easeOut" }}
-                className="flex flex-wrap items-center gap-2"
-              >
-                {activeFilterChips.map((chip) => (
-                  <motion.button
-                    key={chip.id}
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.96 }}
-                    transition={{ duration: 0.12 }}
-                    onClick={chip.onRemove}
-                    className="group flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600 transition-colors hover:border-zinc-300 hover:bg-zinc-50"
-                  >
-                    <span>{chip.label}</span>
-                    <X className="h-3 w-3 opacity-60 transition-opacity group-hover:opacity-100" />
-                  </motion.button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+            <Button
+              variant="outline"
+              className="rounded-full border-zinc-200 bg-white/90 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
+              onClick={handleGeneratePlan}
+              disabled={isPlanning}
+            >
+              {isPlanning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <WandSparkles className="h-4 w-4" />
+              )}
+              Pedir plano do dia
+            </Button>
+
+            <Button
+              className="rounded-full bg-zinc-900 text-white transition-all duration-120 ease-out hover:bg-zinc-800 active:scale-[0.98] focus-visible:ring-zinc-300"
+              onClick={() => openDrawer("new-activity")}
+            >
+              <Plus className="h-4 w-4" />
+              Nova atividade
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(320px,3fr)]">
         <div className="space-y-4">

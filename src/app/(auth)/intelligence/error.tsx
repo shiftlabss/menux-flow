@@ -16,7 +16,7 @@ export default function IntelligenceError({
   }, [error]);
 
   return (
-    <div className="menux-intelligence-theme flex h-[calc(100vh-4rem)] items-center justify-center rounded-[22px] border border-white/12">
+    <div className="menux-intelligence-theme menux-intelligence-theme-full flex h-full min-h-0 w-full items-center justify-center">
       <div className="menux-intelligence-surface max-w-md rounded-[20px] px-6 py-8 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-red-300/35 bg-red-500/14">
           <AlertTriangle className="h-8 w-8 text-red-200" />

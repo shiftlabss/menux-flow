@@ -13,6 +13,7 @@ import {
   Plus,
   Users,
   Calendar,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ import type { Goal } from "@/types";
 import { useGoalStore } from "@/stores/goal-store";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 // ---------------------------------------------------------------------------
 // Framer Motion Variants
@@ -573,6 +575,9 @@ function NewGoalDialog() {
 
 export default function GoalsPage() {
   const { goals } = useGoalStore();
+  const achievedGoals = goals.filter((goal) => goal.current >= goal.target).length;
+  const atRiskGoals = goals.filter((goal) => goal.current / Math.max(goal.target, 1) < 0.6).length;
+  const revenueGoals = goals.filter((goal) => goal.type === "revenue").length;
 
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
@@ -599,17 +604,33 @@ export default function GoalsPage() {
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-8">
-      {/* Page Header */}
-      <motion.div variants={fadeUp} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-black sm:text-3xl">
-            Metas & Gamificacao
-          </h1>
-          <p className="mt-1 font-body text-sm text-zinc-500">
-            Acompanhe suas metas, ranking e desempenho da equipe
-          </p>
-        </div>
-        <NewGoalDialog />
+      <motion.div variants={fadeUp}>
+        <ModuleCommandHeader
+          title="Metas & Gamificação"
+          description="Acompanhe metas, ranking e desempenho da equipe."
+          meta={`${goals.length} metas ativas`}
+          chips={[
+            {
+              id: "achieved",
+              label: `${achievedGoals} metas batidas`,
+              icon: <Trophy className="h-3.5 w-3.5" />,
+              tone: achievedGoals > 0 ? "success" : "neutral",
+            },
+            {
+              id: "risk",
+              label: `${atRiskGoals} em risco`,
+              icon: <AlertTriangle className="h-3.5 w-3.5" />,
+              tone: atRiskGoals > 0 ? "warning" : "success",
+            },
+            {
+              id: "revenue",
+              label: `${revenueGoals} de receita`,
+              icon: <DollarSign className="h-3.5 w-3.5" />,
+              tone: "info",
+            },
+          ]}
+          actions={<NewGoalDialog />}
+        />
       </motion.div>
 
       {/* Goal Cards — responsive grid */}

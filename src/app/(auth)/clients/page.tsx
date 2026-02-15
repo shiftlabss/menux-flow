@@ -28,6 +28,7 @@ import { motion } from "framer-motion";
 import type { Client, ClientStage, HealthScore } from "@/types";
 import { useUIStore } from "@/stores/ui-store";
 import { useClientStore } from "@/stores/client-store";
+import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 // ===== Framer Motion Variants =====
 
@@ -436,6 +437,21 @@ export default function ClientsPage() {
     });
   }, [activeFunnel, searchQuery, healthFilter, responsibleFilter, allClients]);
 
+  const healthyCount = useMemo(
+    () => filteredClients.filter((client) => client.healthScore === "good").length,
+    [filteredClients]
+  );
+  const criticalCount = useMemo(
+    () => filteredClients.filter((client) => client.healthScore === "critical").length,
+    [filteredClients]
+  );
+  const staleInteractionCount = useMemo(
+    () =>
+      filteredClients.filter((client) => getDaysSinceInteraction(client.lastInteraction) > 30)
+        .length,
+    [filteredClients]
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -477,115 +493,115 @@ export default function ClientsPage() {
         />
       )}
 
-      {/* Header */}
-      <motion.div variants={fadeUp} className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-black sm:text-3xl">
-            Clientes
-          </h1>
-          <p className="mt-1 font-body text-sm text-zinc-500">
-            Acompanhe seus clientes pelo funil de sucesso
-          </p>
-        </div>
-      </motion.div>
-
-      {/* Funnel Toggle */}
-      <motion.div variants={fadeUp} className="flex items-center gap-1 rounded-full bg-zinc-100 p-1 w-fit">
-        <button
-          onClick={() => setActiveFunnel("onboarding")}
-          className={`rounded-full px-5 py-2 font-heading text-sm font-medium transition-colors ${
-            activeFunnel === "onboarding"
-              ? "bg-black text-white shadow-sm"
-              : "text-zinc-600 hover:text-black"
-          }`}
+      <motion.div variants={fadeUp}>
+        <ModuleCommandHeader
+          title="Clientes"
+          description="Acompanhe seus clientes pelo funil de sucesso."
+          meta={`Funil ${activeFunnel === "onboarding" ? "Onboarding" : "Ativos"} · ${filteredClients.length} clientes visíveis`}
+          chips={[
+            {
+              id: "critical",
+              label: `${criticalCount} críticos`,
+              icon: <XCircle className="h-3.5 w-3.5" />,
+              tone: criticalCount > 0 ? "danger" : "neutral",
+            },
+            {
+              id: "healthy",
+              label: `${healthyCount} saudáveis`,
+              icon: <Heart className="h-3.5 w-3.5" />,
+              tone: healthyCount > 0 ? "success" : "neutral",
+            },
+            {
+              id: "stale",
+              label: `${staleInteractionCount} sem interação >30d`,
+              icon: <Clock className="h-3.5 w-3.5" />,
+              tone: staleInteractionCount > 0 ? "warning" : "neutral",
+            },
+          ]}
         >
-          Onboarding
-        </button>
-        <button
-          onClick={() => setActiveFunnel("ativos")}
-          className={`rounded-full px-5 py-2 font-heading text-sm font-medium transition-colors ${
-            activeFunnel === "ativos"
-              ? "bg-black text-white shadow-sm"
-              : "text-zinc-600 hover:text-black"
-          }`}
-        >
-          Ativos
-        </button>
-      </motion.div>
-
-      {/* Search + Filters Bar */}
-      <motion.div variants={fadeUp} className="flex flex-wrap items-center gap-3">
-        {/* Search */}
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-          <Input
-            placeholder="Buscar por empresa ou contato..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="rounded-[15px] pl-9 font-body text-sm"
-          />
-        </div>
-
-        {/* Health Score Filter */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="rounded-full font-heading text-sm"
-            >
-              {healthFilter === "all"
-                ? "Health Score"
-                : healthConfig[healthFilter].label}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="rounded-[15px]">
-            <DropdownMenuItem onClick={() => setHealthFilter("all")}>
-              Todos
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setHealthFilter("good")}>
-              <Heart className="h-3.5 w-3.5 fill-current text-status-success" />
-              Saudável
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setHealthFilter("warning")}>
-              <AlertTriangle className="h-3.5 w-3.5 text-status-warning" />
-              Atenção
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setHealthFilter("critical")}>
-              <XCircle className="h-3.5 w-3.5 text-status-danger" />
-              Crítico
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Responsible Filter */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="rounded-full font-heading text-sm"
-            >
-              <User className="mr-2 h-4 w-4" />
-              {responsibleFilter === "all"
-                ? "Responsável"
-                : responsibleFilter}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="rounded-[15px]">
-            <DropdownMenuItem onClick={() => setResponsibleFilter("all")}>
-              Todos
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {responsibleNames.map((name) => (
-              <DropdownMenuItem
-                key={name}
-                onClick={() => setResponsibleFilter(name)}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1 rounded-full bg-zinc-100 p-1">
+              <button
+                onClick={() => setActiveFunnel("onboarding")}
+                className={`rounded-full px-5 py-2 font-heading text-sm font-medium transition-colors ${
+                  activeFunnel === "onboarding"
+                    ? "bg-black text-white shadow-sm"
+                    : "text-zinc-600 hover:text-black"
+                }`}
               >
-                {name}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                Onboarding
+              </button>
+              <button
+                onClick={() => setActiveFunnel("ativos")}
+                className={`rounded-full px-5 py-2 font-heading text-sm font-medium transition-colors ${
+                  activeFunnel === "ativos"
+                    ? "bg-black text-white shadow-sm"
+                    : "text-zinc-600 hover:text-black"
+                }`}
+              >
+                Ativos
+              </button>
+            </div>
+
+            <div className="relative w-full max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <Input
+                placeholder="Buscar por empresa ou contato..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="rounded-[15px] pl-9 font-body text-sm"
+              />
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="rounded-full font-heading text-sm">
+                  {healthFilter === "all"
+                    ? "Health Score"
+                    : healthConfig[healthFilter].label}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="rounded-[15px]">
+                <DropdownMenuItem onClick={() => setHealthFilter("all")}>
+                  Todos
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setHealthFilter("good")}>
+                  <Heart className="h-3.5 w-3.5 fill-current text-status-success" />
+                  Saudável
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setHealthFilter("warning")}>
+                  <AlertTriangle className="h-3.5 w-3.5 text-status-warning" />
+                  Atenção
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setHealthFilter("critical")}>
+                  <XCircle className="h-3.5 w-3.5 text-status-danger" />
+                  Crítico
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="rounded-full font-heading text-sm">
+                  <User className="mr-2 h-4 w-4" />
+                  {responsibleFilter === "all" ? "Responsável" : responsibleFilter}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="rounded-[15px]">
+                <DropdownMenuItem onClick={() => setResponsibleFilter("all")}>
+                  Todos
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {responsibleNames.map((name) => (
+                  <DropdownMenuItem key={name} onClick={() => setResponsibleFilter(name)}>
+                    {name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </ModuleCommandHeader>
       </motion.div>
 
       {/* Kanban Board */}

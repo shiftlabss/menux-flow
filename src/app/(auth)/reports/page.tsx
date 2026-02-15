@@ -24,6 +24,7 @@ import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { exportToCSV, exportToPDF, exportToExcel } from "@/lib/export";
+import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 // ---------------------------------------------------------------------------
 // Framer Motion Variants
@@ -565,6 +566,8 @@ export default function ReportsPage() {
   const activeReport = activeReportId
     ? mockReportData[activeReportId]
     : null;
+  const salesReports = reportDefinitions.filter((report) => report.category === "Vendas").length;
+  const operationalReports = reportDefinitions.filter((report) => report.category === "Operacional").length;
 
   if (isLoading) {
     return (
@@ -584,14 +587,36 @@ export default function ReportsPage() {
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-8">
-      {/* Page Header */}
       <motion.div variants={fadeUp}>
-        <h1 className="font-heading text-2xl font-bold text-black sm:text-3xl">
-          Relatorios
-        </h1>
-        <p className="mt-1 font-body text-sm text-zinc-500">
-          Gere relatorios detalhados e exporte os dados do seu CRM
-        </p>
+        <ModuleCommandHeader
+          title="Relatórios"
+          description="Gere relatórios detalhados e exporte dados do CRM."
+          meta={
+            activeReport
+              ? `Visualizando: ${activeReport.title}`
+              : `${reportDefinitions.length} relatórios disponíveis`
+          }
+          chips={[
+            {
+              id: "sales",
+              label: `${salesReports} de vendas`,
+              icon: <TrendingUp className="h-3.5 w-3.5" />,
+              tone: "info",
+            },
+            {
+              id: "ops",
+              label: `${operationalReports} operacionais`,
+              icon: <Activity className="h-3.5 w-3.5" />,
+              tone: "neutral",
+            },
+            {
+              id: "open",
+              label: activeReport ? "1 relatório aberto" : "nenhum relatório aberto",
+              icon: <Calendar className="h-3.5 w-3.5" />,
+              tone: activeReport ? "success" : "neutral",
+            },
+          ]}
+        />
       </motion.div>
 
       {/* Report Cards Grid */}

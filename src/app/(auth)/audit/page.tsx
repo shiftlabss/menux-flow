@@ -12,6 +12,7 @@ import {
   Trash2,
   ArrowRight,
   Shield,
+  AlertTriangle,
   Filter,
   Calendar,
 } from "lucide-react";
@@ -35,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { motion } from "framer-motion";
+import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 // ---------------------------------------------------------------------------
 // Framer Motion Variants
@@ -508,6 +510,8 @@ export default function AuditPage() {
 
   const hasActiveFilters =
     entityFilter !== "all" || userFilter !== "all" || dateFrom || dateTo;
+  const deletedEventsCount = filteredEvents.filter((event) => event.action === "deleted").length;
+  const movedEventsCount = filteredEvents.filter((event) => event.action === "moved").length;
 
   if (isLoading) {
     return (
@@ -531,22 +535,40 @@ export default function AuditPage() {
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-6">
-      {/* Page Header */}
-      <motion.div variants={fadeUp} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-black sm:text-3xl">
-            Log de Auditoria
-          </h1>
-          <p className="mt-1 font-body text-sm text-zinc-500">
-            Rastreie todas as ações realizadas no sistema
-          </p>
-        </div>
-        <div className="flex items-center gap-2 rounded-[10px] bg-zinc-50 px-3 py-2">
-          <Shield className="h-4 w-4 text-zinc-400" />
-          <span className="font-body text-xs text-zinc-500">
-            Registros mantidos por 5 anos
-          </span>
-        </div>
+      <motion.div variants={fadeUp}>
+        <ModuleCommandHeader
+          title="Log de Auditoria"
+          description="Rastreie todas as ações realizadas no sistema."
+          meta={`${filteredEvents.length} registros no filtro atual`}
+          chips={[
+            {
+              id: "deleted",
+              label: `${deletedEventsCount} exclusões`,
+              icon: <AlertTriangle className="h-3.5 w-3.5" />,
+              tone: deletedEventsCount > 0 ? "danger" : "neutral",
+            },
+            {
+              id: "moved",
+              label: `${movedEventsCount} movimentações`,
+              icon: <ArrowRight className="h-3.5 w-3.5" />,
+              tone: movedEventsCount > 0 ? "warning" : "neutral",
+            },
+            {
+              id: "total",
+              label: `${TOTAL_RECORDS} registros totais`,
+              icon: <Shield className="h-3.5 w-3.5" />,
+              tone: "info",
+            },
+          ]}
+          actions={
+            <div className="flex items-center gap-2 rounded-[10px] bg-zinc-50 px-3 py-2">
+              <Shield className="h-4 w-4 text-zinc-400" />
+              <span className="font-body text-xs text-zinc-500">
+                Registros mantidos por 5 anos
+              </span>
+            </div>
+          }
+        />
       </motion.div>
 
       {/* Filters Row */}

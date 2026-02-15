@@ -56,6 +56,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 import { exportToCSV, exportToPDF, exportToExcel } from "@/lib/export";
 import type { CommissionStatus } from "@/types";
+import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 // ===== Framer Motion Variants =====
 
@@ -376,6 +377,12 @@ export default function FinancePage() {
     const total = projected + confirmed + paid;
     return { projected, confirmed, paid, total };
   }, [filteredByPeriodAndSeller]);
+  const contestedCount = useMemo(
+    () =>
+      filteredByPeriodAndSeller.filter((commission) => commission.status === "contested")
+        .length,
+    [filteredByPeriodAndSeller]
+  );
 
   // Team summary
   const teamSummary = useMemo(() => {
@@ -542,59 +549,72 @@ export default function FinancePage() {
 
   return (
     <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-6">
-      {/* Header */}
-      <motion.div variants={fadeUp} className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-black sm:text-3xl">
-            Financeiro
-          </h1>
-          <p className="mt-1 font-body text-sm text-zinc-500">
-            Acompanhe comissões e receitas
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Seller Filter */}
-          <Select value={sellerFilter} onValueChange={setSellerFilter}>
-            <SelectTrigger className="h-9 rounded-full border-zinc-200 font-body text-sm">
-              <SelectValue placeholder="Vendedor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os vendedores</SelectItem>
-              {allSellers.map((seller) => (
-                <SelectItem key={seller} value={seller}>
-                  {seller}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <motion.div variants={fadeUp}>
+        <ModuleCommandHeader
+          title="Financeiro"
+          description="Acompanhe comissões e receitas."
+          meta={`${periodLabel} · ${sellerFilter === "all" ? "todos os vendedores" : sellerFilter}`}
+          chips={[
+            {
+              id: "total",
+              label: `${formatCurrency(summary.total)} no período`,
+              icon: <TrendingUp className="h-3.5 w-3.5" />,
+              tone: summary.total > 0 ? "info" : "neutral",
+            },
+            {
+              id: "records",
+              label: `${filteredByPeriodAndSeller.length} comissões`,
+              icon: <Users className="h-3.5 w-3.5" />,
+              tone: "neutral",
+            },
+            {
+              id: "contested",
+              label: `${contestedCount} contestadas`,
+              icon: <AlertTriangle className="h-3.5 w-3.5" />,
+              tone: contestedCount > 0 ? "warning" : "success",
+            },
+          ]}
+          actions={
+            <>
+              <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                <SelectTrigger className="h-9 rounded-full border-zinc-200 font-body text-sm">
+                  <SelectValue placeholder="Vendedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os vendedores</SelectItem>
+                  {allSellers.map((seller) => (
+                    <SelectItem key={seller} value={seller}>
+                      {seller}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-          {/* Export Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="rounded-full font-heading text-sm"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Exportar
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleExport("csv")}>
-                <FileText className="mr-2 h-4 w-4" />
-                Exportar CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport("pdf")}>
-                <FileDown className="mr-2 h-4 w-4" />
-                Exportar PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport("excel")}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Exportar Excel
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="rounded-full font-heading text-sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport("csv")}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Exportar CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("pdf")}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Exportar PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport("excel")}>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Exportar Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          }
+        />
       </motion.div>
 
       {/* Export Feedback */}

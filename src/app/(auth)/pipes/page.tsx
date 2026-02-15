@@ -58,6 +58,7 @@ import { PipelineSkeleton } from "./components/pipeline-skeleton";
 // External components
 import { PipelineManagerDrawer } from "@/components/pipeline/pipeline-manager-drawer";
 import { PipelineSwitcher } from "@/components/pipeline/pipeline-switcher";
+import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 // ===================================================================
 // Main Page Component
@@ -285,8 +286,120 @@ function PipesPageContent() {
 
       <motion.div initial="hidden" animate="show" variants={screenContainer} className="premium-ambient premium-grain flex h-[calc(100vh-64px)] flex-col overflow-hidden rounded-[20px] border border-zinc-200/75 bg-white/68 p-4 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm md:p-5">
         {/* Header & Toolbar */}
-        <motion.div variants={sectionEnter} className="shrink-0 space-y-3 pb-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <motion.div variants={sectionEnter} className="shrink-0 pb-4">
+          <ModuleCommandHeader
+            title="Pipes"
+            description="Execução visual do pipeline comercial."
+            className="border-zinc-200/80 bg-white/86"
+            meta={`Funil ${activeFunnel} · ${myCount} meus · ${boardCount} no board`}
+            chips={[
+              {
+                id: "value",
+                label: `${formatCurrencyBRL(boardTotal)} em pipeline`,
+                icon: <ArrowDownToLine className="h-3.5 w-3.5" />,
+                tone: "info",
+              },
+              {
+                id: "mine",
+                label: `${myCount} meus`,
+                icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+                tone: showOnlyMine ? "success" : "neutral",
+              },
+              {
+                id: "stages",
+                label: `${visibleStages.length} etapas visíveis`,
+                icon: <Filter className="h-3.5 w-3.5" />,
+                tone: "neutral",
+              },
+            ]}
+            actions={
+              <>
+                {stageFilter && stageFilterLabel && (
+                  <div className="flex items-center gap-1 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-1.5">
+                    <span className="text-[11px] font-medium text-brand-strong">
+                      Etapa: {stageFilterLabel}
+                    </span>
+                    <button
+                      onClick={() => router.replace("/pipes")}
+                      className="text-brand/70 transition-colors hover:text-brand"
+                      aria-label="Limpar filtro de etapa"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+
+                <AnimatePresence>
+                  {isSearchOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 14, scale: 0.98 }}
+                      animate={{ opacity: 1, x: 0, scale: 1 }}
+                      exit={{ opacity: 0, x: 10, scale: 0.98 }}
+                      transition={{ duration: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
+                      className="relative"
+                    >
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                      <Input
+                        ref={searchInputRef}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Buscar cards..."
+                        className="h-9 w-[220px] rounded-full pl-8 pr-8 font-body text-sm"
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery("")}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isSearchOpen ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setIsSearchOpen((prev) => !prev);
+                        if (!isSearchOpen) {
+                          setTimeout(() => searchInputRef.current?.focus(), 50);
+                        } else {
+                          setSearchQuery("");
+                        }
+                      }}
+                      className={`h-9 rounded-full font-heading text-sm ${isSearchOpen ? "bg-black text-white hover:bg-zinc-800" : ""}`}
+                    >
+                      <Search className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Buscar (⌘K)</TooltipContent>
+                </Tooltip>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openDrawer("filters")}
+                  className="h-9 rounded-full font-heading text-sm"
+                >
+                  <Filter className="mr-1.5 h-3.5 w-3.5" />
+                  Filtros
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => openDrawer("new-opportunity")}
+                  className="h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800"
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Novo Card
+                </Button>
+              </>
+            }
+          >
             <div className="min-w-0">
               <PipelineSwitcher
                 selectedPipeline={activeFunnel}
@@ -311,93 +424,7 @@ function PipesPageContent() {
                 {boardCount} total · {formatCurrencyBRL(boardTotal)}
               </p>
             </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {stageFilter && stageFilterLabel && (
-                <div className="flex items-center gap-1 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-1.5">
-                  <span className="text-[11px] font-medium text-brand-strong">
-                    Etapa: {stageFilterLabel}
-                  </span>
-                  <button
-                    onClick={() => router.replace("/pipes")}
-                    className="text-brand/70 transition-colors hover:text-brand"
-                    aria-label="Limpar filtro de etapa"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
-
-              <AnimatePresence>
-                {isSearchOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 14, scale: 0.98 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: 10, scale: 0.98 }}
-                    transition={{ duration: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
-                    className="relative"
-                  >
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                    <Input
-                      ref={searchInputRef}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Buscar cards..."
-                      className="h-9 w-[220px] rounded-full pl-8 pr-8 font-body text-sm"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={isSearchOpen ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setIsSearchOpen((prev) => !prev);
-                      if (!isSearchOpen) {
-                        setTimeout(() => searchInputRef.current?.focus(), 50);
-                      } else {
-                        setSearchQuery("");
-                      }
-                    }}
-                    className={`h-9 rounded-full font-heading text-sm ${isSearchOpen ? "bg-black text-white hover:bg-zinc-800" : ""}`}
-                  >
-                    <Search className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Buscar (⌘K)</TooltipContent>
-              </Tooltip>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openDrawer("filters")}
-                className="h-9 rounded-full font-heading text-sm"
-              >
-                <Filter className="mr-1.5 h-3.5 w-3.5" />
-                Filtros
-              </Button>
-
-              <Button
-                size="sm"
-                onClick={() => openDrawer("new-opportunity")}
-                className="h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800"
-              >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Novo Card
-              </Button>
-            </div>
-          </div>
+          </ModuleCommandHeader>
         </motion.div>
 
         {/* Board */}

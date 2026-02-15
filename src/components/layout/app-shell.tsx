@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useSidebarStore } from "@/stores/sidebar-store";
 import { Sidebar } from "./sidebar";
@@ -8,6 +9,9 @@ import { Sidebar } from "./sidebar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isExpanded } = useSidebarStore();
   const mainRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const isIntelligenceRoute =
+    pathname === "/intelligence" || pathname.startsWith("/intelligence/");
 
   return (
     <div className="flex h-screen w-full overflow-hidden premium-mesh">
@@ -32,7 +36,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Content Scroll Area */}
         <main
           ref={mainRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-24 pt-4 md:pb-8"
+          className={cn(
+            "flex-1 overflow-x-hidden",
+            isIntelligenceRoute
+              ? "overflow-hidden p-0"
+              : "overflow-y-auto px-6 pb-24 pt-4 md:pb-8"
+          )}
         >
           {children}
         </main>

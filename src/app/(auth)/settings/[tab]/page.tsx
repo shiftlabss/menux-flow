@@ -36,6 +36,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
+import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 import {
   Dialog,
   DialogContent,
@@ -102,6 +103,7 @@ export default function SettingsTabPage({
   const handleDiscard = () => {
     setIsDirty(false);
   };
+  const activeTabLabel = tabConfig.find((item) => item.key === tab)?.label ?? tab;
 
   return (
     <div className="flex gap-8">
@@ -167,15 +169,25 @@ export default function SettingsTabPage({
           />
         )}
 
-        {/* Page Title */}
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-black sm:text-3xl">
-            {titleMap[tab] || tab}
-          </h1>
-          <p className="mt-1 font-body text-sm text-zinc-500">
-            Personalize o comportamento do Flow
-          </p>
-        </div>
+        <ModuleCommandHeader
+          title={titleMap[tab] || tab}
+          description="Personalize o comportamento do Flow."
+          meta={`Seção ativa: ${activeTabLabel}`}
+          chips={[
+            {
+              id: "status",
+              label: isDirty ? "alterações pendentes" : "tudo salvo",
+              icon: <Settings className="h-3.5 w-3.5" />,
+              tone: isDirty ? "warning" : "success",
+            },
+            {
+              id: "module",
+              label: `${tabConfig.length} módulos de configuração`,
+              icon: <Plug className="h-3.5 w-3.5" />,
+              tone: "neutral",
+            },
+          ]}
+        />
 
         {tab === "general" && <GeneralSettings onDirty={markDirty} />}
         {tab === "pipeline" && <PipelineSettings onDirty={markDirty} />}

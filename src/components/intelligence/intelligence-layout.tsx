@@ -102,7 +102,7 @@ export function IntelligenceLayout() {
   };
 
   return (
-    <div className="menux-intelligence-theme dark flex h-[calc(100dvh-4rem)] min-h-0 flex-col overflow-hidden rounded-[22px] border border-white/12">
+    <div className="menux-intelligence-theme menux-intelligence-theme-full dark flex h-full min-h-0 w-full flex-col overflow-hidden">
       <MenuxIntelligenceFullHeader />
 
       {!showXsTabs && layoutMode !== "xl" && (
