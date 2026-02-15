@@ -14,6 +14,8 @@ import type {
   SlashCommand,
   ActiveScreen,
   UserRoleIntelligence,
+  AiTone,
+  ProactiveFrequency,
 } from "@/types/intelligence";
 import { INTELLIGENCE_LIMITS } from "@/types/intelligence";
 import {
@@ -100,6 +102,10 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
   remainingQueries: INTELLIGENCE_LIMITS.MAX_QUERIES_PER_HOUR,
   rateLimitResetAt: null,
   menuxIntelligenceMode: "focus",
+  aiTone: "neutral" as AiTone,
+  proactiveFrequency: 5 as ProactiveFrequency,
+  proactiveNotifications: true,
+  isSettingsOpen: false,
   isThinking: false,
 
   // ── Actions ────────────────────────────────────────────────────────────
@@ -187,6 +193,8 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
         card: state.contextCard,
         vendor,
         pipeline: getPipelineContext(),
+        mode: state.menuxIntelligenceMode,
+        tone: state.aiTone,
       });
 
       set((s) => ({
@@ -249,6 +257,8 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
         card: state.contextCard,
         vendor,
         pipeline: getPipelineContext(),
+        mode: state.menuxIntelligenceMode,
+        tone: state.aiTone,
       });
 
       set((s) => ({
@@ -467,4 +477,9 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
   },
 
   setMenuxIntelligenceMode: (mode) => set({ menuxIntelligenceMode: mode }),
+  openSettings: () => set({ isSettingsOpen: true }),
+  closeSettings: () => set({ isSettingsOpen: false }),
+  setAiTone: (aiTone) => set({ aiTone }),
+  setProactiveFrequency: (proactiveFrequency) => set({ proactiveFrequency }),
+  setProactiveNotifications: (proactiveNotifications) => set({ proactiveNotifications }),
 }));

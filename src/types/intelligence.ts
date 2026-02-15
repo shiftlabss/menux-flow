@@ -47,6 +47,9 @@ export type UserRoleIntelligence =
 
 export type MenuxIntelligenceMode = "focus" | "audit" | "reply" | "proposal";
 
+export type AiTone = "formal" | "casual" | "neutral";
+export type ProactiveFrequency = 5 | 15 | 30;
+
 /** Mapa de capacidades por perfil — seção 9.1 do documento */
 export interface IntelligencePermissions {
   canAccessIntelligence: boolean;
@@ -337,6 +340,14 @@ export interface IntelligenceState {
   rateLimitResetAt: string | null;
   /** Modo atual da Menux Intelligence */
   menuxIntelligenceMode: MenuxIntelligenceMode;
+  /** Tom da IA */
+  aiTone: AiTone;
+  /** Frequência do motor proativo em minutos */
+  proactiveFrequency: ProactiveFrequency;
+  /** Notificações proativas habilitadas */
+  proactiveNotifications: boolean;
+  /** Settings dialog aberto */
+  isSettingsOpen: boolean;
 }
 
 export interface IntelligenceActions {
@@ -386,6 +397,16 @@ export interface IntelligenceActions {
   decrementRateLimit: () => void;
   /** Reseta rate limit */
   resetRateLimit: () => void;
+  /** Abre settings dialog */
+  openSettings: () => void;
+  /** Fecha settings dialog */
+  closeSettings: () => void;
+  /** Atualiza tom da IA */
+  setAiTone: (tone: AiTone) => void;
+  /** Atualiza frequência proativa */
+  setProactiveFrequency: (freq: ProactiveFrequency) => void;
+  /** Atualiza notificações proativas */
+  setProactiveNotifications: (enabled: boolean) => void;
 }
 
 export type IntelligenceStore = IntelligenceState & IntelligenceActions;

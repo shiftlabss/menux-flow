@@ -1,6 +1,6 @@
 // ─── Main Engine — Process ──────────────────────────────────────────────
 
-import type { Message, SlashCommand, CardContext, VendorContext, PipelineContext } from "@/types/intelligence";
+import type { Message, SlashCommand, CardContext, VendorContext, PipelineContext, MenuxIntelligenceMode, AiTone } from "@/types/intelligence";
 import { generateBriefing, generateObjectionResponse, generateGhostwriting, generatePitch, generateFollowup } from "./sales-commands";
 import { generateFunnelSummary, generateCardAnalysis, generateComparison, generatePlansInfo } from "./analysis";
 import { generateMorningBriefing, generateRiskReport, generateGoalProgress, generateCoachingInsights, generateAgenda, generateHelp } from "./proactive-commands";
@@ -12,6 +12,8 @@ export interface ProcessMessageInput {
   card: CardContext | null;
   vendor: VendorContext;
   pipeline: PipelineContext | null;
+  mode?: MenuxIntelligenceMode;
+  tone?: AiTone;
 }
 
 /**
@@ -88,10 +90,10 @@ export async function processMessage(
         return generateAgenda();
 
       default:
-        return generateFreeResponse(input.text, input.card);
+        return generateFreeResponse(input.text, input.card, input.mode, input.tone);
     }
   }
 
-  // Sem comando → resposta livre
-  return generateFreeResponse(input.text, input.card);
+  // Sem comando → resposta livre (com contexto de modo e tom)
+  return generateFreeResponse(input.text, input.card, input.mode, input.tone);
 }

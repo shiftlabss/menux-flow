@@ -1,13 +1,29 @@
 // ─── Free-form response ─────────────────────────────────────────────────
 
-import type { Message, CardContext } from "@/types/intelligence";
+import type { Message, CardContext, MenuxIntelligenceMode, AiTone } from "@/types/intelligence";
 import { uid, now, buildContextBadge } from "./helpers";
 import { generatePlansInfo } from "./analysis";
 import { generateMorningBriefing, generateRiskReport, generateGoalProgress, generateCoachingInsights, generateAgenda } from "./proactive-commands";
 
+const MODE_LABELS: Record<MenuxIntelligenceMode, string> = {
+  focus: "Foco Cliente",
+  audit: "Auditoria",
+  reply: "Responder",
+  proposal: "Proposta",
+};
+
+const MODE_HINTS: Record<MenuxIntelligenceMode, string> = {
+  focus: "Focando na situação específica deste cliente e próximos passos práticos.",
+  audit: "Analisando métricas, gargalos e oportunidades de otimização.",
+  reply: "Gerando mensagens prontas para envio. Direto e prático.",
+  proposal: "Focando em argumentos de venda, diferenciação e proposta de valor.",
+};
+
 export function generateFreeResponse(
   text: string,
-  card: CardContext | null
+  card: CardContext | null,
+  mode?: MenuxIntelligenceMode,
+  tone?: AiTone,
 ): Message {
   const txtLower = text.toLowerCase();
 
@@ -80,9 +96,19 @@ export function generateFreeResponse(
   }
 
   // Resposta genérica contextual
+  const toneHint = tone === "formal"
+    ? " Responderei de forma executiva e profissional."
+    : tone === "casual"
+      ? " Responderei de forma descontraída e direta."
+      : "";
+
+  const modeHint = mode && mode !== "focus"
+    ? `\n\n*Modo ${MODE_LABELS[mode]} ativo — ${MODE_HINTS[mode]}*`
+    : "";
+
   const content = card
-    ? `Entendi sua pergunta sobre **${card.cardName}**! ${card.temperature === "hot" ? "🔥 Esse lead está quente — " : ""}Como posso te ajudar com isso? Posso gerar um \`/briefing\`, preparar uma \`/mensagem\` ou analisar o card com \`/analise\`.`
-    : `Entendi! Posso te ajudar de várias formas. Use os comandos rápidos (/) para ações específicas, ou me pergunte sobre planos, objeções, ou estratégias de venda.\n\n💡 Dica: selecione um cliente com 📋 para eu carregar todo o contexto e personalizar minhas respostas.`;
+    ? `Entendi sua pergunta sobre **${card.cardName}**! ${card.temperature === "hot" ? "🔥 Esse lead está quente — " : ""}Como posso te ajudar com isso? Posso gerar um \`/briefing\`, preparar uma \`/mensagem\` ou analisar o card com \`/analise\`.${toneHint}${modeHint}`
+    : `Entendi! Posso te ajudar de várias formas. Use os comandos rápidos (/) para ações específicas, ou me pergunte sobre planos, objeções, ou estratégias de venda.${toneHint}\n\n💡 Dica: selecione um cliente com 📋 para eu carregar todo o contexto e personalizar minhas respostas.${modeHint}`;
 
   return {
     id: uid(),
