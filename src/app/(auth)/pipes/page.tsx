@@ -68,10 +68,11 @@ function PipesPageContent() {
   const { user } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentUserId = user?.id ?? "1";
+  const currentUserId = user?.id ?? "demo-user";
+  const currentUserName = user?.name ?? "Usuário Demo";
   const [selectedFunnel, setSelectedFunnel] = useState("comercial");
   const [localOpportunities, setLocalOpportunities] = useState<Opportunity[]>(
-    () => generateDynamicMockData()
+    () => generateDynamicMockData(currentUserId, currentUserName)
   );
   const opportunities = localOpportunities;
   const [isManageDrawerOpen, setIsManageDrawerOpen] = useState(false);
