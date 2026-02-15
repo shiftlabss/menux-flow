@@ -203,7 +203,7 @@ export function HelpButton() {
                 Links rápidos
               </p>
               <div className="grid grid-cols-2 gap-1.5">
-                {filteredLinks.map((link, idx) => {
+                {filteredLinks.map((link) => {
                   const globalIdx = quickLinks.indexOf(link);
                   const isExpanded = expandedLinkIndex === globalIdx;
                   return (

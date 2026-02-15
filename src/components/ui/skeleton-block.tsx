@@ -1,7 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-const CHART_BAR_WIDTHS = [82, 64, 91, 56, 74, 88, 67, 79] as const;
 const LINE_WIDTHS = ["w-3/4", "w-full", "w-5/6", "w-2/3"] as const;
 
 export interface SkeletonBlockProps {

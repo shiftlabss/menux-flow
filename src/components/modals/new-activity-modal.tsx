@@ -120,7 +120,7 @@ export function NewActivityModal() {
           closeDrawer();
         }, 1500);
       }
-    } catch (error) {
+    } catch {
       setFeedback({ type: "error", message: "Erro ao salvar atividade. Tente novamente." });
     } finally {
       setIsSubmitting(false);

@@ -69,7 +69,7 @@ export function ConfirmDeleteModal() {
                   await Promise.resolve((modalData.onConfirm as () => void | Promise<void>)());
                 }
                 closeModal();
-              } catch (error) {
+              } catch {
                 setFeedback({ type: "error", message: "Erro ao excluir. Tente novamente." });
               } finally {
                 setIsDeleting(false);

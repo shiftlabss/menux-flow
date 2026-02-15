@@ -2,7 +2,6 @@
 
 import { useRef, useEffect } from "react";
 import { Send, Sparkles } from "lucide-react";
-import { cn } from "@/lib/cn";
 import { useIntelligenceStore } from "@/stores/intelligence-store";
 import { IntelligenceMessage } from "./intelligence-message";
 
@@ -33,7 +32,7 @@ export function JarvisChat() {
              <p className="text-xs text-slate-400">Jarvis está pronto.</p>
           </div>
         ) : (
-          messages.map((msg, i) => (
+          messages.map((msg) => (
             <IntelligenceMessage 
               key={msg.id} 
               message={msg} 

@@ -68,7 +68,11 @@ function loadSavedFilters(context: FilterContext): SavedFilter[] {
 
 function persistSavedFilters(context: FilterContext, filters: SavedFilter[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(getSavedFiltersKey(context), JSON.stringify(filters));
+  try {
+    localStorage.setItem(getSavedFiltersKey(context), JSON.stringify(filters));
+  } catch {
+    // Ignore storage errors in mock frontend mode.
+  }
 }
 
 // ── Mock options ────────────────────────────────────────────────────────────

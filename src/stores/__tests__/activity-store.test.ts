@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach } from "vitest";
 import { useActivityStore } from "../activity-store";
-import type { Activity, ActivityStatus } from "@/types";
+import type { Activity } from "@/types";
 
 // ─── Seed data ──────────────────────────────────────────────────────────────
 

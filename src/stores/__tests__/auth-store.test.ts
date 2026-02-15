@@ -1,42 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, beforeEach, vi } from "vitest";
-
-// Mock document.cookie since we use node environment (store calls document.cookie)
-let cookieStore = "";
-if (typeof globalThis.document === "undefined") {
-  Object.defineProperty(globalThis, "document", {
-    value: {
-      get cookie() {
-        return cookieStore;
-      },
-      set cookie(value: string) {
-        // Simulate browser cookie behavior: parse name=value, handle max-age=0 removal
-        const parts = value.split(";").map((p) => p.trim());
-        const [nameValue] = parts;
-        const [name] = nameValue.split("=");
-        const maxAgePart = parts.find((p) => p.toLowerCase().startsWith("max-age="));
-        const maxAge = maxAgePart ? parseInt(maxAgePart.split("=")[1], 10) : undefined;
-
-        if (maxAge === 0) {
-          // Remove cookie
-          const cookies = cookieStore
-            .split("; ")
-            .filter((c) => !c.startsWith(`${name}=`));
-          cookieStore = cookies.join("; ");
-        } else {
-          // Add/update cookie (store only name=value)
-          const cookies = cookieStore
-            .split("; ")
-            .filter((c) => c && !c.startsWith(`${name}=`));
-          cookies.push(nameValue);
-          cookieStore = cookies.join("; ");
-        }
-      },
-    },
-    writable: false,
-    configurable: true,
-  });
-}
+import { describe, it, expect, beforeEach } from "vitest";
 
 import { useAuthStore } from "../auth-store";
 import type { User, UserRole } from "../auth-store";
@@ -57,8 +20,6 @@ function createMockUser(role: UserRole, overrides?: Partial<User>): User {
 
 describe("auth-store", () => {
   beforeEach(() => {
-    // Reset cookie store
-    cookieStore = "";
     // Reset store to initial state before each test
     useAuthStore.setState({
       user: null,
@@ -93,11 +54,24 @@ describe("auth-store", () => {
       expect(state.permissions!.canDeleteOpportunity).toBe(false);
     });
 
-    it("should set a cookie with the token", () => {
-      const user = createMockUser("admin");
-      useAuthStore.getState().setUser(user, "my-token");
+    it("should ignore invalid user payloads", () => {
+      useAuthStore.getState().setUser(
+        {
+          id: "usr-1",
+          name: "Invalid User",
+          email: "invalid@flow.com",
+          role: "invalid-role" as unknown as UserRole,
+          unitId: "unit-1",
+          unitName: "Unit A",
+          isActive: true,
+        },
+        "tok-invalid"
+      );
 
-      expect(document.cookie).toContain("flow-token=my-token");
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.user).toBeNull();
+      expect(state.permissions).toBeNull();
     });
   });
 
@@ -120,15 +94,6 @@ describe("auth-store", () => {
       expect(state.isAuthenticated).toBe(false);
       expect(state.isLoading).toBe(false);
     });
-
-    it("should clear the auth cookie", () => {
-      const user = createMockUser("admin");
-      useAuthStore.getState().setUser(user, "tok-456");
-      useAuthStore.getState().logout();
-
-      // After logout, cookie should be cleared (max-age=0 effectively removes it)
-      expect(document.cookie).not.toContain("flow-token=tok-456");
-    });
   });
 
   // ─── setLoading ─────────────────────────────────────────────────────
@@ -142,6 +107,14 @@ describe("auth-store", () => {
     it("should update isLoading to false", () => {
       useAuthStore.getState().setLoading(false);
       expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+  });
+
+  describe("hydrateSession", () => {
+    it("should not throw in non-browser environment", async () => {
+      await expect(
+        useAuthStore.getState().hydrateSession()
+      ).resolves.toBeUndefined();
     });
   });
 

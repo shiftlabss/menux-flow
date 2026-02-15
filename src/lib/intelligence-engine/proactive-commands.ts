@@ -1,6 +1,6 @@
 // ─── Proactive Command Handlers ─────────────────────────────────────────
 
-import type { Message, SuggestedAction, SuggestedActionType } from "@/types/intelligence";
+import type { Message } from "@/types/intelligence";
 import type { ProactiveEngineInput } from "@/lib/proactive-engine";
 import {
   generateMorningSummaryContent,

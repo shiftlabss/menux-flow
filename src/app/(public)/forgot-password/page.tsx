@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
     resolver: zodResolver(forgotPasswordSchema),
   });
 
-  async function onSubmit(data: ForgotPasswordFormData) {
+  async function onSubmit() {
     setIsSubmitting(true);
     setFormError(null);
     try {

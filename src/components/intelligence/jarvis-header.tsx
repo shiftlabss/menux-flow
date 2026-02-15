@@ -12,7 +12,6 @@ import {
   MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { ComponentType } from "react";
 import {
   Tooltip,
   TooltipContent,

@@ -1,23 +1,19 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
 import { 
   Zap, 
-  Lightbulb, 
   Calendar, 
   Clock, 
   Briefcase, 
   MessageCircle,
   BarChart3,
   CheckCircle2,
-  AlertCircle,
-  Plus
+  AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useIntelligenceStore } from "@/stores/intelligence-store";
 import type { JarvisMode } from "./jarvis-header";
-import type { CardContext } from "@/types/intelligence";
 
 interface JarvisConsoleProps {
   onAction: (action: string) => void;
@@ -41,7 +37,7 @@ export function JarvisConsole({ onAction }: JarvisConsoleProps) {
 
        {/* Module C: Quick Actions (Only if client selected) */}
        {contextCard && (
-         <QuickActionsModule contextCard={contextCard} />
+         <QuickActionsModule />
        )}
     </div>
   );
@@ -131,7 +127,7 @@ function CommandSuggestions({ mode, onAction }: { mode: JarvisMode; onAction: (c
   );
 }
 
-function QuickActionsModule({ contextCard }: { contextCard: CardContext }) {
+function QuickActionsModule() {
    return (
     <section>
        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">

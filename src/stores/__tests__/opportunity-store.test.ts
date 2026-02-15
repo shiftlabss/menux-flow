@@ -1,7 +1,7 @@
 // @vitest-environment node
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { useOpportunityStore } from "../opportunity-store";
-import type { Opportunity, PipelineStage } from "@/types";
+import type { Opportunity } from "@/types";
 
 // ─── Seed data ──────────────────────────────────────────────────────────────
 

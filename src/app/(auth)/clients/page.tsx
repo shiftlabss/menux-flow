@@ -9,7 +9,6 @@ import {
   MoreHorizontal,
   User,
   Clock,
-  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
@@ -333,13 +332,10 @@ function getDaysSinceInteraction(dateStr?: string): number {
   return Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-// ===== Stage order for validation =====
-const clientStageOrder: ClientStage[] = ["onboarding", "implantacao", "acompanhamento", "retencao", "churn"];
-
 // ===== Page Component =====
 
 export default function ClientsPage() {
-  const { openDrawer, openModal } = useUIStore();
+  const { openDrawer } = useUIStore();
   const { clients: storeClients, moveToStage } = useClientStore();
   const draggedCardRef = useRef<string | null>(null);
   const dragOverStageRef = useRef<ClientStage | null>(null);
@@ -393,10 +389,6 @@ export default function ClientsPage() {
 
     const card = allClients.find((c) => c.id === cardId);
     if (!card || card.stage === targetStage) return;
-
-    // Validate: can't move backwards from churn
-    const currentIndex = clientStageOrder.indexOf(card.stage);
-    const targetIndex = clientStageOrder.indexOf(targetStage);
 
     if (targetStage === "churn" && card.stage !== "retencao") {
       setDragFeedback({ type: "error", message: "Apenas clientes em Retenção podem ser movidos para Churn." });

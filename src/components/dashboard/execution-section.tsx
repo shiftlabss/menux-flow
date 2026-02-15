@@ -7,8 +7,6 @@ import {
   AlertCircle, 
   Info, 
   CheckCircle2, 
-  ArrowRight,
-  Clock,
   Phone,
   Mail,
   Calendar,

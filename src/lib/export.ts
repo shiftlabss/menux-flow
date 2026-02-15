@@ -1,6 +1,15 @@
 /**
  * Exporta dados para CSV com suporte a headers customizados
  */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function exportToCSV(
   data: Record<string, unknown>[],
   filename: string,
@@ -52,12 +61,13 @@ export function exportToPDF(
   if (data.length === 0) return;
 
   const headers = Object.keys(data[0]);
+  const safeTitle = title ? escapeHtml(title) : "";
   const htmlContent = `
     <!DOCTYPE html>
     <html>
       <head>
         <meta charset="utf-8">
-        <title>${title || filename}</title>
+        <title>${safeTitle || escapeHtml(filename)}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; }
           h1 { color: #7A55FD; margin-bottom: 20px; }
@@ -68,16 +78,18 @@ export function exportToPDF(
         </style>
       </head>
       <body>
-        ${title ? `<h1>${title}</h1>` : ""}
+        ${safeTitle ? `<h1>${safeTitle}</h1>` : ""}
         <table>
           <thead>
-            <tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr>
+            <tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>
           </thead>
           <tbody>
             ${data
               .map(
                 (row) =>
-                  `<tr>${headers.map((h) => `<td>${row[h] ?? ""}</td>`).join("")}</tr>`
+                  `<tr>${headers
+                    .map((h) => `<td>${escapeHtml(String(row[h] ?? ""))}</td>`)
+                    .join("")}</tr>`
               )
               .join("")}
           </tbody>

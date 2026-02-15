@@ -25,13 +25,6 @@ import { useUIStore } from "@/stores/ui-store";
 import { useUserStore } from "@/stores/user-store";
 import { inviteUserSchema, type InviteUserFormData } from "@/lib/schemas";
 
-const roleLabels: Record<string, string> = {
-  admin: "Admin",
-  comercial: "Comercial",
-  cs: "CS (Customer Success)",
-  leitura: "Somente Leitura",
-};
-
 const unitLabels: Record<string, string> = {
   "1": "Matriz",
   "2": "Filial SP",

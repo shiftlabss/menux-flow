@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, startTransition } from "react";
+import { useEffect, useState, startTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -123,16 +123,6 @@ export function Sidebar() {
       setIsMobileOpen(false);
     });
   }, [pathname]);
-
-  // On mobile, sidebar open/close is managed by isMobileOpen
-  // On desktop, it's managed by isExpanded from the store
-  const handleToggle = useCallback(() => {
-    if (isDesktop) {
-      toggle();
-    } else {
-      setIsMobileOpen((prev) => !prev);
-    }
-  }, [isDesktop, toggle]);
 
   // Expose toggle for header hamburger use
   useEffect(() => {

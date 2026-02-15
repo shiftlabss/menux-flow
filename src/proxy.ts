@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifySessionToken } from "@/lib/auth-session";
+
+const AUTH_COOKIE_NAME = "flow-token";
 
 const protectedRoutes = [
   "/dashboard",
@@ -15,30 +18,27 @@ const protectedRoutes = [
 
 const authRoutes = ["/login", "/forgot-password", "/reset-password"];
 
-export function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const token = request.cookies.get("flow-token")?.value;
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  const session = token ? await verifySessionToken(token) : null;
 
-  // Always allow /activate regardless of auth state
   if (pathname.startsWith("/activate")) {
     return NextResponse.next();
   }
 
-  // Protected routes — redirect to /login if no token
   const isProtected = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );
 
-  if (isProtected && !token) {
+  if (isProtected && !session) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Auth routes — redirect authenticated users to /dashboard
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
-
-  if (isAuthRoute && token) {
+  if (isAuthRoute && session) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

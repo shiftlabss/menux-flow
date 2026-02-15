@@ -191,27 +191,6 @@ export function MentionInput({ value, onChange, placeholder }: MentionInputProps
     });
   }, [mentionQuery]);
 
-  // Render value with highlighted mentions
-  const renderDisplayValue = () => {
-    const parts = value.split(/(@\w+(?:\s\w+)?)/g);
-    return parts.map((part, index) => {
-      const memberMatch = mockTeamMembers.find(
-        (m) => `@${m.name}` === part
-      );
-      if (memberMatch) {
-        return (
-          <span
-            key={index}
-            className="inline-flex items-center rounded-[10px] bg-brand-light px-1.5 py-0.5 font-body text-sm font-medium text-brand"
-          >
-            {part}
-          </span>
-        );
-      }
-      return part;
-    });
-  };
-
   return (
     <div className="relative">
       <Popover open={showSuggestions && filteredMembers.length > 0}>

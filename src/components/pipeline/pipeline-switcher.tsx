@@ -211,7 +211,7 @@ export function PipelineSwitcher({
         // Highlight title for 800ms
         setTitleHighlighted(true);
         setTimeout(() => setTitleHighlighted(false), 800);
-      } catch (err) {
+      } catch {
         setError("Erro ao trocar funil. Tente novamente.");
         setIsApplying(false);
       }

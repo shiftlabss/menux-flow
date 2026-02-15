@@ -41,7 +41,7 @@ import { useExecutionPanelData } from "@/hooks/use-execution-panel-data";
 import { formatCurrencyBRL } from "@/lib/business-rules";
 
 export function IntelligenceExecutionPanel() {
-  const { contextCard, executeSlashCommand, openClientPicker, proactiveSuggestions, dismissSuggestion } =
+  const { contextCard, executeSlashCommand, proactiveSuggestions, dismissSuggestion } =
     useIntelligenceStore();
   const { opportunities } = useOpportunityStore();
 

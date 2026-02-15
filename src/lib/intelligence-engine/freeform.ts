@@ -1,6 +1,6 @@
 // ─── Free-form response ─────────────────────────────────────────────────
 
-import type { Message, CardContext, SuggestedAction, SuggestedActionType } from "@/types/intelligence";
+import type { Message, CardContext } from "@/types/intelligence";
 import { uid, now, buildContextBadge } from "./helpers";
 import { generatePlansInfo } from "./analysis";
 import { generateMorningBriefing, generateRiskReport, generateGoalProgress, generateCoachingInsights, generateAgenda } from "./proactive-commands";

@@ -1,6 +1,6 @@
 // ─── Analysis Generators ────────────────────────────────────────────────
 
-import type { Message, CardContext, PipelineContext, CopyableBlock, SuggestedAction, SuggestedActionType } from "@/types/intelligence";
+import type { Message, CardContext, PipelineContext } from "@/types/intelligence";
 import { formatCurrencyBRL } from "@/lib/business-rules";
 import { uid, now, buildContextBadge, temperatureEmoji, temperatureLabel } from "./helpers";
 

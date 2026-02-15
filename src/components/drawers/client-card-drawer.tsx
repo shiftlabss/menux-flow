@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   XCircle,
   Clock,
-  History,
   MoreHorizontal,
   DollarSign,
   Tag,
@@ -24,14 +23,11 @@ import {
   MapPin,
   FileText,
   TrendingUp,
-  TrendingDown,
   Activity,
-  BarChart3,
   ArrowRight,
   Users,
   LogIn,
   ThumbsUp,
-  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
@@ -256,68 +252,6 @@ function getTimelineIcon(type: string) {
     default:
       return <Clock className="h-3.5 w-3.5" />;
   }
-}
-
-// ── Inline Editable Field ───────────────────────────────────────────────────
-function InlineEditable({
-  value,
-  onSave,
-  className = "",
-  type = "text",
-}: {
-  value: string;
-  onSave: (val: string) => void;
-  className?: string;
-  type?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editing]);
-
-  function handleSave() {
-    setEditing(false);
-    if (draft !== value) onSave(draft);
-  }
-
-  if (editing) {
-    return (
-      <Input
-        ref={inputRef}
-        type={type}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") handleSave();
-          if (e.key === "Escape") {
-            setDraft(value);
-            setEditing(false);
-          }
-        }}
-        className="h-8 rounded-[15px] font-body text-sm"
-      />
-    );
-  }
-
-  return (
-    <span
-      onClick={() => {
-        setDraft(value);
-        setEditing(true);
-      }}
-      className={`cursor-pointer rounded-lg px-1.5 py-0.5 transition-colors hover:bg-zinc-100 ${className}`}
-      title="Clique para editar"
-    >
-      {value}
-    </span>
-  );
 }
 
 // ── Editable Field Row ──────────────────────────────────────────────────────

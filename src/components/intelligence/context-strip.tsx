@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, ChevronRight, Copy, ExternalLink, Calendar } from "lucide-react";
+import { Users, ExternalLink, Calendar } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useIntelligenceStore } from "@/stores/intelligence-store";
 import { useUIStore } from "@/stores/ui-store";

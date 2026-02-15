@@ -47,7 +47,7 @@ function ResetPasswordContent() {
   const password = watch("password", "");
   const strength = getPasswordStrength(password);
 
-  async function onSubmit(data: ResetPasswordFormData) {
+  async function onSubmit() {
     setIsSubmitting(true);
     setFormError(null);
     try {

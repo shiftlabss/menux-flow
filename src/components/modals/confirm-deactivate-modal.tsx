@@ -68,7 +68,7 @@ export function ConfirmDeactivateModal() {
                   await Promise.resolve((modalData.onConfirm as () => void | Promise<void>)());
                 }
                 closeModal();
-              } catch (error) {
+              } catch {
                 setFeedback({ type: "error", message: "Erro ao desativar. Tente novamente." });
               } finally {
                 setIsDeactivating(false);

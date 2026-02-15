@@ -3,7 +3,7 @@
 /**
  * Login Page - Flow CRM (Premium Redesign)
  *
- * Session rules (implemented server-side / middleware):
+ * Session rules (implemented server-side / proxy):
  * - "Lembrar-me" checked: session lasts 30 days
  * - "Lembrar-me" unchecked: session lasts 8 hours
  * - 2 hours of inactivity: automatic logout regardless of "Lembrar-me"
@@ -52,6 +52,12 @@ const PERMANENT_BLOCK_THRESHOLD = 15;
 
 const LOCKOUT_15MIN_MS = 15 * 60 * 1000;
 const LOCKOUT_1H_MS = 60 * 60 * 1000;
+const LOCKOUT_STORAGE_KEY = "flow-login-lockout-state";
+
+interface PersistedLockoutState {
+  errorCount: number;
+  lockoutEnd: number | null;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -77,6 +83,51 @@ function getLockoutTier(errors: number): LockoutTier {
   if (errors >= LOCKOUT_15MIN_THRESHOLD) return "lockout15";
   if (errors >= CAPTCHA_THRESHOLD) return "captcha";
   return "none";
+}
+
+function readPersistedLockoutState(): PersistedLockoutState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LOCKOUT_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<PersistedLockoutState>;
+    const errorCount =
+      typeof parsed.errorCount === "number" && Number.isFinite(parsed.errorCount)
+        ? Math.max(0, Math.floor(parsed.errorCount))
+        : 0;
+    const lockoutEnd =
+      typeof parsed.lockoutEnd === "number" && Number.isFinite(parsed.lockoutEnd)
+        ? parsed.lockoutEnd
+        : null;
+
+    if (errorCount === 0 && !lockoutEnd) return null;
+    return { errorCount, lockoutEnd };
+  } catch {
+    return null;
+  }
+}
+
+function persistLockoutState(state: PersistedLockoutState) {
+  if (typeof window === "undefined") return;
+  try {
+    if (state.errorCount === 0 && !state.lockoutEnd) {
+      window.localStorage.removeItem(LOCKOUT_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(LOCKOUT_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage errors in mock frontend mode.
+  }
+}
+
+function clearPersistedLockoutState() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LOCKOUT_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors in mock frontend mode.
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +156,30 @@ export default function LoginPage() {
 
   const router = useRouter();
   const { setUser } = useAuthStore();
+
+  useEffect(() => {
+    const persisted = readPersistedLockoutState();
+    if (!persisted) return;
+
+    if (persisted.lockoutEnd !== null && persisted.lockoutEnd <= Date.now()) {
+      clearPersistedLockoutState();
+      return;
+    }
+
+    setErrorCount(persisted.errorCount);
+    setLockoutEnd(persisted.lockoutEnd);
+
+    const persistedTier = getLockoutTier(persisted.errorCount);
+    if (persistedTier === "blocked") {
+      setLoginError("Conta bloqueada. Entre em contato com o administrador.");
+    } else if (persistedTier === "lockout1h") {
+      setLoginError("Conta temporariamente bloqueada. Tente novamente em");
+    } else if (persistedTier === "lockout15") {
+      setLoginError("Muitas tentativas. Tente novamente em 15 minutos.");
+    } else if (persistedTier === "captcha") {
+      setLoginError("Credenciais inválidas. Resolva o CAPTCHA para continuar.");
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -164,6 +239,7 @@ export default function LoginPage() {
         setErrorCount(0);
         setCaptchaResolved(false);
         setLoginError(null);
+        clearPersistedLockoutState();
       } else {
         setRemainingMs(diff);
       }
@@ -173,6 +249,10 @@ export default function LoginPage() {
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [lockoutEnd]);
+
+  useEffect(() => {
+    persistLockoutState({ errorCount, lockoutEnd });
+  }, [errorCount, lockoutEnd]);
 
   const startLockout = useCallback((durationMs: number) => {
     setLockoutEnd(Date.now() + durationMs);
@@ -232,19 +312,38 @@ export default function LoginPage() {
         return;
       }
 
-      setUser(
-        {
-          id: "1",
-          name: "Usuário Demo",
-          email: data.email,
-          role: "admin",
-          unitId: "1",
-          unitName: "Matriz",
-          isActive: true,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        "mock-token",
-        { rememberMe }
-      );
+        credentials: "include",
+        body: JSON.stringify({
+          email: data.email,
+          rememberMe,
+        }),
+      });
+
+      if (!response.ok) {
+        handleLoginFailure();
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        user?: Parameters<typeof setUser>[0];
+      };
+
+      if (!payload.user) {
+        handleLoginFailure();
+        return;
+      }
+
+      setUser(payload.user, "session-cookie", { rememberMe });
+      clearPersistedLockoutState();
+      setErrorCount(0);
+      setLockoutEnd(null);
+      setCaptchaResolved(false);
+      setLoginError(null);
       router.push(redirectPath);
     } catch {
       handleLoginFailure();
@@ -540,7 +639,6 @@ export default function LoginPage() {
                     type="button"
                     className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-400 opacity-70 transition-opacity duration-[140ms] hover:opacity-100 focus-visible:opacity-100"
                     onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
                     aria-label={
                       showPassword ? "Ocultar senha" : "Mostrar senha"
                     }

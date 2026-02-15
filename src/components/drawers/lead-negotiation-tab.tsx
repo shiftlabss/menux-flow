@@ -10,17 +10,12 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
-  DollarSign,
   Calendar,
   CheckCircle2,
   AlertCircle,
   Download,
-  Paperclip,
-  Trash2,
   Handshake,
   Clock,
-  User,
-  MoreVertical,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +24,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -37,12 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import type { NegotiationRound, NegotiationType } from "@/types";
@@ -94,7 +82,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-deal-id={dealId}>
       {/* Header */}
       <header className="flex items-center justify-between pb-4 border-b border-zinc-100">
         <div className="space-y-1">
@@ -107,7 +95,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
             </h2>
           </div>
           <p className="text-sm text-zinc-500 pl-10">
-            Todas as propostas e condições deste deal em um só lugar
+            Todas as propostas e condições de {dealTitle} em um só lugar
           </p>
         </div>
         <div className="flex items-center gap-2">

@@ -7,12 +7,10 @@ import {
   DollarSign,
   TrendingUp,
   Activity,
-  Medal,
   ArrowUp,
   ArrowDown,
   Minus,
   Plus,
-  X,
   Users,
   Calendar,
 } from "lucide-react";

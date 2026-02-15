@@ -52,7 +52,7 @@ export function WinOpportunityModal() {
   async function onSubmit(data: WinOpportunityFormData) {
     setIsSubmitting(true);
     try {
-      const commission = calculateProjectedCommission(data.contractValue);
+      calculateProjectedCommission(data.contractValue);
       const opp = opportunityId ? getById(opportunityId) : null;
 
       // 1. Mark opportunity as won

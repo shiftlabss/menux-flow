@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,10 +74,13 @@ function AvatarUpload({
         className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-zinc-300 bg-zinc-50 transition-colors hover:border-zinc-400 hover:bg-zinc-100"
       >
         {preview ? (
-          <img
+          <Image
             src={preview}
             alt="Avatar preview"
             className="h-full w-full object-cover"
+            width={80}
+            height={80}
+            unoptimized
           />
         ) : (
           <Camera className="h-6 w-6 text-zinc-400" />
@@ -108,7 +112,6 @@ function ActivateAccountContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -128,7 +131,6 @@ function ActivateAccountContent() {
   const strength = getPasswordStrength(password);
 
   function handleAvatarSelect(file: File) {
-    setAvatarFile(file);
     setAvatarPreview((previousPreview) => {
       if (previousPreview) {
         URL.revokeObjectURL(previousPreview);
@@ -145,7 +147,7 @@ function ActivateAccountContent() {
     };
   }, [avatarPreview]);
 
-  async function onSubmit(data: ActivateAccountFormData) {
+  async function onSubmit() {
     setIsSubmitting(true);
     setFormError(null);
     try {

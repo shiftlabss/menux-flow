@@ -2,7 +2,6 @@
 
 import { use, useState, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -44,7 +43,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 
 // ===== Tab config =====
 
@@ -809,13 +807,6 @@ function FieldsSettings({ onDirty }: { onDirty: () => void }) {
     { id: "3", name: "Data de Fundação", type: "date", required: false },
     { id: "4", name: "Observações Internas", type: "text", required: false },
   ]);
-
-  const typeLabels: Record<string, string> = {
-    text: "Texto",
-    number: "Número",
-    select: "Seleção",
-    date: "Data",
-  };
 
   const addField = () => {
     const newField = {

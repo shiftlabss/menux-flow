@@ -127,7 +127,7 @@ export default function ProfilePage() {
     },
   });
 
-  async function onSubmit(data: ProfileFormData) {
+  async function onSubmit() {
     setIsSubmitting(true);
     setProfileFeedback(null);
     try {

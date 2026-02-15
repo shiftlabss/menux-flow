@@ -1,17 +1,12 @@
 import { create } from "zustand";
+import {
+  isSessionUser,
+  type SessionUser,
+  type UserRole,
+} from "@/lib/auth-types";
 
-export type UserRole = "master" | "admin" | "comercial" | "cs" | "leitura";
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  avatar?: string;
-  unitId: string;
-  unitName: string;
-  isActive: boolean;
-}
+export type { UserRole };
+export type User = SessionUser;
 
 export interface Permission {
   canCreateOpportunity: boolean;
@@ -101,78 +96,101 @@ const rolePermissions: Record<UserRole, Permission> = {
   },
 };
 
-const AUTH_COOKIE_NAME = "flow-token";
-const AUTH_STORAGE_KEY = "flow-auth-session";
-const REMEMBER_ME_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
-const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
+const AUTH_SESSION_ENDPOINT = "/api/auth/session";
+const AUTH_LOGOUT_ENDPOINT = "/api/auth/logout";
+const ACTIVITY_LAST_SEEN_KEY = "flow-auth-last-activity-at";
+const INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+const INACTIVITY_CHECK_INTERVAL_MS = 60 * 1000;
 
-interface StoredAuthSession {
-  user: User;
-  token: string;
-  rememberMe: boolean;
-  expiresAt: number;
+let inactivityIntervalId: number | null = null;
+let activityListenerBound = false;
+
+const ACTIVITY_EVENTS = [
+  "click",
+  "keydown",
+  "mousemove",
+  "touchstart",
+  "scroll",
+  "visibilitychange",
+] as const;
+
+function getPermissionsForRole(role: UserRole): Permission {
+  return rolePermissions[role];
 }
 
-function setAuthCookie(token: string, maxAgeSeconds: number) {
-  if (typeof document === "undefined") return;
-  const secure =
-    typeof window !== "undefined" && window.location.protocol === "https:"
-      ? "; Secure"
-      : "";
-  document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(token)}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax${secure}`;
+function readLastActivityAt(): number {
+  if (typeof window === "undefined") return Date.now();
+  try {
+    const raw = window.localStorage.getItem(ACTIVITY_LAST_SEEN_KEY);
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : Date.now();
+  } catch {
+    return Date.now();
+  }
 }
 
-function clearAuthCookie() {
-  if (typeof document === "undefined") return;
-  const secure =
-    typeof window !== "undefined" && window.location.protocol === "https:"
-      ? "; Secure"
-      : "";
-  document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax${secure}`;
-}
-
-function persistSession(session: StoredAuthSession) {
+function writeLastActivityAt() {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+    window.localStorage.setItem(ACTIVITY_LAST_SEEN_KEY, String(Date.now()));
   } catch {
     // Ignore storage errors in mock frontend mode.
   }
 }
 
-function clearSessionStorage() {
+function clearLastActivityAt() {
   if (typeof window === "undefined") return;
   try {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    window.localStorage.removeItem(ACTIVITY_LAST_SEEN_KEY);
   } catch {
     // Ignore storage errors in mock frontend mode.
   }
 }
 
-function loadStoredSession(): StoredAuthSession | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredAuthSession;
-    const isValid =
-      !!parsed &&
-      typeof parsed.token === "string" &&
-      typeof parsed.expiresAt === "number" &&
-      parsed.expiresAt > Date.now() &&
-      !!parsed.user &&
-      typeof parsed.user.role === "string";
-    if (!isValid) {
-      clearSessionStorage();
-      clearAuthCookie();
-      return null;
+function bindActivityListener() {
+  if (typeof window === "undefined" || activityListenerBound) return;
+  ACTIVITY_EVENTS.forEach((eventName) => {
+    window.addEventListener(eventName, writeLastActivityAt, {
+      passive: true,
+    });
+  });
+  activityListenerBound = true;
+}
+
+function unbindActivityListener() {
+  if (typeof window === "undefined" || !activityListenerBound) return;
+  ACTIVITY_EVENTS.forEach((eventName) => {
+    window.removeEventListener(eventName, writeLastActivityAt);
+  });
+  activityListenerBound = false;
+}
+
+function stopInactivityTracking() {
+  if (typeof window === "undefined") return;
+  if (inactivityIntervalId !== null) {
+    window.clearInterval(inactivityIntervalId);
+    inactivityIntervalId = null;
+  }
+  unbindActivityListener();
+  clearLastActivityAt();
+}
+
+function startInactivityTracking(onInactivityLogout: () => void) {
+  if (typeof window === "undefined") return;
+
+  bindActivityListener();
+  writeLastActivityAt();
+
+  if (inactivityIntervalId !== null) {
+    window.clearInterval(inactivityIntervalId);
+  }
+
+  inactivityIntervalId = window.setInterval(() => {
+    const elapsedMs = Date.now() - readLastActivityAt();
+    if (elapsedMs >= INACTIVITY_TIMEOUT_MS) {
+      onInactivityLogout();
     }
-    return parsed;
-  } catch {
-    clearSessionStorage();
-    clearAuthCookie();
-    return null;
-  }
+  }, INACTIVITY_CHECK_INTERVAL_MS);
 }
 
 interface AuthState {
@@ -188,41 +206,42 @@ interface AuthState {
   ) => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
+  hydrateSession: () => Promise<void>;
 }
 
-const initialSession = loadStoredSession();
-
 export const useAuthStore = create<AuthState>((set) => ({
-  user: initialSession?.user ?? null,
-  token: initialSession?.token ?? null,
-  permissions: initialSession?.user
-    ? rolePermissions[initialSession.user.role]
-    : null,
-  isAuthenticated: !!initialSession,
-  isLoading: false,
-  setUser: (user, token, options) => {
-    const rememberMe = options?.rememberMe ?? false;
-    const maxAgeSeconds = rememberMe
-      ? REMEMBER_ME_MAX_AGE_SECONDS
-      : SESSION_MAX_AGE_SECONDS;
-    persistSession({
-      user,
-      token,
-      rememberMe,
-      expiresAt: Date.now() + maxAgeSeconds * 1000,
+  user: null,
+  token: null,
+  permissions: null,
+  isAuthenticated: false,
+  isLoading: true,
+  setUser: (user, token) => {
+    if (!isSessionUser(user)) return;
+
+    startInactivityTracking(() => {
+      useAuthStore.getState().logout();
     });
-    setAuthCookie(token, maxAgeSeconds);
+
     set({
       user,
       token,
-      permissions: rolePermissions[user.role],
+      permissions: getPermissionsForRole(user.role),
       isAuthenticated: true,
       isLoading: false,
     });
   },
   logout: () => {
-    clearSessionStorage();
-    clearAuthCookie();
+    stopInactivityTracking();
+
+    if (typeof window !== "undefined") {
+      void fetch(AUTH_LOGOUT_ENDPOINT, {
+        method: "POST",
+        credentials: "include",
+      }).catch(() => {
+        // Ignore network errors in mock frontend mode.
+      });
+    }
+
     set({
       user: null,
       token: null,
@@ -232,4 +251,63 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   setLoading: (isLoading) => set({ isLoading }),
+  hydrateSession: async () => {
+    if (typeof window === "undefined") return;
+
+    set({ isLoading: true });
+
+    try {
+      const response = await fetch(AUTH_SESSION_ENDPOINT, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        stopInactivityTracking();
+        set({
+          user: null,
+          token: null,
+          permissions: null,
+          isAuthenticated: false,
+          isLoading: false,
+        });
+        return;
+      }
+
+      const data = (await response.json()) as { user?: unknown };
+      if (!isSessionUser(data.user)) {
+        stopInactivityTracking();
+        set({
+          user: null,
+          token: null,
+          permissions: null,
+          isAuthenticated: false,
+          isLoading: false,
+        });
+        return;
+      }
+
+      startInactivityTracking(() => {
+        useAuthStore.getState().logout();
+      });
+
+      set({
+        user: data.user,
+        token: "session-cookie",
+        permissions: getPermissionsForRole(data.user.role),
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch {
+      stopInactivityTracking();
+      set({
+        user: null,
+        token: null,
+        permissions: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    }
+  },
 }));

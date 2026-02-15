@@ -1,6 +1,6 @@
 // ─── Sales Command Handlers ─────────────────────────────────────────────
 
-import type { Message, CardContext, CopyableBlock, SuggestedAction, SuggestedActionType } from "@/types/intelligence";
+import type { Message, CardContext, CopyableBlock, SuggestedAction } from "@/types/intelligence";
 import { INTELLIGENCE_LIMITS } from "@/types/intelligence";
 import { formatCurrencyBRL } from "@/lib/business-rules";
 import { uid, now, buildContextBadge, temperatureEmoji, temperatureLabel } from "./helpers";

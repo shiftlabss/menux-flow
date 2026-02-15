@@ -62,7 +62,7 @@ export function NewOpportunityModal() {
   async function onSubmit(data: NewOpportunityFormData) {
     setIsSubmitting(true);
     try {
-      const newOpp = addOpportunity({
+      addOpportunity({
         title: data.title,
         clientName: data.clientName,
         value: data.value,
@@ -90,7 +90,7 @@ export function NewOpportunityModal() {
         reset();
         closeDrawer();
       }, 1500);
-    } catch (error) {
+    } catch {
       setFeedback({ type: "error", message: "Erro ao criar oportunidade. Tente novamente." });
     } finally {
       setIsSubmitting(false);
