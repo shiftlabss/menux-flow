@@ -476,11 +476,32 @@ export function IntelligenceExecutionPanel() {
                     {riskAlerts.map((alert) => (
                       <div
                         key={alert.id}
+                        onClick={() => {
+                          if (alert.linkedEntityId) {
+                            const opp = opportunities.find(
+                              (o) => o.id === alert.linkedEntityId
+                            );
+                            if (opp) {
+                              useIntelligenceStore.getState().selectClient({
+                                id: opp.id,
+                                entityId: opp.id,
+                                entityType: "opportunity",
+                                companyName: opp.clientName ?? opp.title,
+                                stage: opp.stage,
+                                stageLabel: opp.stage,
+                                temperature: opp.temperature,
+                                lastContact: opp.updatedAt,
+                                value: opp.monthlyValue,
+                                tags: opp.tags,
+                              });
+                            }
+                          }
+                        }}
                         className={cn(
-                          "rounded-lg border p-3",
+                          "rounded-lg border p-3 cursor-pointer transition-all",
                           alert.severity === "critical"
-                            ? "border-red-300/35 bg-red-500/12"
-                            : "border-amber-300/35 bg-amber-500/12"
+                            ? "border-red-300/35 bg-red-500/12 hover:border-red-300/50"
+                            : "border-amber-300/35 bg-amber-500/12 hover:border-amber-300/50"
                         )}
                       >
                         <p

@@ -29,6 +29,7 @@ import type {
   ContextBadge,
 } from "@/types/intelligence";
 import { useIntelligenceStore } from "@/stores/intelligence-store";
+import { useUIStore } from "@/stores/ui-store";
 
 // ─── Context Badge — seção 4.1.2 ────────────────────────────────────────
 
@@ -174,6 +175,7 @@ function SuggestedActionButton({
   messageId: string;
 }) {
   const { markActionExecuted, openClientPicker } = useIntelligenceStore();
+  const { openDrawer } = useUIStore();
 
   const iconMap: Record<string, React.ReactNode> = {
     calendar: <Calendar className="h-3.5 w-3.5" />,
@@ -191,6 +193,22 @@ function SuggestedActionButton({
       openClientPicker();
       markActionExecuted(messageId, action.id);
       return;
+    }
+
+    // Open real drawers based on action type
+    switch (action.type) {
+      case "create-activity":
+        openDrawer("new-activity", { ...action.payload, fromIntelligence: true });
+        break;
+      case "schedule-followup":
+        openDrawer("new-activity", { type: "followup", ...action.payload, fromIntelligence: true });
+        break;
+      case "save-note":
+        openDrawer("new-activity", { type: "note", ...action.payload, fromIntelligence: true });
+        break;
+      case "open-card":
+        // Already handled by the open-client-picker check above
+        break;
     }
 
     // Marcar como executada
