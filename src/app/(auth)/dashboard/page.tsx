@@ -16,7 +16,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 p-6 md:p-8">
+      <div className="space-y-6 p-6 md:p-8">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-56" />
           <Skeleton className="h-9 w-36 rounded-full" />
@@ -46,7 +46,7 @@ export default function Dashboard() {
       variants={screenContainer}
       initial="hidden"
       animate="show"
-      className="mx-auto max-w-[1600px] space-y-8"
+      className="mx-auto max-w-[1600px] space-y-6"
     >
       {/* Header */}
       <motion.div variants={sectionEnter}>
@@ -54,17 +54,21 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Faixa B: KPIs */}
-      <motion.section variants={sectionEnter}>
+      <motion.section id="dashboard-kpis" variants={sectionEnter} className="scroll-mt-44">
         <KpiSection />
       </motion.section>
 
       {/* Faixa C: Funnel X-Ray */}
-      <motion.section variants={sectionEnter}>
+      <motion.section id="dashboard-funnel" variants={sectionEnter} className="scroll-mt-44">
         <FunnelXRay />
       </motion.section>
 
       {/* Faixa D: Execução */}
-      <motion.section variants={sectionEnter} className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <motion.section
+        id="dashboard-execution"
+        variants={sectionEnter}
+        className="grid grid-cols-1 gap-6 scroll-mt-44 lg:grid-cols-12"
+      >
          {/* Left Column: Alerts & Activities (8 cols) */}
          <div className="lg:col-span-8 flex flex-col gap-6">
             <CriticalAlerts />
