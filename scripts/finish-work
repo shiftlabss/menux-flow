@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Erro: rode este script dentro de um repositorio Git."
+  exit 1
+fi
+
+if [ "${1-}" = "" ]; then
+  echo "Uso: ./scripts/finish-work \"tipo: mensagem do commit\""
+  exit 1
+fi
+
+message="$1"
+branch="$(git branch --show-current)"
+
+if [ "$branch" = "" ]; then
+  echo "Erro: branch atual nao identificada."
+  exit 1
+fi
+
+echo "== Adicionando arquivos"
+git add -A
+
+if git diff --cached --quiet; then
+  echo "Nenhuma mudanca para commit."
+  exit 0
+fi
+
+echo "== Commit"
+git commit -m "$message"
+
+echo "== Push"
+git push -u origin "$branch"
+
+echo
+echo "Pronto. Branch publicada: $branch"

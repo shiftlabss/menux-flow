@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Erro: rode este script dentro de um repositorio Git."
+  exit 1
+fi
+
+echo "== Status atual"
+git status -sb
+
+echo
+echo "== Sincronizando com origin/main"
+git fetch origin
+git rebase origin/main
+
+if [ "${1-}" != "" ]; then
+  branch="$1"
+  echo
+  echo "== Criando branch: $branch"
+  git switch -c "$branch"
+fi
+
+echo
+echo "Pronto."
+echo "Branch atual: $(git branch --show-current)"

@@ -58,6 +58,33 @@ git worktree add ../Flow-tools/flow-antigravity -b anti/inbox main
 - Codex -> `~/projetos/Flow-tools/flow-codex`
 - Antigravity -> `~/projetos/Flow-tools/flow-antigravity`
 
+## Modo ultra simples (scripts)
+
+Se quiser reduzir para 1 comando no inicio e 1 comando no fim:
+
+1. Inicio do trabalho:
+
+```bash
+bash scripts/start-work
+```
+
+Ou, para ja criar branch da tarefa:
+
+```bash
+bash scripts/start-work claude/nome-da-tarefa
+```
+
+2. Fim do trabalho:
+
+```bash
+bash scripts/finish-work "feat: descricao da mudanca"
+```
+
+Scripts inclusos no projeto:
+
+- `scripts/start-work`: sincroniza com `origin/main` e opcionalmente cria branch.
+- `scripts/finish-work`: faz `add`, `commit` e `push` da branch atual.
+
 ## Regra de ouro
 
 - Nunca usar a mesma branch em duas ferramentas ao mesmo tempo.
@@ -193,4 +220,4 @@ done
 
 ---
 
-Se quiser, o proximo passo e eu te entregar uma versao com aliases (`gst`, `gup`, `gnew`) para deixar esse fluxo em 2 ou 3 comandos.
+Esses scripts sao o caminho mais simples para operar Claude, Codex e Antigravity sem decorar comandos Git.
