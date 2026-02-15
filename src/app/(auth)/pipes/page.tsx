@@ -21,7 +21,7 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 // UI
 import { Button } from "@/components/ui/button";
@@ -31,12 +31,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 // Stores
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -80,7 +74,6 @@ function PipesPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const liveRegionRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -250,21 +243,15 @@ function PipesPageContent() {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        setIsSearchOpen((prev) => {
-          if (!prev) {
-            setTimeout(() => searchInputRef.current?.focus(), 50);
-          }
-          return !prev;
-        });
-      }
-      if (e.key === "Escape" && isSearchOpen) {
-        setIsSearchOpen(false);
+        setTimeout(() => searchInputRef.current?.focus(), 50);
+      } else if (e.key === "Escape") {
         setSearchQuery("");
+        searchInputRef.current?.blur();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isSearchOpen]);
+  }, []);
 
   // ===================================================================
   // Render
@@ -275,7 +262,7 @@ function PipesPageContent() {
   }
 
   return (
-    <TooltipProvider>
+    <>
       <div
         ref={liveRegionRef}
         role="status"
@@ -284,14 +271,18 @@ function PipesPageContent() {
         className="sr-only"
       />
 
-      <motion.div initial="hidden" animate="show" variants={screenContainer} className="premium-ambient premium-grain flex h-[calc(100vh-64px)] flex-col overflow-hidden rounded-[20px] border border-zinc-200/75 bg-white/68 p-4 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm md:p-5">
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={screenContainer}
+        className="flex h-[calc(100vh-96px)] min-h-[560px] flex-col gap-4"
+      >
         {/* Header & Toolbar */}
-        <motion.div variants={sectionEnter} className="shrink-0 pb-4">
+        <motion.div variants={sectionEnter} className="shrink-0">
           <ModuleCommandHeader
             title="Pipes"
             description="Execução visual do pipeline comercial."
-            className="border-zinc-200/80 bg-white/86"
-            meta={`Funil ${activeFunnel} · ${myCount} meus · ${boardCount} no board`}
+            meta={`Funil ${activeFunnel.label} · ${myCount} meus · ${boardCount} no board`}
             chips={[
               {
                 id: "value",
@@ -329,55 +320,24 @@ function PipesPageContent() {
                   </div>
                 )}
 
-                <AnimatePresence>
-                  {isSearchOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, x: 14, scale: 0.98 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 10, scale: 0.98 }}
-                      transition={{ duration: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
-                      className="relative"
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                  <Input
+                    ref={searchInputRef}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar cards..."
+                    className="h-9 w-[220px] rounded-full pl-8 pr-8 font-body text-sm"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                     >
-                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                      <Input
-                        ref={searchInputRef}
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Buscar cards..."
-                        className="h-9 w-[220px] rounded-full pl-8 pr-8 font-body text-sm"
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery("")}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </motion.div>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   )}
-                </AnimatePresence>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={isSearchOpen ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => {
-                        setIsSearchOpen((prev) => !prev);
-                        if (!isSearchOpen) {
-                          setTimeout(() => searchInputRef.current?.focus(), 50);
-                        } else {
-                          setSearchQuery("");
-                        }
-                      }}
-                      className={`h-9 rounded-full font-heading text-sm ${isSearchOpen ? "bg-black text-white hover:bg-zinc-800" : ""}`}
-                    >
-                      <Search className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Buscar (⌘K)</TooltipContent>
-                </Tooltip>
+                </div>
 
                 <Button
                   variant="outline"
@@ -413,7 +373,6 @@ function PipesPageContent() {
                   if (showOnlyMine || searchQuery) {
                     setShowOnlyMine(false);
                     setSearchQuery("");
-                    setIsSearchOpen(false);
                   }
                 }}
                 onSettingsClick={() => setIsManageDrawerOpen(true)}
@@ -429,13 +388,13 @@ function PipesPageContent() {
 
         {/* Board */}
         <div
-          className="relative flex min-h-0 flex-1 items-stretch"
+          className="premium-ambient premium-grain relative flex min-h-0 flex-1 items-stretch overflow-hidden rounded-[20px] border border-zinc-200/75 bg-white/68 p-3 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm md:p-4"
           role="region"
           aria-label="Pipeline de vendas — arraste os cards entre as etapas"
         >
           <div
             ref={boardRef}
-            className="flex flex-1 gap-4 overflow-x-auto scroll-smooth px-3 pb-2"
+            className="flex flex-1 gap-4 overflow-x-auto scroll-smooth px-1 pb-1 md:px-2"
             style={{ scrollSnapType: "x proximity" }}
           >
             {visibleStages.map((stageDef, index) => {
@@ -727,7 +686,7 @@ function PipesPageContent() {
           onOpenChange={setIsManageDrawerOpen}
         />
       </motion.div>
-    </TooltipProvider>
+    </>
   );
 }
 

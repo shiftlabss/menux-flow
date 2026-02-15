@@ -1222,7 +1222,7 @@ export default function ActivitiesPage() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
-      className="space-y-5 px-4 pb-4 pt-0 md:px-6 md:pb-6 md:pt-0"
+      className="space-y-6"
     >
       <ModuleCommandHeader
         title="Atividades"

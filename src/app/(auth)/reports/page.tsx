@@ -586,7 +586,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-8">
+    <motion.div initial="hidden" animate="show" variants={staggerContainer} className="space-y-6">
       <motion.div variants={fadeUp}>
         <ModuleCommandHeader
           title="Relatórios"
