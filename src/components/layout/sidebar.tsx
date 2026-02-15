@@ -186,7 +186,7 @@ export function Sidebar() {
               if (!isDesktop) setIsMobileOpen(false);
             }}
             className={cn(
-              "premium-shine flex h-11 items-center rounded-[14px] px-2.5 transition-colors",
+              "premium-shine flex h-11 items-center justify-center rounded-[14px] px-0 transition-colors",
               "hover:bg-zinc-100/80"
             )}
           >
@@ -202,10 +202,10 @@ export function Sidebar() {
                   <Image
                     src="/flow-logo.svg"
                     alt="Flow by Menux"
-                    width={120}
-                    height={32}
+                    width={84}
+                    height={22}
                     priority
-                    className="h-8 w-auto"
+                    className="h-[22px] w-auto"
                   />
                 </motion.div>
               ) : (
