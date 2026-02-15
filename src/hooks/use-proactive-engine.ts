@@ -15,12 +15,15 @@ import { useIntelligenceStore } from "@/stores/intelligence-store";
 import { generateAllSuggestions } from "@/lib/proactive-engine";
 import type { ProactiveEngineInput } from "@/lib/proactive-engine";
 
-const ENGINE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-
 export function useProactiveEngine() {
   const hasRun = useRef(false);
 
   useEffect(() => {
+    function getIntervalMs(): number {
+      const freq = useIntelligenceStore.getState().proactiveFrequency;
+      return freq * 60 * 1000;
+    }
+
     function gatherInput(): ProactiveEngineInput | null {
       const user = useAuthStore.getState().user;
       if (!user) return null;
@@ -38,6 +41,9 @@ export function useProactiveEngine() {
 
     function runEngine() {
       try {
+        const { proactiveNotifications } = useIntelligenceStore.getState();
+        if (!proactiveNotifications) return;
+
         const input = gatherInput();
         if (!input) return;
 
@@ -73,7 +79,7 @@ export function useProactiveEngine() {
         hasRun.current = true;
       }, 1500);
 
-      const interval = setInterval(runEngine, ENGINE_INTERVAL_MS);
+      const interval = setInterval(runEngine, getIntervalMs());
 
       return () => {
         clearTimeout(timeout);
@@ -81,7 +87,7 @@ export function useProactiveEngine() {
       };
     }
 
-    const interval = setInterval(runEngine, ENGINE_INTERVAL_MS);
+    const interval = setInterval(runEngine, getIntervalMs());
     return () => clearInterval(interval);
   }, []);
 }

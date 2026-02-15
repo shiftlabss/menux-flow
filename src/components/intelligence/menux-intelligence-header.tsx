@@ -73,7 +73,7 @@ export function MenuxIntelligenceHeader() {
         <div className="ml-auto flex items-center gap-0.5">
           <ActionButton onClick={toggleHistory} icon={Clock} title="Histórico" />
           <ActionButton onClick={startNewConversation} icon={MessageSquarePlus} title="Nova conversa" />
-          <ActionButton disabled tooltip="Em breve" icon={Settings} title="Configurações" />
+          <ActionButton onClick={() => useIntelligenceStore.getState().openSettings()} icon={Settings} title="Configurações" />
           <div className="mx-1 h-4 w-px bg-white/14" />
           <ActionButton onClick={close} icon={X} title="Fechar (Esc)" />
         </div>

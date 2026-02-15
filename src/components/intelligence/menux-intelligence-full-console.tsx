@@ -15,6 +15,7 @@ import { IntelligenceMessage } from "./intelligence-message";
 import { SlashCommandMenu } from "./slash-command-menu";
 import { ConversationHistory } from "./conversation-history";
 import { ClientPickerModal } from "./client-picker-modal";
+import { IntelligenceSettingsDialog } from "./intelligence-settings-dialog";
 import type { SlashCommandDefinition, SlashCommand } from "@/types/intelligence";
 import { INTELLIGENCE_LIMITS } from "@/types/intelligence";
 
@@ -169,6 +170,9 @@ export function MenuxIntelligenceFullConsole() {
 
       {/* Client Picker Modal */}
       <ClientPickerModal />
+
+      {/* Settings Dialog */}
+      <IntelligenceSettingsDialog />
 
       {/* Read-only history banner */}
       <AnimatePresence>

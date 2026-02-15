@@ -9,6 +9,7 @@ import {
   History,
   Plus,
   Command,
+  Settings,
   Target,
   Search,
   MessageSquare,
@@ -129,6 +130,22 @@ export function MenuxIntelligenceFullHeader() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Ver Comandos</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-slate-400 hover:bg-white/8 hover:text-slate-100"
+                  onClick={() => {
+                    useIntelligenceStore.getState().openSettings();
+                  }}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Configurações</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
