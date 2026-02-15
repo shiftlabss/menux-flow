@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, startTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -188,6 +189,51 @@ export function Sidebar() {
           !isDesktop && !isMobileOpen && "-translate-x-full"
         )}
       >
+        <div className="border-b border-zinc-200/80 p-3">
+          <Link
+            href="/dashboard"
+            onClick={() => {
+              if (!isDesktop) setIsMobileOpen(false);
+            }}
+            className={cn(
+              "premium-shine flex h-11 items-center rounded-[14px] px-2.5 transition-colors",
+              "hover:bg-zinc-100/80"
+            )}
+          >
+            <AnimatePresence mode="wait">
+              {sidebarExpanded ? (
+                <motion.div
+                  key="expanded-logo"
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -6 }}
+                  transition={{ duration: 0.14 }}
+                >
+                  <Image
+                    src="/flow-logo.svg"
+                    alt="Flow by Menux"
+                    width={120}
+                    height={32}
+                    priority
+                    className="h-8 w-auto"
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="collapsed-logo"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.14 }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 font-heading text-base font-semibold text-brand-strong"
+                >
+                  F
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Link>
+        </div>
+
         {/* Navigation */}
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {filteredItems.map((item) => {

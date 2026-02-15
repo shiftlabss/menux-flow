@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/cn";
 
-import Image from "next/image";
 import { Menu, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -115,14 +114,6 @@ export function Header({ isScrolled = false }: HeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <Image
-            src="/flow-logo.svg"
-            alt="Flow by Menux"
-            width={120}
-            height={32}
-            priority
-            className="h-8 w-auto drop-shadow-[0_1px_0_rgba(255,255,255,0.8)]"
-          />
 
           <div className="hidden items-center md:flex">
             <AnimatePresence mode="wait">
