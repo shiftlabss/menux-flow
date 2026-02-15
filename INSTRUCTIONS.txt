@@ -1,0 +1,1 @@
+To fix permissions without moving: 1. Confirm 'Make Offline', 2. Run clean command

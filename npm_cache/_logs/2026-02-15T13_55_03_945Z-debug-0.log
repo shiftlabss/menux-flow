@@ -1,0 +1,172 @@
+0 verbose cli /usr/local/bin/node /usr/local/bin/npm
+1 info using npm@11.6.2
+2 info using node@v24.11.1
+3 silly config load:file:/usr/local/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/fernandocalado/Library/CloudStorage/Dropbox/ShiftLabs/Flow/.npmrc
+5 verbose config error loading project config Error: EPERM: operation not permitted, open '/Users/fernandocalado/Library/CloudStorage/Dropbox/ShiftLabs/Flow/.npmrc'
+5 verbose config     at async open (node:internal/fs/promises:642:25)
+5 verbose config     at async readFile (node:internal/fs/promises:1279:14)
+5 verbose config     at async #loadFile (/usr/local/lib/node_modules/npm/node_modules/@npmcli/config/lib/index.js:635:5)
+5 verbose config     at async Config.load (/usr/local/lib/node_modules/npm/node_modules/@npmcli/config/lib/index.js:256:5)
+5 verbose config     at async #load (/usr/local/lib/node_modules/npm/lib/npm.js:99:5)
+5 verbose config     at async Npm.load (/usr/local/lib/node_modules/npm/lib/npm.js:81:14)
+5 verbose config     at async module.exports (/usr/local/lib/node_modules/npm/lib/cli/entry.js:35:37) {
+5 verbose config   errno: -1,
+5 verbose config   code: 'EPERM',
+5 verbose config   syscall: 'open',
+5 verbose config   path: '/Users/fernandocalado/Library/CloudStorage/Dropbox/ShiftLabs/Flow/.npmrc'
+5 verbose config }
+6 silly config load:file:/Users/fernandocalado/.npmrc
+7 silly config load:file:/usr/local/etc/npmrc
+8 verbose title npm install
+9 verbose argv "install" "--cache" "./npm_cache"
+10 verbose logfile logs-max:10 dir:/Users/fernandocalado/Library/CloudStorage/Dropbox/ShiftLabs/Flow/npm_cache/_logs/2026-02-15T13_55_03_945Z-
+11 verbose logfile /Users/fernandocalado/Library/CloudStorage/Dropbox/ShiftLabs/Flow/npm_cache/_logs/2026-02-15T13_55_03_945Z-debug-0.log
+12 silly logfile done cleaning log files
+13 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+14 verbose shrinkwrap failed to load node_modules/.package-lock.json EPERM: operation not permitted, stat '/Users/fernandocalado/Library/CloudStorage/Dropbox/ShiftLabs/Flow/node_modules'
+15 silly idealTree buildDeps
+16 silly fetch manifest @img/sharp-darwin-x64@0.34.5
+17 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-darwin-x64 cache-miss
+18 http fetch GET 200 https://registry.npmjs.org/npm 643ms
+19 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-darwin-x64 528ms (cache miss)
+20 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-darwin-x64 set size:undefined disposed:false
+21 silly fetch manifest @img/sharp-libvips-darwin-x64@1.2.4
+22 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-darwin-x64 cache-miss
+23 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-darwin-x64 258ms (cache miss)
+24 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-darwin-x64 set size:undefined disposed:false
+25 silly fetch manifest @img/sharp-libvips-linux-arm@1.2.4
+26 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-arm cache-miss
+27 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-linux-arm 115ms (cache miss)
+28 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-arm set size:undefined disposed:false
+29 silly fetch manifest @img/sharp-libvips-linux-arm64@1.2.4
+30 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-arm64 cache-miss
+31 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-linux-arm64 120ms (cache miss)
+32 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-arm64 set size:undefined disposed:false
+33 silly fetch manifest @img/sharp-libvips-linux-ppc64@1.2.4
+34 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-ppc64 cache-miss
+35 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-linux-ppc64 471ms (cache miss)
+36 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-ppc64 set size:undefined disposed:false
+37 silly fetch manifest @img/sharp-libvips-linux-riscv64@1.2.4
+38 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-riscv64 cache-miss
+39 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-linux-riscv64 841ms (cache miss)
+40 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-riscv64 set size:undefined disposed:false
+41 silly fetch manifest @img/sharp-libvips-linux-s390x@1.2.4
+42 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-s390x cache-miss
+43 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-linux-s390x 449ms (cache miss)
+44 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-s390x set size:undefined disposed:false
+45 silly fetch manifest @img/sharp-libvips-linux-x64@1.2.4
+46 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-x64 cache-miss
+47 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-linux-x64 113ms (cache miss)
+48 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linux-x64 set size:undefined disposed:false
+49 silly fetch manifest @img/sharp-libvips-linuxmusl-arm64@1.2.4
+50 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linuxmusl-arm64 cache-miss
+51 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-linuxmusl-arm64 118ms (cache miss)
+52 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linuxmusl-arm64 set size:undefined disposed:false
+53 silly fetch manifest @img/sharp-libvips-linuxmusl-x64@1.2.4
+54 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linuxmusl-x64 cache-miss
+55 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-libvips-linuxmusl-x64 115ms (cache miss)
+56 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-libvips-linuxmusl-x64 set size:undefined disposed:false
+57 silly fetch manifest @img/sharp-linux-arm@0.34.5
+58 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-arm cache-miss
+59 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-linux-arm 164ms (cache miss)
+60 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-arm set size:undefined disposed:false
+61 silly fetch manifest @img/sharp-linux-arm64@0.34.5
+62 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-arm64 cache-miss
+63 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-linux-arm64 119ms (cache miss)
+64 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-arm64 set size:undefined disposed:false
+65 silly fetch manifest @img/sharp-linux-ppc64@0.34.5
+66 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-ppc64 cache-miss
+67 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-linux-ppc64 404ms (cache miss)
+68 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-ppc64 set size:undefined disposed:false
+69 silly fetch manifest @img/sharp-linux-riscv64@0.34.5
+70 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-riscv64 cache-miss
+71 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-linux-riscv64 729ms (cache miss)
+72 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-riscv64 set size:undefined disposed:false
+73 silly fetch manifest @img/sharp-linux-s390x@0.34.5
+74 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-s390x cache-miss
+75 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-linux-s390x 670ms (cache miss)
+76 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-s390x set size:undefined disposed:false
+77 silly fetch manifest @img/sharp-linux-x64@0.34.5
+78 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-x64 cache-miss
+79 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-linux-x64 175ms (cache miss)
+80 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linux-x64 set size:undefined disposed:false
+81 silly fetch manifest @img/sharp-linuxmusl-arm64@0.34.5
+82 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linuxmusl-arm64 cache-miss
+83 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-linuxmusl-arm64 128ms (cache miss)
+84 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linuxmusl-arm64 set size:undefined disposed:false
+85 silly fetch manifest @img/sharp-linuxmusl-x64@0.34.5
+86 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linuxmusl-x64 cache-miss
+87 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-linuxmusl-x64 123ms (cache miss)
+88 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-linuxmusl-x64 set size:undefined disposed:false
+89 silly fetch manifest @img/sharp-wasm32@0.34.5
+90 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-wasm32 cache-miss
+91 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-wasm32 792ms (cache miss)
+92 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-wasm32 set size:undefined disposed:false
+93 silly fetch manifest @img/sharp-win32-arm64@0.34.5
+94 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-win32-arm64 cache-miss
+95 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-win32-arm64 270ms (cache miss)
+96 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-win32-arm64 set size:undefined disposed:false
+97 silly fetch manifest @img/sharp-win32-ia32@0.34.5
+98 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-win32-ia32 cache-miss
+99 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-win32-ia32 253ms (cache miss)
+100 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-win32-ia32 set size:undefined disposed:false
+101 silly fetch manifest @img/sharp-win32-x64@0.34.5
+102 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-win32-x64 cache-miss
+103 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-win32-x64 121ms (cache miss)
+104 silly packumentCache full:https://registry.npmjs.org/@img%2fsharp-win32-x64 set size:undefined disposed:false
+105 silly placeDep ROOT @img/sharp-darwin-x64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+106 silly placeDep ROOT @img/sharp-libvips-darwin-x64@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+107 silly placeDep ROOT @img/sharp-libvips-linux-arm@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+108 silly placeDep ROOT @img/sharp-libvips-linux-arm64@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+109 silly placeDep ROOT @img/sharp-libvips-linux-ppc64@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+110 silly placeDep ROOT @img/sharp-libvips-linux-riscv64@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+111 silly placeDep ROOT @img/sharp-libvips-linux-s390x@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+112 silly placeDep ROOT @img/sharp-libvips-linux-x64@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+113 silly placeDep ROOT @img/sharp-libvips-linuxmusl-arm64@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+114 silly placeDep ROOT @img/sharp-libvips-linuxmusl-x64@1.2.4 OK for: sharp@0.34.5 want: 1.2.4
+115 silly placeDep ROOT @img/sharp-linux-arm@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+116 silly placeDep ROOT @img/sharp-linux-arm64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+117 silly placeDep ROOT @img/sharp-linux-ppc64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+118 silly placeDep ROOT @img/sharp-linux-riscv64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+119 silly placeDep ROOT @img/sharp-linux-s390x@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+120 silly placeDep ROOT @img/sharp-linux-x64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+121 silly placeDep ROOT @img/sharp-linuxmusl-arm64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+122 silly placeDep ROOT @img/sharp-linuxmusl-x64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+123 silly placeDep ROOT @img/sharp-wasm32@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+124 silly placeDep ROOT @img/sharp-win32-arm64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+125 silly placeDep ROOT @img/sharp-win32-ia32@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+126 silly placeDep ROOT @img/sharp-win32-x64@0.34.5 OK for: sharp@0.34.5 want: 0.34.5
+127 silly fetch manifest tldts@^7.0.5
+128 silly packumentCache full:https://registry.npmjs.org/tldts cache-miss
+129 http fetch GET 200 https://registry.npmjs.org/tldts 394ms (cache miss)
+130 silly packumentCache full:https://registry.npmjs.org/tldts set size:undefined disposed:false
+131 silly placeDep ROOT tldts@7.0.23 OK for: tough-cookie@6.0.0 want: ^7.0.5
+132 verbose stack TypeError: Invalid Version: 
+132 verbose stack     at new SemVer (/usr/local/lib/node_modules/npm/node_modules/semver/classes/semver.js:40:13)
+132 verbose stack     at compare (/usr/local/lib/node_modules/npm/node_modules/semver/functions/compare.js:5:32)
+132 verbose stack     at Object.eq (/usr/local/lib/node_modules/npm/node_modules/semver/functions/eq.js:4:29)
+132 verbose stack     at Node.canDedupe (/usr/local/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/node.js:1140:32)
+132 verbose stack     at PlaceDep.pruneDedupable (/usr/local/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/place-dep.js:426:14)
+132 verbose stack     at new PlaceDep (/usr/local/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/place-dep.js:278:14)
+132 verbose stack     at #buildDepStep (/usr/local/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/build-ideal-tree.js:945:18)
+132 verbose stack     at async Arborist.buildIdealTree (/usr/local/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/build-ideal-tree.js:182:7)
+132 verbose stack     at async Promise.all (index 1)
+132 verbose stack     at async Arborist.reify (/usr/local/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/reify.js:114:5)
+133 error Invalid Version: 
+134 silly unfinished npm timer reify 1771163704170
+135 silly unfinished npm timer reify:loadTrees 1771163704171
+136 silly unfinished npm timer idealTree:buildDeps 1771163704277
+137 silly unfinished npm timer idealTree:node_modules/tough-cookie 1771163711402
+138 verbose cwd /Users/fernandocalado/Library/CloudStorage/Dropbox/ShiftLabs/Flow
+139 verbose os Darwin 25.3.0
+140 verbose node v24.11.1
+141 verbose npm  v11.6.2
+142 notice
+142 notice New minor version of npm available! 11.6.2 -> 11.10.0
+142 notice Changelog: https://github.com/npm/cli/releases/tag/v11.10.0
+142 notice To update run: npm install -g npm@11.10.0
+142 notice  { force: true, Symbol(proc-log.meta): true }
+143 verbose exit 1
+144 verbose code 1
+145 error A complete log of this run can be found in: /Users/fernandocalado/Library/CloudStorage/Dropbox/ShiftLabs/Flow/npm_cache/_logs/2026-02-15T13_55_03_945Z-debug-0.log
