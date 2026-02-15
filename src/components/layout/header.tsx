@@ -88,16 +88,11 @@ export function Header({ isScrolled = false }: HeaderProps) {
       )}
     >
       <div className={cn(
-        "pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-brand/35 to-transparent transition-opacity duration-300",
+        "pointer-events-none absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-zinc-300/60 to-transparent transition-opacity duration-300",
         isScrolled ? "opacity-100" : "opacity-0"
       )} />
 
-      {/* Subtle top gradient - always visible or hidden on scroll? 
-          User said: "background +4%" contrast on scroll. 
-          Let's keep the gradient but maybe fade it out if it clashes. 
-          For now preserve existing gradients.
-      */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-r from-brand/8 via-transparent to-cyan-500/8 opacity-50" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-white/70 to-transparent opacity-60" />
 
       <motion.div
         initial={{ opacity: 0, y: -8 }}

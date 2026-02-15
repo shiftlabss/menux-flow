@@ -182,16 +182,11 @@
     @apply bg-background text-foreground font-body antialiased;
     background-image:
       radial-gradient(
-        1200px 500px at -10% -20%,
-        rgba(29, 78, 216, 0.12),
-        transparent 60%
-      ),
-      radial-gradient(
-        900px 380px at 110% -10%,
-        rgba(8, 145, 178, 0.1),
+        1200px 500px at 50% -20%,
+        rgba(148, 163, 184, 0.14),
         transparent 55%
       ),
-      linear-gradient(180deg, #f8fafc 0%, #f4f7fb 100%);
+      linear-gradient(180deg, #f8fafc 0%, #f5f7fa 58%, #f3f5f7 100%);
     position: relative;
     isolation: isolate;
   }
@@ -222,7 +217,7 @@
 }
 
 .glass {
-  background: color-mix(in srgb, white 84%, #dbeafe);
+  background: color-mix(in srgb, white 88%, #e2e8f0);
   border: 1px solid rgba(148, 163, 184, 0.24);
   backdrop-filter: blur(10px);
 }
@@ -230,8 +225,8 @@
 .premium-panel {
   background: linear-gradient(
     170deg,
-    color-mix(in srgb, white 93%, #dbeafe),
-    color-mix(in srgb, white 98%, #f8fafc)
+    color-mix(in srgb, white 96%, #e5e7eb),
+    color-mix(in srgb, white 99%, #f8fafc)
   );
   border: 1px solid rgba(148, 163, 184, 0.24);
   box-shadow: var(--shadow-premium-soft);
@@ -313,15 +308,15 @@
   background:
     radial-gradient(
       70% 70% at 20% 15%,
-      rgba(29, 78, 216, 0.12),
+      rgba(148, 163, 184, 0.14),
       transparent 70%
     ),
     radial-gradient(
       75% 70% at 90% 20%,
-      rgba(8, 145, 178, 0.1),
+      rgba(203, 213, 225, 0.14),
       transparent 75%
     ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(246, 248, 250, 0.92));
 }
 
 .premium-mesh::before,
@@ -340,8 +335,8 @@
   width: 32rem;
   background: radial-gradient(
     circle at center,
-    rgba(37, 99, 235, 0.2),
-    rgba(37, 99, 235, 0.08) 38%,
+    rgba(148, 163, 184, 0.22),
+    rgba(148, 163, 184, 0.1) 38%,
     transparent 70%
   );
   animation: mesh-drift 16s ease-in-out infinite alternate;
@@ -354,8 +349,8 @@
   width: 30rem;
   background: radial-gradient(
     circle at center,
-    rgba(6, 182, 212, 0.2),
-    rgba(6, 182, 212, 0.08) 36%,
+    rgba(203, 213, 225, 0.22),
+    rgba(203, 213, 225, 0.1) 36%,
     transparent 72%
   );
   animation: mesh-drift 18s ease-in-out infinite alternate-reverse;
@@ -373,12 +368,12 @@
   inset: -40% -20%;
   background: radial-gradient(
       28rem 16rem at 12% 8%,
-      rgba(37, 99, 235, 0.14),
+      rgba(148, 163, 184, 0.14),
       transparent 62%
     ),
     radial-gradient(
       22rem 13rem at 90% 12%,
-      rgba(14, 165, 233, 0.14),
+      rgba(203, 213, 225, 0.14),
       transparent 65%
     );
   animation: mesh-drift 14s ease-in-out infinite alternate;

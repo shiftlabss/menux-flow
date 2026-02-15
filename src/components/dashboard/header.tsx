@@ -1,5 +1,6 @@
 "use strict";
 
+import { useEffect, useState } from "react";
 import { 
   Calendar, 
   ChevronDown, 
@@ -33,6 +34,14 @@ export function DashboardHeader() {
   const router = useRouter();
   const { period, context, setPeriod, setContext } = useDashboardStore();
   const { user } = useAuthStore();
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setIsScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const handleIntelligenceOpen = () => {
     router.push("/intelligence");
@@ -43,7 +52,10 @@ export function DashboardHeader() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={transition.panel}
-      className="premium-ambient rounded-[20px] border border-zinc-200/70 bg-white/65 p-5 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm"
+      className={cn(
+        "rounded-[20px] border border-zinc-200/85 bg-zinc-50/70 p-5 shadow-[0_10px_24px_-16px_rgba(15,23,42,0.36)] transition-shadow duration-120 ease-out backdrop-blur-sm",
+        isScrolled && "shadow-[0_16px_30px_-16px_rgba(15,23,42,0.34)]"
+      )}
     >
       <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         {/* Esquerda: Título e Contexto */}
@@ -62,7 +74,7 @@ export function DashboardHeader() {
                 month: "long",
               })}
             </span>
-            <span className="premium-glow-dot inline-flex h-1.5 w-1.5 rounded-full bg-brand" />
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-zinc-300" />
             <span className="text-xs text-zinc-400">
               Olá, {user?.name?.split(" ")[0] ?? "time"}
             </span>

@@ -457,7 +457,7 @@ export default function ActivitiesPage() {
 
   const [commandLoadingId, setCommandLoadingId] = useState<string | null>(null);
   const [commandResult, setCommandResult] = useState<CommandResult | null>(null);
-  const [isRailElevated, setIsRailElevated] = useState(false);
+  const [isPageScrolled, setIsPageScrolled] = useState(false);
 
   const timeoutRef = useRef<number[]>([]);
   const now = useMemo(() => new Date(), []);
@@ -481,7 +481,7 @@ export default function ActivitiesPage() {
   }, []);
 
   useEffect(() => {
-    const onScroll = () => setIsRailElevated(window.scrollY > 8);
+    const onScroll = () => setIsPageScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -1198,10 +1198,14 @@ export default function ActivitiesPage() {
       transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
       className="space-y-5 p-4 md:p-6"
     >
-      <div className="relative overflow-hidden rounded-[26px] border border-zinc-200/70 bg-white/75 p-5 shadow-[0_22px_58px_-36px_rgba(15,23,42,0.45)] backdrop-blur-lg md:p-6">
+      <div
+        className={cn(
+          "relative overflow-hidden rounded-[20px] border border-zinc-200/80 bg-zinc-50/55 p-5 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.4)] transition-shadow duration-120 ease-out md:p-6",
+          isPageScrolled && "shadow-[0_20px_36px_-20px_rgba(15,23,42,0.38)]"
+        )}
+      >
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-16 -top-20 h-[230px] w-[230px] rounded-full bg-brand/15 blur-3xl" />
-          <div className="absolute right-[-60px] top-[-40px] h-[230px] w-[230px] rounded-full bg-cyan-300/20 blur-3xl" />
+          <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-white/70 to-transparent" />
         </div>
 
         <div className="relative z-10 space-y-4">
@@ -1216,7 +1220,7 @@ export default function ActivitiesPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 rounded-full border border-zinc-200 bg-white/80 p-1 shadow-sm">
+              <div className="flex items-center gap-1 rounded-full border border-zinc-200/90 bg-white/90 p-1 shadow-sm">
                 {[
                   { key: "list" as const, label: "Lista", icon: List },
                   { key: "agenda" as const, label: "Agenda", icon: CalendarDays },
@@ -1228,10 +1232,10 @@ export default function ActivitiesPage() {
                       key={mode.key}
                       onClick={() => setViewMode(mode.key)}
                       className={cn(
-                        "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-150",
+                        "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-120 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-50",
                         active
                           ? "bg-brand text-white shadow-[0_6px_14px_-8px_rgba(29,78,216,0.7)]"
-                          : "text-zinc-600 hover:bg-zinc-100"
+                          : "text-zinc-600 hover:bg-zinc-100/90"
                       )}
                     >
                       <mode.icon className="h-3.5 w-3.5" />
@@ -1243,7 +1247,7 @@ export default function ActivitiesPage() {
 
               <Button
                 variant="outline"
-                className="rounded-full border-zinc-200 bg-white/80 hover:bg-zinc-100"
+                className="rounded-full border-zinc-200 bg-white/90 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
                 onClick={handleGeneratePlan}
                 disabled={isPlanning}
               >
@@ -1256,7 +1260,7 @@ export default function ActivitiesPage() {
               </Button>
 
               <Button
-                className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                className="rounded-full bg-zinc-900 text-white transition-all duration-120 ease-out hover:bg-zinc-800 active:scale-[0.98] focus-visible:ring-zinc-300"
                 onClick={() => openDrawer("new-activity")}
               >
                 <Plus className="h-4 w-4" />
@@ -1270,7 +1274,7 @@ export default function ActivitiesPage() {
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="rounded-full border-zinc-200 bg-white/85 hover:bg-zinc-100"
+                  className="rounded-full border-zinc-200 bg-white/90 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
                 >
                   <Filter className="h-4 w-4" />
                   Filtros
@@ -1427,7 +1431,7 @@ export default function ActivitiesPage() {
             {hasActiveFilters && (
               <Button
                 variant="ghost"
-                className="rounded-full px-3 text-xs text-zinc-500 hover:bg-zinc-100"
+                className="rounded-full px-3 text-xs text-zinc-500 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
                 onClick={clearFilters}
               >
                 Limpar tudo
@@ -1714,8 +1718,8 @@ export default function ActivitiesPage() {
         <aside
           className={cn(
             "self-start xl:sticky xl:top-6",
-            "transition-shadow duration-120",
-            isRailElevated && "xl:drop-shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+            "transition-shadow duration-120 ease-out",
+            isPageScrolled && "xl:drop-shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
           )}
         >
           <div className="space-y-4 rounded-[20px] border border-zinc-200 bg-white p-4 shadow-sm md:p-5">
