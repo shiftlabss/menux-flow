@@ -1,8 +1,9 @@
-"use strict";
+"use client";
 
 import { motion } from "framer-motion";
-import { 
-  Users, 
+import { useRouter } from "next/navigation";
+import {
+  Users,
   ThermometerSun,
   ChevronRight
 } from "lucide-react";
@@ -12,24 +13,32 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // --- Pipeline Health Component ---
 export function PipelineHealth() {
+  const router = useRouter();
   const healthMetrics = [
-    { label: "Estagnados (+30 dias)", value: 12, color: "bg-red-500" },
-    { label: "Sem próxima ação", value: 8, color: "bg-amber-500" },
-    { label: "Valor vazio", value: 5, color: "bg-zinc-400" },
+    { label: "Estagnados (+30 dias)", value: 12, color: "bg-red-500", filter: "stalled" },
+    { label: "Sem próxima ação", value: 8, color: "bg-amber-500", filter: "no-action" },
+    { label: "Valor vazio", value: 5, color: "bg-zinc-400", filter: "no-value" },
   ];
 
   return (
-    <BentoCard className="flex flex-col gap-4 p-6 glass">
+    <BentoCard className="premium-panel flex flex-col gap-4 border-zinc-200/80 bg-white/86 p-5 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.45)] md:p-6">
        <div className="flex items-center justify-between">
         <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
             <ThermometerSun className="h-4 w-4 text-orange-500" />
             Saúde do Pipeline
         </h3>
       </div>
-      
+
       <div className="space-y-4">
         {healthMetrics.map((metric) => (
-             <div key={metric.label} className="group cursor-pointer">
+             <div
+                key={metric.label}
+                className="group cursor-pointer"
+                onClick={() => router.push(`/pipes?health=${metric.filter}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") router.push(`/pipes?health=${metric.filter}`); }}
+             >
                 <div className="flex justify-between items-center mb-1.5">
                     <span className="text-xs font-medium text-zinc-600 group-hover:text-zinc-900 transition-colors">
                         {metric.label}
@@ -37,10 +46,11 @@ export function PipelineHealth() {
                     <span className="text-xs font-bold text-zinc-900">{metric.value} deals</span>
                 </div>
                 <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
-                    <motion.div 
+                    <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${(metric.value / 20) * 100}%` }}
-                        className={cn("h-full rounded-full transition-all group-hover:brightness-110", metric.color)} 
+                        transition={{ duration: 0.24, ease: "easeOut" }}
+                        className={cn("h-full rounded-full transition-all group-hover:brightness-110", metric.color)}
                     />
                 </div>
              </div>
@@ -51,7 +61,7 @@ export function PipelineHealth() {
         <div className="flex items-center justify-center gap-6">
             <div className="text-center">
                 <p className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Temperatura</p>
-                <p className="text-lg font-bold text-emerald-600">Quente 🔥</p>
+                <p className="text-lg font-bold text-emerald-600">Quente</p>
             </div>
              <div className="h-8 w-px bg-zinc-100" />
             <div className="text-center">
@@ -72,24 +82,38 @@ const teamData = [
 ];
 
 export function TeamPerformance() {
+  const router = useRouter();
+
   return (
-    <BentoCard className="flex flex-col gap-4 p-6 glass">
+    <BentoCard className="premium-panel flex flex-col gap-4 border-zinc-200/80 bg-white/86 p-5 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.45)] md:p-6">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
             <Users className="h-4 w-4 text-blue-500" />
             Performance do Time
         </h3>
-        <button className="text-xs font-medium text-zinc-500 hover:text-zinc-900">Ver todos</button>
+        <button
+          className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+          onClick={() => router.push("/reports")}
+        >
+          Ver todos
+        </button>
       </div>
 
       <div className="space-y-3">
         {teamData.map((member, i) => (
-            <div key={member.id} className="flex items-center justify-between rounded-lg p-2 hover:bg-zinc-50 transition-colors">
+            <div
+                key={member.id}
+                className="flex cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-zinc-50 transition-colors"
+                onClick={() => router.push(`/reports?member=${member.id}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") router.push(`/reports?member=${member.id}`); }}
+            >
                 <div className="flex items-center gap-3">
                     <span className={cn(
                         "flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold",
-                        i === 0 ? "bg-amber-100 text-amber-700" : 
-                        i === 1 ? "bg-zinc-100 text-zinc-600" : 
+                        i === 0 ? "bg-amber-100 text-amber-700" :
+                        i === 1 ? "bg-zinc-100 text-zinc-600" :
                         "bg-zinc-100 text-zinc-400"
                     )}>
                         {i + 1}
@@ -102,7 +126,7 @@ export function TeamPerformance() {
                         <p className="text-[10px] text-zinc-500">{member.role}</p>
                     </div>
                 </div>
-                
+
                 <div className="text-right">
                     <p className="text-xs font-bold text-zinc-900">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(member.revenue)}
@@ -120,8 +144,11 @@ export function TeamPerformance() {
             </div>
         ))}
       </div>
-      
-      <button className="mt-auto flex w-full items-center justify-center gap-1 rounded-lg border border-zinc-100 py-2 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50">
+
+      <button
+        className="mt-auto flex w-full items-center justify-center gap-1 rounded-lg border border-zinc-100 py-2 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50"
+        onClick={() => router.push("/finance")}
+      >
         Ver relatório de comissão <ChevronRight className="h-3 w-3" />
       </button>
     </BentoCard>

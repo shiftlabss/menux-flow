@@ -100,7 +100,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
       noPadding
       elevated
       hoverable
-      className="min-h-0 overflow-hidden border-zinc-200/80 bg-white/75"
+      className="premium-panel min-h-0 overflow-hidden border-zinc-200/80 bg-white/86 shadow-[0_20px_32px_-28px_rgba(15,23,42,0.45)]"
     >
       <div className="border-b border-zinc-200/75 bg-white/85 px-3.5 py-3 backdrop-blur-sm">
         <div className="flex items-start justify-between gap-3">
@@ -201,18 +201,21 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                     label="Velocidade média"
                     value={`${averageSpeedDays} dias`}
                     helper="Da entrada ao fechamento"
+                    onClick={() => openPipeline()}
                   />
                   <SummaryMiniCard
                     icon={<AlertTriangle className="h-3.5 w-3.5 text-amber-600" />}
                     label="Valor em risco"
                     value={formatCurrencyBRL(riskValue)}
                     helper="Deals sem retorno > 5 dias"
+                    onClick={() => openPipeline(activeStage?.id)}
                   />
                   <SummaryMiniCard
                     icon={<Lightbulb className="h-3.5 w-3.5 text-emerald-600" />}
                     label="Etapa crítica hoje"
                     value={bottleneck?.to.label ?? "—"}
                     helper={`${bottleneckDrop}% de queda`}
+                    onClick={() => openPipeline(bottleneck?.to.id)}
                   />
                 </div>
 

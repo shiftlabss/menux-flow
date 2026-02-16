@@ -411,11 +411,13 @@ function EmptyDetailState() {
 interface PipelineManagerDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  openCreateOnOpen?: boolean;
 }
 
 export function PipelineManagerDrawer({
   open,
   onOpenChange,
+  openCreateOnOpen = false,
 }: PipelineManagerDrawerProps) {
   const { pipelines, deletePipeline, addPipeline, updatePipeline, reorderPipelines } =
     usePipelineStore();
@@ -456,6 +458,13 @@ export function PipelineManagerDrawer({
       setSelectedPipelineId(pipelines[0].id);
     }
   }, [open, pipelines, selectedPipelineId]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (openCreateOnOpen) {
+      setIsCreateModalOpen(true);
+    }
+  }, [open, openCreateOnOpen]);
 
   // Load persisted order from localStorage
   useEffect(() => {

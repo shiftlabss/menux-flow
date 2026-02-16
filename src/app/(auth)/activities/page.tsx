@@ -23,12 +23,15 @@ import {
   WandSparkles,
   X,
 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { useUIStore } from "@/stores/ui-store";
 import { useActivityStore } from "@/stores/activity-store";
 import { useAuthStore } from "@/stores/auth-store";
 import type { Activity, ActivityStatus, ActivityType } from "@/types";
 import { allActivityTypes, typeColors, typeIconComponents, typeLabels } from "./components/config";
+import { GeneratedContentModal } from "./components/generated-content-modal";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -431,6 +434,7 @@ export default function ActivitiesPage() {
   const { openDrawer } = useUIStore();
   const { user } = useAuthStore();
   const { activities, completeActivity, postponeActivity } = useActivityStore();
+  const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -477,6 +481,10 @@ export default function ActivitiesPage() {
   const [commandLoadingId, setCommandLoadingId] = useState<string | null>(null);
   const [commandResult, setCommandResult] = useState<CommandResult | null>(null);
   const [isPageScrolled, setIsPageScrolled] = useState(false);
+
+  // Modal State
+  const [generatedModalOpen, setGeneratedModalOpen] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState({ title: "", content: "" });
 
   const timeoutRef = useRef<number[]>([]);
   const now = useMemo(() => new Date(), []);
@@ -599,8 +607,7 @@ export default function ActivitiesPage() {
   const riskCount = executionActivities.filter((activity) => isSlaRisk(activity, now)).length;
   const headerMetaText = useMemo(
     () =>
-      `${formatCompactDateLabel(now)} · Olá, ${
-        user?.name?.trim().split(" ")[0] ?? "Admin"
+      `${formatCompactDateLabel(now)} · Olá, ${user?.name?.trim().split(" ")[0] ?? "Admin"
       }`,
     [now, user?.name]
   );
@@ -938,19 +945,45 @@ export default function ActivitiesPage() {
         if (commandId === "sla-priority") {
           setFilterSla("breached");
           setViewMode("list");
+          setCommandResult({
+            status: "success",
+            text: "Filtro de SLA 'Estourado' aplicado.",
+          });
+        } else if (commandId === "risk-client") {
+          router.push("/clients?filter=risk");
+          return; // Navigation handles feedback
+        } else if (commandId === "week-summary") {
+          router.push("/reports");
+          return;
+        } else if (commandId === "bulk-messages") {
+          setGeneratedContent({
+            title: "Mensagens para Atrasadas",
+            content: `Olá [Nome], vi que não conseguimos nos falar na data combinada. Como está sua agenda para retomarmos amanhã?\n\nOi [Nome], tudo bem? Gostaria de reagendar nosso papo sobre [Assunto]. Teria disponibilidade esta tarde?`
+          });
+          setGeneratedModalOpen(true);
+          setCommandResult({ status: "success", text: "Sugestões de mensagem geradas." });
+        } else if (commandId === "call-script") {
+          setGeneratedContent({
+            title: "Script de Ligação",
+            content: `**Abertura:** "Olá [Nome], aqui é ${user?.name || "Consultor"} da [Empresa]. Tudo bem?"\n\n**Gancho:** "Estou ligando pois vi que ficou pendente nosso alinhamento sobre [Assunto] e não gostaria de deixar passar..."\n\n**Fechamento:** "Conseguimos 5 minutinhos agora ou prefere agendar?"`
+          });
+          setGeneratedModalOpen(true);
+          setCommandResult({ status: "success", text: "Script de ligação gerado." });
+        } else {
+          // Fallback for others
+          const result = buildCommandResult(commandId, {
+            overdueCount,
+            riskCount,
+            totalActive: executionActivities.length,
+            selectedActivity: selectedActivity || undefined,
+          });
+          setCommandResult(result);
         }
 
-        const result = buildCommandResult(commandId, {
-          overdueCount,
-          riskCount,
-          totalActive: executionActivities.length,
-          selectedActivity: selectedActivity || undefined,
-        });
-        setCommandResult(result);
         setCommandLoadingId(null);
-      }, 220);
+      }, 500);
     },
-    [executionActivities.length, overdueCount, riskCount, selectedActivity, schedule]
+    [executionActivities.length, overdueCount, riskCount, selectedActivity, schedule, router, user?.name]
   );
 
   const handleExportPreview = useCallback(() => {
@@ -1247,18 +1280,18 @@ export default function ActivitiesPage() {
           },
           hasActiveFilters
             ? {
-                id: "active-filters",
-                label: `${activeFilterChips.length} filtros ativos`,
-                icon: <Filter className="h-3.5 w-3.5" />,
-                tone: "warning",
-                onClick: () => setIsFilterOpen(true),
-              }
+              id: "active-filters",
+              label: `${activeFilterChips.length} filtros ativos`,
+              icon: <Filter className="h-3.5 w-3.5" />,
+              tone: "warning",
+              onClick: () => setIsFilterOpen(true),
+            }
             : {
-                id: "sla-risk",
-                label: `${riskCount} SLAs em risco`,
-                icon: <CircleAlert className="h-3.5 w-3.5" />,
-                tone: riskCount > 0 ? "warning" : "success",
-              },
+              id: "sla-risk",
+              label: `${riskCount} SLAs em risco`,
+              icon: <CircleAlert className="h-3.5 w-3.5" />,
+              tone: riskCount > 0 ? "warning" : "success",
+            },
         ]}
         actions={
           <>
@@ -1640,7 +1673,7 @@ export default function ActivitiesPage() {
                     })
                   }
                 >
-                  Ver relatório
+                  <Link href="/reports">Ver relatório</Link>
                 </Button>
                 <Button
                   size="sm"
@@ -1844,6 +1877,13 @@ export default function ActivitiesPage() {
           </div>
         </aside>
       </div>
+
+      <GeneratedContentModal
+        open={generatedModalOpen}
+        onOpenChange={setGeneratedModalOpen}
+        title={generatedContent.title}
+        content={generatedContent.content}
+      />
     </motion.div>
   );
 }
@@ -2053,7 +2093,17 @@ function ExecutionActivityCard({
 
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
               <span className="truncate max-w-[360px]">
-                {activity.clientName || activity.opportunityTitle || "Sem cliente vinculado"}
+                {activity.clientId ? (
+                  <Link href={`/clients?clientId=${activity.clientId}`} className="hover:text-brand hover:underline">
+                    {activity.clientName || "Sem nome"}
+                  </Link>
+                ) : activity.opportunityId ? (
+                  <Link href={`/pipes?opportunityId=${activity.opportunityId}`} className="hover:text-brand hover:underline">
+                    {activity.opportunityTitle || "Sem título"}
+                  </Link>
+                ) : (
+                  activity.clientName || activity.opportunityTitle || "Sem contexto"
+                )}
               </span>
               <span className="text-zinc-300">•</span>
               <span>{typeLabels[activity.type]}</span>

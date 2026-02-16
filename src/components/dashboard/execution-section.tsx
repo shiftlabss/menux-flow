@@ -1,20 +1,28 @@
-"use strict";
+"use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  AlertTriangle, 
-  AlertCircle, 
-  Info, 
-  CheckCircle2, 
+import {
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  CheckCircle2,
   Phone,
   Mail,
   Calendar,
-  MoreHorizontal
+  MoreHorizontal,
+  ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BentoCard } from "@/components/ui/bento-card";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // --- Critical Alerts Component ---
 
@@ -56,7 +64,7 @@ export function CriticalAlerts() {
   };
 
   return (
-    <BentoCard className="flex flex-col gap-4 p-6 glass">
+    <BentoCard className="premium-panel flex flex-col gap-4 border-zinc-200/80 bg-white/86 p-5 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.45)] md:p-6">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-zinc-900">Alertas Críticos</h3>
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-[10px] font-bold text-red-600">
@@ -85,10 +93,10 @@ export function CriticalAlerts() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, height: 0, marginTop: 0, marginBottom: 0 }}
                 className={cn(
-                "group relative flex flex-col gap-2 rounded-lg border-l-4 bg-zinc-50 p-3 transition-all hover:bg-white hover:shadow-sm",
-                alert.severity === "critical" ? "border-l-red-500 bg-red-50/10" : 
-                alert.severity === "warning" ? "border-l-amber-500 bg-amber-50/10" : 
-                "border-l-blue-500 bg-blue-50/10"
+                "group relative flex flex-col gap-2 rounded-xl border bg-zinc-50/70 p-3 transition-all duration-140 ease-out hover:-translate-y-[1px] hover:bg-white hover:shadow-[0_14px_24px_-20px_rgba(15,23,42,0.45)]",
+                alert.severity === "critical" ? "border-red-200/85" : 
+                alert.severity === "warning" ? "border-amber-200/85" : 
+                "border-blue-200/85"
                 )}
             >
                 <div className="flex items-start justify-between">
@@ -143,6 +151,7 @@ const initialActivities: Activity[] = [
 ];
 
 export function TodayActivities() {
+    const router = useRouter();
     const [activities, setActivities] = useState(initialActivities);
 
     const completeActivity = (id: string) => {
@@ -152,12 +161,26 @@ export function TodayActivities() {
     const pendingActivities = activities.filter(a => a.status !== 'done');
 
     return (
-        <BentoCard className="flex flex-col gap-4 p-6 glass min-h-[300px]">
+        <BentoCard className="premium-panel flex min-h-[300px] flex-col gap-4 border-zinc-200/80 bg-white/86 p-5 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.45)] md:p-6">
             <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-zinc-900">Agenda de Hoje</h3>
-                <Button variant="ghost" size="icon" className="h-6 w-6">
-                    <MoreHorizontal className="h-4 w-4 text-zinc-400" />
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6">
+                            <MoreHorizontal className="h-4 w-4 text-zinc-400" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                        <DropdownMenuItem onClick={() => router.push("/activities")}>
+                            <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                            Ver todas atividades
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push("/activities?status=overdue")}>
+                            <AlertCircle className="mr-2 h-3.5 w-3.5 text-red-500" />
+                            Ver atrasadas
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
 
             <div className="relative space-y-0">

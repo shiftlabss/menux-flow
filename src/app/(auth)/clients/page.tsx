@@ -30,6 +30,7 @@ import {
   Building2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { mockClients } from "@/lib/mock-data";
 import type { Client, HealthScore } from "@/types";
@@ -261,6 +262,8 @@ function getIntelligenceSuggestions(client: Client): {
 export default function ClientsPage() {
   const { openDrawer } = useUIStore();
   const { clients: storeClients } = useClientStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<ClientsView>("board");
@@ -283,6 +286,27 @@ export default function ClientsPage() {
   const [commandResult, setCommandResult] = useState<string | null>(null);
 
   const allClients = storeClients.length > 0 ? storeClients : mockClients;
+
+  // Deep linking for clientId
+  useEffect(() => {
+    const clientId = searchParams.get("clientId");
+    if (clientId) {
+      openDrawer("client-card", { id: clientId });
+      // Remove param from URL without reload to avoid re-opening on refresh
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("clientId");
+      router.replace(`/clients?${newParams.toString()}`, { scroll: false });
+    }
+  }, [searchParams, openDrawer, router]);
+
+  // Deep linking for filters
+  useEffect(() => {
+    const filterParam = searchParams.get("filter");
+    if (filterParam === "risk") {
+      setMetricsFilter("critical");
+      setFilters((prev) => ({ ...prev, health: "critical" }));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 700);
