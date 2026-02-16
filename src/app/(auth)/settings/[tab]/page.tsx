@@ -1,7 +1,7 @@
 "use client";
 
-import { use, useState, useCallback } from "react";
-import Link from "next/link";
+import { use, useState, useCallback, useMemo, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -18,25 +18,26 @@ import {
 } from "@/components/ui/select";
 import {
   Settings,
-  GitBranch,
-  Clock,
-  Percent,
-  FormInput,
   XCircle,
-  Tags,
-  FileText,
-  Bell,
   Plug,
+  MessageCircle,
+  CalendarDays,
+  Loader2,
   Pencil,
   Plus,
   Trash2,
   AlertTriangle,
-  Filter,
   ChevronUp,
   ChevronDown,
+  Sparkles,
 } from "lucide-react";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
+import {
+  SettingsSecondaryNav,
+  settingsSecondaryNavItems,
+  settingsTitleMap,
+} from "@/components/settings/settings-secondary-nav";
 import {
   Dialog,
   DialogContent,
@@ -44,40 +45,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-
-// ===== Tab config =====
-
-const tabConfig: {
-  key: string;
-  label: string;
-  icon: React.ReactNode;
-}[] = [
-  { key: "general", label: "Geral", icon: <Settings className="h-4 w-4" /> },
-  { key: "pipeline", label: "Pipeline", icon: <GitBranch className="h-4 w-4" /> },
-  { key: "funnels", label: "Funis", icon: <Filter className="h-4 w-4" /> },
-  { key: "sla", label: "SLA", icon: <Clock className="h-4 w-4" /> },
-  { key: "commissions", label: "Comissões", icon: <Percent className="h-4 w-4" /> },
-  { key: "fields", label: "Campos", icon: <FormInput className="h-4 w-4" /> },
-  { key: "reasons", label: "Motivos de Perda", icon: <XCircle className="h-4 w-4" /> },
-  { key: "tags", label: "Tags", icon: <Tags className="h-4 w-4" /> },
-  { key: "terms", label: "Termos", icon: <FileText className="h-4 w-4" /> },
-  { key: "notifications", label: "Notificações", icon: <Bell className="h-4 w-4" /> },
-  { key: "integrations", label: "Integrações", icon: <Plug className="h-4 w-4" /> },
-];
-
-const titleMap: Record<string, string> = {
-  general: "Configurações Gerais",
-  pipeline: "Pipeline",
-  funnels: "Funis de Vendas",
-  sla: "Configuração de SLA",
-  commissions: "Regras de Comissão",
-  fields: "Campos Personalizados",
-  reasons: "Motivos de Perda",
-  tags: "Gestão de Tags",
-  terms: "Termos de Uso",
-  notifications: "Notificações",
-  integrations: "Integrações",
-};
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // ===== Main Page =====
 
@@ -87,7 +59,9 @@ export default function SettingsTabPage({
   params: Promise<{ tab: string }>;
 }) {
   const { tab } = use(params);
+  const router = useRouter();
   const [isDirty, setIsDirty] = useState(false);
+  const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const markDirty = useCallback(() => {
@@ -103,32 +77,44 @@ export default function SettingsTabPage({
   const handleDiscard = () => {
     setIsDirty(false);
   };
-  const activeTabLabel = tabConfig.find((item) => item.key === tab)?.label ?? tab;
 
-  return (
+  const intelligenceSummary = useMemo(() => {
+    if (isDirty) {
+      return "Você tem alterações pendentes. O próximo passo recomendado é salvar para garantir consistência da operação.";
+    }
+
+    switch (tab) {
+      case "pipeline":
+        return "Revise SLAs e etapas críticas para reduzir gargalos no funil.";
+      case "funnels":
+        return "Priorize um funil padrão e mantenha nomenclatura consistente entre etapas.";
+      case "integrations":
+        return "Valide integrações ativas para evitar gaps de dados no comercial.";
+      default:
+        return "Configuração estável. Recomendação: revisar parâmetros do pipeline antes do fechamento semanal.";
+    }
+  }, [isDirty, tab]);
+
+  const handlePrimaryIntelligenceAction = () => {
+    if (isDirty) {
+      handleSave();
+    } else {
+      router.push("/settings/pipeline");
+    }
+    setIsIntelligenceOpen(false);
+  };
+
+  const handleSecondaryIntelligenceAction = () => {
+    router.push("/activities?status=overdue");
+    setIsIntelligenceOpen(false);
+  };
+
+  const activeTabLabel = settingsSecondaryNavItems.find((item) => item.key === tab)?.label ?? tab;
+
+    return (
     <div className="flex gap-8">
       {/* Sidebar Navigation */}
-      <aside className="w-[200px] shrink-0">
-        <nav className="sticky top-6 space-y-1">
-          {tabConfig.map((item) => {
-            const isActive = tab === item.key;
-            return (
-              <Link
-                key={item.key}
-                href={`/settings/${item.key}`}
-                className={`flex items-center gap-3 rounded-[15px] px-3 py-2.5 font-body text-sm transition-colors ${
-                  isActive
-                    ? "bg-black font-medium text-white"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-black"
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
+      <SettingsSecondaryNav activeKey={tab} />
 
       {/* Content Area */}
       <div className="min-w-0 flex-1 space-y-6">
@@ -170,8 +156,44 @@ export default function SettingsTabPage({
         )}
 
         <ModuleCommandHeader
-          title={titleMap[tab] || tab}
+          title={settingsTitleMap[tab] || tab}
           description="Personalize o comportamento do Flow."
+          actions={
+            <Popover open={isIntelligenceOpen} onOpenChange={setIsIntelligenceOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  size="sm"
+                  className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
+                  Menux Intelligence
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                  Menux Intelligence
+                </p>
+                <p className="mt-1 text-sm text-zinc-700">{intelligenceSummary}</p>
+                <div className="mt-3 grid gap-2">
+                  <Button
+                    size="sm"
+                    className="justify-start rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                    onClick={handlePrimaryIntelligenceAction}
+                  >
+                    {isDirty ? "Salvar alterações pendentes" : "Revisar pipeline"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="justify-start rounded-full"
+                    onClick={handleSecondaryIntelligenceAction}
+                  >
+                    Abrir atividades atrasadas
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          }
           meta={`Seção ativa: ${activeTabLabel}`}
           chips={[
             {
@@ -179,12 +201,24 @@ export default function SettingsTabPage({
               label: isDirty ? "alterações pendentes" : "tudo salvo",
               icon: <Settings className="h-3.5 w-3.5" />,
               tone: isDirty ? "warning" : "success",
+              onClick: () => {
+                if (isDirty) {
+                  handleSave();
+                  return;
+                }
+                setSaveFeedback({
+                  type: "success",
+                  message: "Nenhuma alteração pendente nesta seção.",
+                });
+                window.setTimeout(() => setSaveFeedback(null), 1800);
+              },
             },
             {
               id: "module",
-              label: `${tabConfig.length} módulos de configuração`,
+              label: `${settingsSecondaryNavItems.length} módulos de configuração`,
               icon: <Plug className="h-3.5 w-3.5" />,
               tone: "neutral",
+              onClick: () => router.push("/settings/pipeline"),
             },
           ]}
         />
@@ -1267,23 +1301,255 @@ function NotificationSettings({ onDirty }: { onDirty: () => void }) {
 // ===== Integration Settings =====
 
 function IntegrationSettings() {
+  type IntegrationKey = "whatsapp" | "google-calendar";
+
+  interface IntegrationState {
+    connected: boolean;
+    processing: boolean;
+    syncing: boolean;
+    lastSync: string | null;
+  }
+
+  const [integrations, setIntegrations] = useState<Record<IntegrationKey, IntegrationState>>({
+    whatsapp: {
+      connected: false,
+      processing: false,
+      syncing: false,
+      lastSync: null,
+    },
+    "google-calendar": {
+      connected: false,
+      processing: false,
+      syncing: false,
+      lastSync: null,
+    },
+  });
+
+  const [integrationFeedback, setIntegrationFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  const integrationConfig: Record<
+    IntegrationKey,
+    {
+      label: string;
+      subtitle: string;
+      description: string;
+      icon: ReactNode;
+    }
+  > = {
+    whatsapp: {
+      label: "WhatsApp",
+      subtitle: "Mensageria comercial",
+      description:
+        "Sincronize mensagens para follow-ups, lembretes de atividades e contato com clientes.",
+      icon: <MessageCircle className="h-5 w-5 text-emerald-700" />,
+    },
+    "google-calendar": {
+      label: "Google Calendar",
+      subtitle: "Agenda e compromissos",
+      description:
+        "Sincronize reuniões, prazos e compromissos para manter o calendário da operação alinhado.",
+      icon: <CalendarDays className="h-5 w-5 text-blue-700" />,
+    },
+  };
+
+  const formatSyncDate = (date: Date) =>
+    new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+
+  const setIntegrationState = (
+    key: IntegrationKey,
+    updater: (state: IntegrationState) => IntegrationState
+  ) => {
+    setIntegrations((prev) => ({ ...prev, [key]: updater(prev[key]) }));
+  };
+
+  const connectIntegration = (key: IntegrationKey) => {
+    setIntegrationState(key, (state) => ({ ...state, processing: true }));
+    window.setTimeout(() => {
+      const syncedAt = formatSyncDate(new Date());
+      setIntegrationState(key, (state) => ({
+        ...state,
+        connected: true,
+        processing: false,
+        lastSync: syncedAt,
+      }));
+      setIntegrationFeedback({
+        type: "success",
+        message: `${integrationConfig[key].label} conectado com sucesso.`,
+      });
+      window.setTimeout(() => setIntegrationFeedback(null), 1800);
+    }, 420);
+  };
+
+  const disconnectIntegration = (key: IntegrationKey) => {
+    setIntegrationState(key, (state) => ({ ...state, processing: true }));
+    window.setTimeout(() => {
+      setIntegrationState(key, (state) => ({
+        ...state,
+        connected: false,
+        processing: false,
+      }));
+      setIntegrationFeedback({
+        type: "success",
+        message: `${integrationConfig[key].label} desconectado.`,
+      });
+      window.setTimeout(() => setIntegrationFeedback(null), 1800);
+    }, 320);
+  };
+
+  const syncIntegration = (key: IntegrationKey) => {
+    if (!integrations[key].connected) {
+      setIntegrationFeedback({
+        type: "error",
+        message: `Conecte ${integrationConfig[key].label} antes de sincronizar.`,
+      });
+      window.setTimeout(() => setIntegrationFeedback(null), 2000);
+      return;
+    }
+
+    setIntegrationState(key, (state) => ({ ...state, syncing: true }));
+    window.setTimeout(() => {
+      const syncedAt = formatSyncDate(new Date());
+      setIntegrationState(key, (state) => ({
+        ...state,
+        syncing: false,
+        lastSync: syncedAt,
+      }));
+      setIntegrationFeedback({
+        type: "success",
+        message: `${integrationConfig[key].label} sincronizado agora.`,
+      });
+      window.setTimeout(() => setIntegrationFeedback(null), 1800);
+    }, 380);
+  };
+
+  const openIntegrationSettings = (key: IntegrationKey) => {
+    setIntegrationFeedback({
+      type: "success",
+      message: `Painel de configuração do ${integrationConfig[key].label} aberto (preview).`,
+    });
+    window.setTimeout(() => setIntegrationFeedback(null), 2000);
+  };
+
   return (
     <Card className="rounded-[15px] border-zinc-200">
       <CardHeader>
         <CardTitle className="font-heading text-lg font-semibold text-black">
           Integrações
         </CardTitle>
+        <p className="font-body text-xs text-zinc-500">
+          Conecte canais externos para sincronizar comunicação e agenda comercial.
+        </p>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
-            <Plug className="h-5 w-5 text-zinc-400" />
-          </div>
-          <p className="font-body text-sm text-zinc-500">
-            As integrações serão disponibilizadas em breve.
-          </p>
-          <p className="mt-1 font-body text-xs text-zinc-400">
-            WhatsApp, E-mail, Calendário e mais.
+        {integrationFeedback ? (
+          <InlineFeedback
+            type={integrationFeedback.type}
+            message={integrationFeedback.message}
+            onClose={() => setIntegrationFeedback(null)}
+          />
+        ) : null}
+
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {(Object.keys(integrationConfig) as IntegrationKey[]).map((key) => {
+            const config = integrationConfig[key];
+            const state = integrations[key];
+
+            return (
+              <div
+                key={key}
+                className="rounded-[18px] border border-zinc-200 bg-white/90 p-4 shadow-[0_12px_22px_-18px_rgba(15,23,42,0.35)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+                      {config.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-heading text-base font-semibold text-zinc-900">
+                        {config.label}
+                      </p>
+                      <p className="font-body text-xs text-zinc-500">{config.subtitle}</p>
+                    </div>
+                  </div>
+                  <Badge
+                    className={
+                      state.connected
+                        ? "rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-700"
+                        : "rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] text-zinc-600"
+                    }
+                  >
+                    {state.connected ? "Conectado" : "Desconectado"}
+                  </Badge>
+                </div>
+
+                <p className="mt-3 font-body text-sm text-zinc-600">{config.description}</p>
+
+                <div className="mt-3 rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2">
+                  <p className="font-body text-xs text-zinc-500">
+                    Última sincronização:{" "}
+                    <span className="font-medium text-zinc-700">
+                      {state.lastSync ?? "ainda não sincronizado"}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      state.connected ? disconnectIntegration(key) : connectIntegration(key)
+                    }
+                    disabled={state.processing || state.syncing}
+                    className="h-9 rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                  >
+                    {state.processing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Plug className="h-3.5 w-3.5" />
+                    )}
+                    {state.connected ? "Desconectar" : "Conectar"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => syncIntegration(key)}
+                    disabled={!state.connected || state.processing || state.syncing}
+                    className="h-9 rounded-full"
+                  >
+                    {state.syncing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CalendarDays className="h-3.5 w-3.5" />
+                    )}
+                    Sincronizar
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openIntegrationSettings(key)}
+                    className="h-9 rounded-full text-zinc-600 hover:text-zinc-900"
+                  >
+                    Configurar
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 rounded-[12px] border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2">
+          <p className="font-body text-xs text-zinc-500">
+            Próximas integrações: E-mail transacional, ERP e Webhooks.
           </p>
         </div>
       </CardContent>

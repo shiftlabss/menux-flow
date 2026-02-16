@@ -38,9 +38,12 @@ const chipToneStyles: Record<ChipTone, string> = {
 };
 
 function renderChip(chip: ModuleCommandHeaderChip) {
+  const isInteractive = Boolean(chip.href || chip.onClick);
   const classes = cn(
     "premium-shine inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold",
-    "transition-all duration-120 ease-out hover:bg-white/75 active:scale-[0.99]",
+    isInteractive
+      ? "cursor-pointer transition-all duration-120 ease-out hover:bg-white/75 active:scale-[0.99]"
+      : "cursor-default select-none opacity-85",
     chipToneStyles[chip.tone ?? "neutral"]
   );
 
@@ -87,7 +90,11 @@ export function ModuleCommandHeader({
   className,
   sticky = false,
 }: ModuleCommandHeaderProps) {
-  const hasSecondRow = Boolean(meta || chips.length > 0 || fallbackChip);
+  const hasChildrenRow = Boolean(children);
+  const hasMeta = Boolean(meta);
+  const hasChips = Boolean(chips.length > 0 || fallbackChip);
+  const hasLowerSection = hasChildrenRow || hasMeta || hasChips;
+  const hasLeftBlock = hasChildrenRow || hasMeta;
 
   return (
     <section
@@ -128,19 +135,27 @@ export function ModuleCommandHeader({
           ) : null}
         </div>
 
-        {children}
+        {hasLowerSection ? (
+          <div className="border-t border-zinc-200/75 pt-2">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              {hasLeftBlock ? (
+                <div className="min-w-0 flex-1 space-y-2">
+                  {meta ? <div className="text-xs text-zinc-500/80">{meta}</div> : null}
+                  {hasChildrenRow ? <div>{children}</div> : null}
+                </div>
+              ) : null}
 
-        {hasSecondRow ? (
-          <div
-            className={cn(
-              "flex flex-col gap-2 border-t border-zinc-200/75 pt-2 md:flex-row md:items-center",
-              meta ? "md:justify-between" : "md:justify-end"
-            )}
-          >
-            {meta ? <div className="text-xs text-zinc-500/80">{meta}</div> : null}
-            <div className={cn("flex flex-wrap items-center justify-end gap-2", !meta && "md:w-full")}>
-              {chips.length > 0 ? chips.map((chip) => renderChip(chip)) : null}
-              {chips.length === 0 && fallbackChip ? renderChip(fallbackChip) : null}
+              {hasChips ? (
+                <div
+                  className={cn(
+                    "flex flex-wrap items-center gap-2",
+                    hasLeftBlock ? "lg:justify-end" : "justify-end"
+                  )}
+                >
+                  {chips.length > 0 ? chips.map((chip) => renderChip(chip)) : null}
+                  {chips.length === 0 && fallbackChip ? renderChip(fallbackChip) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}

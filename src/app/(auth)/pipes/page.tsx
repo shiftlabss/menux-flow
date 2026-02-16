@@ -24,6 +24,7 @@ import {
   Columns3,
   SlidersHorizontal,
   ChevronDown,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -83,6 +84,8 @@ function PipesPageContent() {
   );
   const opportunities = localOpportunities;
   const [isManageDrawerOpen, setIsManageDrawerOpen] = useState(false);
+  const [isIntelligencePopoverOpen, setIsIntelligencePopoverOpen] = useState(false);
+  const [intelligenceFeedback, setIntelligenceFeedback] = useState<string | null>(null);
 
   // Deep linking for opportunityId
   useEffect(() => {
@@ -250,6 +253,19 @@ function PipesPageContent() {
     return active.reduce((acc, o) => acc + o.value, 0) / active.length;
   }, [opportunities, effectiveStageIds]);
 
+  const totalVisibleCards = useMemo(
+    () => Object.values(opportunitiesByStage).reduce((acc, cards) => acc + cards.length, 0),
+    [opportunitiesByStage]
+  );
+
+  const bottleneckStage = useMemo(() => {
+    const stageCounts = visibleStages.map((stage) => ({
+      label: stage.label,
+      count: opportunitiesByStage[stage.id]?.length ?? 0,
+    }));
+    return stageCounts.sort((a, b) => b.count - a.count)[0] ?? null;
+  }, [visibleStages, opportunitiesByStage]);
+
   const getTemp = useCallback(
     (opp: Opportunity) => {
       const computed = calculateTemperature(opp, averageDealValue);
@@ -289,6 +305,29 @@ function PipesPageContent() {
     setIsManageDrawerOpen(true);
   }, []);
 
+  const showIntelligenceFeedback = useCallback((text: string) => {
+    setIntelligenceFeedback(text);
+    window.setTimeout(() => setIntelligenceFeedback(null), 1200);
+  }, []);
+
+  const handleFocusProposals = useCallback(() => {
+    setSearchInputValue("proposta");
+    setSearchQuery("proposta");
+    setIsIntelligencePopoverOpen(false);
+    announce("Filtro aplicado para cards de proposta");
+    showIntelligenceFeedback("Filtro aplicado: proposta");
+  }, [announce, showIntelligenceFeedback]);
+
+  const handleOpenOverdueActivities = useCallback(() => {
+    setIsIntelligencePopoverOpen(false);
+    router.push("/activities?status=overdue");
+  }, [router]);
+
+  const handleOpenPipelineReport = useCallback(() => {
+    setIsIntelligencePopoverOpen(false);
+    router.push("/reports");
+  }, [router]);
+
   const metricChips = useMemo(() => {
     const chips: Array<{
       id: string;
@@ -302,6 +341,7 @@ function PipesPageContent() {
           label: `Pipeline: ${formatCurrencyBRL(boardTotal)}`,
           icon: <CircleDollarSign className="h-3.5 w-3.5" />,
           tone: "info",
+          onClick: handleOpenPipelineReport,
         },
         {
           id: "stages-visible",
@@ -318,6 +358,7 @@ function PipesPageContent() {
         label: `Filtros: ${activeFilterCount}`,
         icon: <Filter className="h-3.5 w-3.5" />,
         tone: activeFilterCount > 0 ? "warning" : "neutral",
+        onClick: () => openDrawer("filters"),
       });
     }
 
@@ -327,6 +368,8 @@ function PipesPageContent() {
     visibleStages.length,
     recentFiltersCount,
     activeFilterCount,
+    handleOpenPipelineReport,
+    openDrawer,
   ]);
 
   // Announce search results to screen readers
@@ -586,6 +629,71 @@ function PipesPageContent() {
                     Novo Card
                   </Button>
 
+                  <Popover
+                    open={isIntelligencePopoverOpen}
+                    onOpenChange={setIsIntelligencePopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
+                        Menux Intelligence
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3"
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                        Menux Intelligence
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-700">
+                        {totalVisibleCards > 0
+                          ? `Você tem ${totalVisibleCards} cards visíveis. Priorize ${bottleneckStage?.label ?? "a próxima etapa"} agora.`
+                          : "Sem cards visíveis neste contexto. Ajuste funil ou filtros para analisar gargalos."}
+                      </p>
+                      <div className="mt-2 grid gap-1.5 text-xs text-zinc-600">
+                        <div className="rounded-[10px] border border-zinc-200 bg-zinc-50 px-2.5 py-2">
+                          Gargalo atual:{" "}
+                          <span className="font-semibold text-zinc-900">
+                            {bottleneckStage ? `${bottleneckStage.label} (${bottleneckStage.count})` : "Sem dados"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="justify-start rounded-full"
+                          onClick={handleFocusProposals}
+                        >
+                          Aplicar foco em propostas
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="justify-start rounded-full"
+                          onClick={handleOpenOverdueActivities}
+                        >
+                          Ver atividades atrasadas
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="justify-start rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                          onClick={handleOpenPipelineReport}
+                        >
+                          Abrir relatório do funil
+                        </Button>
+                      </div>
+                      {intelligenceFeedback ? (
+                        <p className="mt-2 text-xs font-medium text-emerald-700">
+                          {intelligenceFeedback}
+                        </p>
+                      ) : null}
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             }

@@ -7,7 +7,7 @@ import { DashboardHeader } from "@/components/dashboard/header";
 import { KpiSection } from "@/components/dashboard/kpi-section";
 import { FunnelXRay } from "@/components/dashboard/funnel-x-ray";
 import { CriticalAlerts, TodayActivities } from "@/components/dashboard/execution-section";
-import { PipelineHealth, TeamPerformance } from "@/components/dashboard/performance-section";
+import { PipelineHealth } from "@/components/dashboard/performance-section";
 import { screenContainer, sectionEnter } from "@/lib/motion";
 
 export default function Dashboard() {
@@ -34,7 +34,6 @@ export default function Dashboard() {
           </div>
           <div className="lg:col-span-4 flex flex-col gap-6">
             <Skeleton className="h-48 rounded-xl" />
-            <Skeleton className="h-48 rounded-xl" />
           </div>
         </div>
       </div>
@@ -46,7 +45,7 @@ export default function Dashboard() {
       variants={screenContainer}
       initial="hidden"
       animate="show"
-      className="mx-auto max-w-[1600px] space-y-6"
+      className="w-full max-w-full space-y-6"
     >
       {/* Header */}
       <motion.div variants={sectionEnter}>
@@ -75,10 +74,9 @@ export default function Dashboard() {
             <TodayActivities />
          </div>
          
-         {/* Right Column: Health & Team (4 cols) */}
+         {/* Right Column: Health (4 cols) */}
          <div className="lg:col-span-4 flex flex-col gap-6">
             <PipelineHealth />
-            <TeamPerformance />
          </div>
       </motion.section>
     </motion.div>

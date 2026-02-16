@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Filter,
   Calendar,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -471,10 +477,12 @@ export default function AuditPage() {
 
   const [entityFilter, setEntityFilter] = useState("all");
   const [userFilter, setUserFilter] = useState("all");
+  const [actionFilter, setActionFilter] = useState<AuditAction | "all">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
 
   // Filter events
   const filteredEvents = useMemo(() => {
@@ -483,6 +491,9 @@ export default function AuditPage() {
         return false;
       }
       if (userFilter !== "all" && event.user.name !== userFilter) {
+        return false;
+      }
+      if (actionFilter !== "all" && event.action !== actionFilter) {
         return false;
       }
       if (dateFrom) {
@@ -498,7 +509,7 @@ export default function AuditPage() {
       }
       return true;
     });
-  }, [entityFilter, userFilter, dateFrom, dateTo]);
+  }, [entityFilter, userFilter, actionFilter, dateFrom, dateTo]);
 
   const totalPages = Math.ceil(TOTAL_RECORDS / PAGE_SIZE);
   const showingFrom = (currentPage - 1) * PAGE_SIZE + 1;
@@ -511,15 +522,31 @@ export default function AuditPage() {
   const handleClearFilters = useCallback(() => {
     setEntityFilter("all");
     setUserFilter("all");
+    setActionFilter("all");
     setDateFrom("");
     setDateTo("");
     setCurrentPage(1);
   }, []);
 
   const hasActiveFilters =
-    entityFilter !== "all" || userFilter !== "all" || dateFrom || dateTo;
+    entityFilter !== "all" || userFilter !== "all" || actionFilter !== "all" || dateFrom || dateTo;
   const deletedEventsCount = filteredEvents.filter((event) => event.action === "deleted").length;
   const movedEventsCount = filteredEvents.filter((event) => event.action === "moved").length;
+
+  const applyDeletedFilter = useCallback(() => {
+    setActionFilter("deleted");
+    setCurrentPage(1);
+  }, []);
+
+  const applyMovedFilter = useCallback(() => {
+    setActionFilter("moved");
+    setCurrentPage(1);
+  }, []);
+
+  const applySettingsRiskFilter = useCallback(() => {
+    setEntityFilter("settings");
+    setCurrentPage(1);
+  }, []);
 
   if (isLoading) {
     return (
@@ -554,26 +581,87 @@ export default function AuditPage() {
               label: `${deletedEventsCount} exclusões`,
               icon: <AlertTriangle className="h-3.5 w-3.5" />,
               tone: deletedEventsCount > 0 ? "danger" : "neutral",
+              onClick: applyDeletedFilter,
             },
             {
               id: "moved",
               label: `${movedEventsCount} movimentações`,
               icon: <ArrowRight className="h-3.5 w-3.5" />,
               tone: movedEventsCount > 0 ? "warning" : "neutral",
+              onClick: applyMovedFilter,
             },
             {
               id: "total",
               label: `${TOTAL_RECORDS} registros totais`,
               icon: <Shield className="h-3.5 w-3.5" />,
               tone: "info",
+              onClick: handleClearFilters,
             },
           ]}
           actions={
-            <div className="flex items-center gap-2 rounded-[10px] bg-zinc-50 px-3 py-2">
-              <Shield className="h-4 w-4 text-zinc-400" />
-              <span className="font-body text-xs text-zinc-500">
-                Registros mantidos por 5 anos
-              </span>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="flex items-center gap-2 rounded-[10px] bg-zinc-50 px-3 py-2">
+                <Shield className="h-4 w-4 text-zinc-400" />
+                <span className="font-body text-xs text-zinc-500">
+                  Registros mantidos por 5 anos
+                </span>
+              </div>
+
+              <Popover open={isIntelligenceOpen} onOpenChange={setIsIntelligenceOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
+                    Menux Intelligence
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                    Menux Intelligence
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-700">
+                    {deletedEventsCount > 0
+                      ? `Foram detectadas ${deletedEventsCount} exclusões no período filtrado.`
+                      : "Sem exclusões críticas no período atual."}
+                  </p>
+                  <div className="mt-2 grid gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="justify-start rounded-full"
+                      onClick={() => {
+                        applyDeletedFilter();
+                        setIsIntelligenceOpen(false);
+                      }}
+                    >
+                      Filtrar exclusões
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="justify-start rounded-full"
+                      onClick={() => {
+                        applyMovedFilter();
+                        setIsIntelligenceOpen(false);
+                      }}
+                    >
+                      Filtrar movimentações
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="justify-start rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                      onClick={() => {
+                        applySettingsRiskFilter();
+                        setIsIntelligenceOpen(false);
+                      }}
+                    >
+                      Ver alterações de configuração
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           }
         />

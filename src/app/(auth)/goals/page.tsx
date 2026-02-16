@@ -22,7 +22,6 @@ import {
   Clock3,
   DollarSign,
   Minus,
-  Search,
   Sparkles,
   Target,
   Trophy,
@@ -40,7 +39,6 @@ import { useUIStore } from "@/stores/ui-store";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -309,8 +307,6 @@ export default function GoalsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>("yearly");
   const [statusFilter, setStatusFilter] = useState<GoalStatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<GoalTypeFilter>("all");
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [isAchievedCollapsed, setIsAchievedCollapsed] = useState(true);
   const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set());
   const [cardFeedback, setCardFeedback] = useState<Record<string, FeedbackState>>({});
@@ -332,11 +328,6 @@ export default function GoalsPage() {
     const timer = window.setTimeout(() => setIsLoading(false), 720);
     return () => window.clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setSearchQuery(searchInput.trim()), 250);
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -423,13 +414,9 @@ export default function GoalsPage() {
       if (typeFilter !== "all" && goal.type !== typeFilter) return false;
       const status = getGoalStatus(goal);
       if (statusFilter !== "all" && status !== statusFilter) return false;
-      if (searchQuery) {
-        const normalized = searchQuery.toLowerCase();
-        if (!goal.title.toLowerCase().includes(normalized)) return false;
-      }
       return true;
     });
-  }, [periodGoals, typeFilter, statusFilter, searchQuery]);
+  }, [periodGoals, typeFilter, statusFilter]);
 
   const groupedGoals = useMemo(() => {
     const grouped: Record<GoalStatus, Goal[]> = {
@@ -475,18 +462,6 @@ export default function GoalsPage() {
 
   const activeHeaderChips = useMemo(() => {
     const chips: Array<{ id: string; label: string; onClear?: () => void }> = [];
-    if (statusFilter !== "all") {
-      chips.push({
-        id: "status",
-        label:
-          statusFilter === "achieved"
-            ? "Batidas"
-            : statusFilter === "risk"
-              ? "Em risco"
-              : "No ritmo",
-        onClear: () => setStatusFilter("all"),
-      });
-    }
     if (typeFilter !== "all") {
       chips.push({
         id: "type",
@@ -494,18 +469,8 @@ export default function GoalsPage() {
         onClear: () => setTypeFilter("all"),
       });
     }
-    if (searchQuery) {
-      chips.push({
-        id: "search",
-        label: `Busca: ${searchQuery}`,
-        onClear: () => {
-          setSearchInput("");
-          setSearchQuery("");
-        },
-      });
-    }
     return chips;
-  }, [searchQuery, statusFilter, typeFilter]);
+  }, [typeFilter]);
 
   const setGoalFeedback = useCallback((goalId: string, feedback: FeedbackState) => {
     setCardFeedback((prev) => ({ ...prev, [goalId]: feedback }));
@@ -539,8 +504,6 @@ export default function GoalsPage() {
   const clearAllFilters = useCallback(() => {
     setStatusFilter("all");
     setTypeFilter("all");
-    setSearchInput("");
-    setSearchQuery("");
   }, []);
 
   const togglePlan = useCallback((goalId: string) => {
@@ -672,6 +635,29 @@ Vamos transformar esse cenário. Um dia de cada vez, uma ligação de cada vez. 
           <ModuleCommandHeader
             title="Minhas metas"
             description="Performance do time e gamificação"
+            meta={`Período: ${periodLabel[selectedPeriod]}`}
+            chips={[
+              {
+                id: "goals-active",
+                label: `Ativas (${counts.active})`,
+                tone: statusFilter === "all" ? "info" : "neutral",
+                onClick: () => setStatusFilter("all"),
+              },
+              {
+                id: "goals-achieved",
+                label: `Batidas (${counts.achieved})`,
+                tone: statusFilter === "achieved" ? "success" : "neutral",
+                onClick: () =>
+                  setStatusFilter((current) => (current === "achieved" ? "all" : "achieved")),
+              },
+              {
+                id: "goals-risk",
+                label: `Em risco (${counts.risk})`,
+                tone: statusFilter === "risk" ? "danger" : "neutral",
+                onClick: () =>
+                  setStatusFilter((current) => (current === "risk" ? "all" : "risk")),
+              },
+            ]}
             actions={
               <div className="flex w-full min-w-0 flex-wrap items-center gap-2 xl:justify-end">
                 <div className="inline-flex h-9 items-center rounded-full border border-zinc-200 bg-zinc-50/90 p-1">
@@ -695,7 +681,7 @@ Vamos transformar esse cenário. Um dia de cada vez, uma ligação de cada vez. 
                 <Button
                   size="sm"
                   onClick={() => setIsIntelligenceOpen((prev) => !prev)}
-                  className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99] xl:hidden"
+                  className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
                   Menux Intelligence
@@ -710,44 +696,7 @@ Vamos transformar esse cenário. Um dia de cada vez, uma ligação de cada vez. 
                   headerHighlight && "rounded-[12px] bg-zinc-100/60 p-1"
                 )}
               >
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter("all")}
-                  className={cn(
-                    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors duration-120",
-                    statusFilter === "all"
-                      ? "border-zinc-300 bg-white text-zinc-900"
-                      : "border-zinc-200 bg-white/90 text-zinc-600 hover:bg-zinc-50"
-                  )}
-                >
-                  Ativas ({counts.active})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter("achieved")}
-                  className={cn(
-                    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors duration-120",
-                    statusFilter === "achieved"
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                      : "border-emerald-200/80 bg-emerald-50/80 text-emerald-700"
-                  )}
-                >
-                  Batidas ({counts.achieved})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatusFilter("risk")}
-                  className={cn(
-                    "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors duration-120",
-                    statusFilter === "risk"
-                      ? "border-red-300 bg-red-50 text-red-700"
-                      : "border-red-200/80 bg-red-50/80 text-red-700"
-                  )}
-                >
-                  Em risco ({counts.risk})
-                </button>
-
-                <span className="ml-1 text-xs font-medium text-zinc-500">Tipo:</span>
+                <span className="text-xs font-medium text-zinc-500">Tipo:</span>
                 {(Object.keys(goalTypeConfig) as Goal["type"][]).map((type) => (
                   <button
                     key={type}
@@ -769,29 +718,6 @@ Vamos transformar esse cenário. Um dia de cada vez, uma ligação de cada vez. 
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <div className="group relative min-w-[220px] flex-1 max-w-[340px]">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                  <Input
-                    value={searchInput}
-                    onChange={(event) => setSearchInput(event.target.value)}
-                    placeholder="Buscar meta"
-                    className="h-9 rounded-full pl-8 pr-8 text-sm"
-                  />
-                  {searchInput ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchInput("");
-                        setSearchQuery("");
-                      }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 transition-opacity hover:text-zinc-700 sm:opacity-0 sm:group-hover:opacity-100"
-                      aria-label="Limpar busca"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  ) : null}
-                </div>
-
                 {activeHeaderChips.length > 0 ? (
                   <Button
                     variant="ghost"
@@ -849,7 +775,7 @@ Vamos transformar esse cenário. Um dia de cada vez, uma ligação de cada vez. 
                 <GoalsContentSkeleton />
               ) : (
                 <motion.div
-                  key={`${selectedPeriod}-${statusFilter}-${typeFilter}-${searchQuery}`}
+                  key={`${selectedPeriod}-${statusFilter}-${typeFilter}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.16, ease: "easeOut" }}

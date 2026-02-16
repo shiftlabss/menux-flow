@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -70,16 +70,19 @@ const REFERENCE_DATE = new Date("2026-02-16T12:00:00.000Z");
 export function DashboardHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const { period, setPeriod } = useDashboardStore();
+  const { period, setPeriod, setContext } = useDashboardStore();
   const { user, isLoading } = useAuthStore();
   const [retryingIndicators, setRetryingIndicators] = useState(false);
 
   const firstName = user?.name?.trim().split(" ")[0] ?? "Admin";
 
-  const scopedActivities =
-    !user?.id
-      ? []
-      : mockActivities.filter((activity) => activity.responsibleId === user.id);
+  useEffect(() => {
+    setContext("me");
+  }, [setContext]);
+
+  const scopedActivities = !user?.id
+    ? mockActivities
+    : mockActivities.filter((activity) => activity.responsibleId === user.id);
 
   const overdueCount = scopedActivities.filter(
     (activity) => activity.status === "overdue"

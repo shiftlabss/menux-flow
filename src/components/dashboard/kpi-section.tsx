@@ -196,12 +196,18 @@ function ConversionBarsMini() {
 
 function ActivityMiniChips() {
   return (
-    <div className="flex h-7 w-[126px] items-center justify-end gap-1.5" aria-hidden>
-      <span className="inline-flex h-6 items-center rounded-full bg-red-100 px-2 text-[10px] font-semibold text-red-700">
-        Atrasadas: 4
+    <div className="grid h-9 w-[172px] grid-cols-2 gap-2" aria-hidden>
+      <span className="inline-flex h-9 items-center justify-between rounded-[11px] border border-red-200/80 bg-red-50 px-2 text-red-700">
+        <span className="truncate text-[10px] font-semibold">Atrasadas</span>
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/80 px-1.5 text-[10px] font-bold leading-none">
+          4
+        </span>
       </span>
-      <span className="inline-flex h-6 items-center rounded-full bg-zinc-100 px-2 text-[10px] font-semibold text-zinc-700">
-        Hoje: 8
+      <span className="inline-flex h-9 items-center justify-between rounded-[11px] border border-zinc-200 bg-zinc-50 px-2 text-zinc-700">
+        <span className="truncate text-[10px] font-semibold">Hoje</span>
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/85 px-1.5 text-[10px] font-bold leading-none">
+          8
+        </span>
       </span>
     </div>
   );
@@ -294,9 +300,9 @@ function KPITemplateCard({
             <p className="mt-2 truncate text-[12px] text-zinc-500">{data.subtext || "—"}</p>
           </div>
 
-          <footer className="mt-auto flex h-[42px] items-end justify-between gap-2">
+          <footer className="mt-auto flex h-[44px] items-end justify-between gap-3">
             <TrendBadge trend={data.trend} />
-            <div className="flex h-7 items-end justify-end">{miniVisual}</div>
+            <div className="flex min-w-0 shrink-0 items-end justify-end">{miniVisual}</div>
           </footer>
         </>
       )}

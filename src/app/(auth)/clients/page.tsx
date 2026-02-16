@@ -67,7 +67,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 type SuccessColumnId = "onboarding" | "implantacao" | "ativos";
 type SuccessPhase = "all" | SuccessColumnId;
 type ClientsView = "board" | "list";
-type MetricsFilter = "all" | "critical" | "good" | "stale";
 
 interface FiltersState {
   health: HealthScore | "all";
@@ -277,9 +276,6 @@ function ClientsPageContent() {
     responsible: "all",
     staleOnly: false,
   }));
-  const [metricsFilter, setMetricsFilter] = useState<MetricsFilter>(() =>
-    hasRiskFilterParam ? "critical" : "all"
-  );
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
   const [isDesktopXL, setIsDesktopXL] = useState(false);
@@ -408,22 +404,18 @@ function ClientsPageContent() {
     () => phaseScopedClients.filter((client) => client.healthScore === "good").length,
     [phaseScopedClients]
   );
-  const staleCount = useMemo(
-    () =>
-      phaseScopedClients.filter(
-        (client) => getDaysSinceInteraction(client.lastInteraction) > 30
-      ).length,
-    [phaseScopedClients]
-  );
+  const phaseLabel = useMemo(() => {
+    if (visiblePhase === "all") return "Funil completo";
+    return (
+      columnConfig.find((column) => column.id === visiblePhase)?.label ?? "Fase selecionada"
+    );
+  }, [visiblePhase]);
 
-  const clientsForDisplay = useMemo(() => {
-    return phaseScopedClients.filter((client) => {
-      if (metricsFilter === "all") return true;
-      if (metricsFilter === "critical") return client.healthScore === "critical";
-      if (metricsFilter === "good") return client.healthScore === "good";
-      return getDaysSinceInteraction(client.lastInteraction) > 30;
-    });
-  }, [phaseScopedClients, metricsFilter]);
+  const headerMeta = `${phaseLabel} · ${phaseScopedClients.length} cliente${
+    phaseScopedClients.length === 1 ? "" : "s"
+  } visíveis`;
+
+  const clientsForDisplay = phaseScopedClients;
 
   const clientsByColumn = useMemo(() => {
     const grouped: Record<SuccessColumnId, Client[]> = {
@@ -568,14 +560,13 @@ function ClientsPageContent() {
               Ajuste os filtros ou busque por outro termo para visualizar clientes nesta fase.
             </p>
             <div className="mt-4 flex justify-center gap-2">
-              <Button
-                variant="outline"
-                className="rounded-full"
-                onClick={() => {
-                  setMetricsFilter("all");
-                  setFilters({ health: "all", responsible: "all", staleOnly: false });
-                  setVisiblePhase("all");
-                }}
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => {
+                    setFilters({ health: "all", responsible: "all", staleOnly: false });
+                    setVisiblePhase("all");
+                  }}
               >
                 Limpar filtros
               </Button>
@@ -829,6 +820,7 @@ function ClientsPageContent() {
           <ModuleCommandHeader
             title="Clientes"
             description="Funil de sucesso e saúde."
+            meta={headerMeta}
             actions={
               <div className="flex w-full flex-wrap items-center gap-2 xl:justify-end">
                 <div className="inline-flex h-9 items-center rounded-full border border-zinc-200/85 bg-zinc-50/90 p-1">
@@ -922,32 +914,7 @@ function ClientsPageContent() {
               </div>
             }
           >
-            <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                {(columnConfig.map((column) => column.id) as SuccessColumnId[]).map((phase) => {
-                  const isActive = visiblePhase === phase;
-                  const phaseLabel = columnConfig.find((col) => col.id === phase)?.label ?? phase;
-                  return (
-                    <button
-                      key={phase}
-                      type="button"
-                      onClick={() =>
-                        setVisiblePhase((prev) => (prev === phase ? "all" : phase))
-                      }
-                      className={cn(
-                        "inline-flex h-9 items-center rounded-full border px-3.5 text-sm font-medium transition-all duration-120",
-                        isActive
-                          ? "border-zinc-900 bg-zinc-900 text-white"
-                          : "border-zinc-200 bg-white/90 text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
-                      )}
-                    >
-                      {phaseLabel}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 lg:justify-end">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:justify-end">
                 <div className="relative min-w-[220px] flex-1 lg:max-w-[360px]">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <Input
@@ -1095,40 +1062,8 @@ function ClientsPageContent() {
                     </div>
                   </PopoverContent>
                 </Popover>
-              </div>
             </div>
           </ModuleCommandHeader>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <MetricChip
-              label="Críticos"
-              count={criticalCount}
-              icon={<XCircle className="h-3.5 w-3.5" />}
-              active={metricsFilter === "critical"}
-              tone="danger"
-              onClick={() =>
-                setMetricsFilter((prev) => (prev === "critical" ? "all" : "critical"))
-              }
-            />
-            <MetricChip
-              label="Saudáveis"
-              count={healthyCount}
-              icon={<Heart className="h-3.5 w-3.5" />}
-              active={metricsFilter === "good"}
-              tone="success"
-              onClick={() => setMetricsFilter((prev) => (prev === "good" ? "all" : "good"))}
-            />
-            <MetricChip
-              label="Sem interação >30d"
-              count={staleCount}
-              icon={<Clock className="h-3.5 w-3.5" />}
-              active={metricsFilter === "stale"}
-              tone="warning"
-              onClick={() =>
-                setMetricsFilter((prev) => (prev === "stale" ? "all" : "stale"))
-              }
-            />
-          </div>
         </motion.div>
 
         <motion.div
@@ -1229,51 +1164,6 @@ function FilterOptionButton({
       )}
     >
       {label}
-    </button>
-  );
-}
-
-function MetricChip({
-  label,
-  count,
-  icon,
-  active,
-  tone,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  icon: ReactNode;
-  active: boolean;
-  tone: "danger" | "success" | "warning";
-  onClick: () => void;
-}) {
-  const toneClass = {
-    danger: active
-      ? "border-red-300 bg-red-50 text-red-700"
-      : "border-zinc-200 bg-white text-zinc-600",
-    success: active
-      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-      : "border-zinc-200 bg-white text-zinc-600",
-    warning: active
-      ? "border-amber-300 bg-amber-50 text-amber-700"
-      : "border-zinc-200 bg-white text-zinc-600",
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all duration-140 hover:bg-zinc-50 active:scale-[0.99]",
-        toneClass[tone],
-        count === 0 && !active && "opacity-55"
-      )}
-    >
-      {icon}
-      <span>
-        {label}: {count}
-      </span>
     </button>
   );
 }

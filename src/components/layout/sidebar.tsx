@@ -14,8 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Target,
-  BarChart3,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -89,18 +87,6 @@ const navItems = [
     href: "/goals",
     icon: Target,
     permission: "canManageGoals" as const,
-  },
-  {
-    label: "Relatórios",
-    href: "/reports",
-    icon: BarChart3,
-    permission: "canViewReports" as const,
-  },
-  {
-    label: "Auditoria",
-    href: "/audit",
-    icon: ShieldCheck,
-    permission: "canManageSettings" as const,
   },
   {
     label: "Configurações",

@@ -991,6 +991,12 @@ export default function ReportsPage() {
           <ModuleCommandHeader
             title="Relatórios"
             description="Gere, exporte e interprete dados do CRM"
+            chips={activeFilterChips.map((chip) => ({
+              id: chip.id,
+              label: chip.label,
+              tone: "info" as const,
+              onClick: chip.onClear,
+            }))}
             actions={
               <div className="flex w-full min-w-0 flex-wrap items-center gap-2 xl:justify-end">
                 <Popover>
@@ -1037,55 +1043,7 @@ export default function ReportsPage() {
               </div>
             }
           >
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="group relative min-w-[220px] flex-1 max-w-[360px]">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                  <Input
-                    value={searchInput}
-                    onChange={(event) => setSearchInput(event.target.value)}
-                    placeholder="Buscar relatórios"
-                    className="h-9 rounded-full pl-8 pr-8 text-sm"
-                  />
-                  {searchInput ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchInput("");
-                        setSearchQuery("");
-                      }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 transition-opacity hover:text-zinc-700 sm:opacity-0 sm:group-hover:opacity-100"
-                      aria-label="Limpar busca"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  ) : null}
-                </div>
-
-                {!isDesktopLibrary ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 rounded-full"
-                    onClick={() => setIsLibraryOpen(true)}
-                  >
-                    <Filter className="h-3.5 w-3.5" />
-                    Biblioteca
-                  </Button>
-                ) : null}
-
-                {activeFilterChips.length > 0 ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 rounded-full text-xs text-zinc-500 hover:text-zinc-900"
-                    onClick={clearAllFilters}
-                  >
-                    Limpar filtros
-                  </Button>
-                ) : null}
-              </div>
-
+            <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 {(["Todos", "Vendas", "Operacional", "Financeiro", "CS"] as CategoryFilter[]).map(
                   (category) => (
@@ -1138,21 +1096,53 @@ export default function ReportsPage() {
                 </button>
               </div>
 
-              {activeFilterChips.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {activeFilterChips.map((chip) => (
+              <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+                <div className="group relative min-w-[220px] flex-1 max-w-[360px]">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                  <Input
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    placeholder="Buscar relatórios"
+                    className="h-9 rounded-full pl-8 pr-8 text-sm"
+                  />
+                  {searchInput ? (
                     <button
-                      key={chip.id}
                       type="button"
-                      onClick={chip.onClear}
-                      className="inline-flex h-7 items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 text-[11px] font-medium text-zinc-600 transition-colors duration-120 hover:bg-zinc-50"
+                      onClick={() => {
+                        setSearchInput("");
+                        setSearchQuery("");
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 transition-opacity hover:text-zinc-700 sm:opacity-0 sm:group-hover:opacity-100"
+                      aria-label="Limpar busca"
                     >
-                      {chip.label}
-                      <X className="h-3 w-3 text-zinc-400" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
-                  ))}
+                  ) : null}
                 </div>
-              ) : null}
+
+                {!isDesktopLibrary ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-full"
+                    onClick={() => setIsLibraryOpen(true)}
+                  >
+                    <Filter className="h-3.5 w-3.5" />
+                    Biblioteca
+                  </Button>
+                ) : null}
+
+                {activeFilterChips.length > 0 ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 rounded-full text-xs text-zinc-500 hover:text-zinc-900"
+                    onClick={clearAllFilters}
+                  >
+                    Limpar filtros
+                  </Button>
+                ) : null}
+              </div>
             </div>
           </ModuleCommandHeader>
         </motion.div>

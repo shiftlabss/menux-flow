@@ -522,6 +522,7 @@ export default function ActivitiesPage() {
   const [detailsModalActivityId, setDetailsModalActivityId] = useState<string | null>(null);
 
   const timeoutRef = useRef<number[]>([]);
+  const intelligenceRailRef = useRef<HTMLDivElement | null>(null);
   const now = useMemo(() => new Date(), []);
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => startOfMonth(now));
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
@@ -888,6 +889,39 @@ export default function ActivitiesPage() {
       setIsPlanning(false);
     }, 260);
   }, [executionActivities.length, schedule]);
+
+  const handleOpenIntelligencePanel = useCallback(() => {
+    const fallbackActivityId = executionActivities[0]?.id ?? null;
+    if (!selectedActivityId && fallbackActivityId) {
+      setSelectedActivityId(fallbackActivityId);
+    }
+    intelligenceRailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [executionActivities, selectedActivityId]);
+
+  const handleQuickFilterOverdue = useCallback(() => {
+    setViewMode("list");
+    setFilterStatuses(new Set<ActivityStatus>(["overdue"]));
+    setFilterSla("all");
+    setFilterDateStart("");
+    setFilterDateEnd("");
+  }, []);
+
+  const handleQuickFilterToday = useCallback(() => {
+    const todayIso = toISODate(startOfDay(now));
+    setViewMode("list");
+    setFilterStatuses(new Set<ActivityStatus>(["pending", "overdue"]));
+    setFilterDateStart(todayIso);
+    setFilterDateEnd(todayIso);
+    setFilterSla("all");
+  }, [now]);
+
+  const handleQuickFilterSlaRisk = useCallback(() => {
+    setViewMode("list");
+    setFilterStatuses(new Set<ActivityStatus>(["pending"]));
+    setFilterSla("risk");
+    setFilterDateStart("");
+    setFilterDateEnd("");
+  }, []);
 
   const handleExecuteRecommendation = useCallback(
     (recommendation: MenuxIntelligenceRecommendation) => {
@@ -1335,30 +1369,33 @@ export default function ActivitiesPage() {
             label: `${overdueCount} atrasadas`,
             icon: <AlertTriangle className="h-3.5 w-3.5" />,
             tone: overdueCount > 0 ? "danger" : "neutral",
+            onClick: handleQuickFilterOverdue,
           },
           {
             id: "today",
             label: `${todayActivities.length} para hoje`,
             icon: <CalendarClock className="h-3.5 w-3.5" />,
             tone: todayActivities.length > 0 ? "info" : "neutral",
+            onClick: handleQuickFilterToday,
           },
           hasActiveFilters
             ? {
-              id: "active-filters",
-              label: `${activeFilterChips.length} filtros ativos`,
-              icon: <Filter className="h-3.5 w-3.5" />,
-              tone: "warning",
-              onClick: () => setIsFilterOpen(true),
-            }
+                id: "active-filters",
+                label: `${activeFilterChips.length} filtros ativos`,
+                icon: <Filter className="h-3.5 w-3.5" />,
+                tone: "warning",
+                onClick: () => setIsFilterOpen(true),
+              }
             : {
-              id: "sla-risk",
-              label: `${riskCount} SLAs em risco`,
-              icon: <CircleAlert className="h-3.5 w-3.5" />,
-              tone: riskCount > 0 ? "warning" : "success",
-            },
+                id: "sla-risk",
+                label: `${riskCount} SLAs em risco`,
+                icon: <CircleAlert className="h-3.5 w-3.5" />,
+                tone: riskCount > 0 ? "warning" : "success",
+                onClick: handleQuickFilterSlaRisk,
+              },
         ]}
         actions={
-          <>
+          <div className="flex w-full flex-wrap items-center gap-2 xl:justify-end">
             <div className="flex items-center gap-1 rounded-full border border-zinc-200/90 bg-white/90 p-1 shadow-sm">
               {[
                 { key: "list" as const, label: "Lista", icon: List },
@@ -1394,7 +1431,7 @@ export default function ActivitiesPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent
-                align="start"
+                align="end"
                 side="bottom"
                 sideOffset={8}
                 className="w-[min(96vw,430px)] rounded-[18px] border-zinc-200 bg-white p-4 shadow-xl"
@@ -1523,11 +1560,7 @@ export default function ActivitiesPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1 rounded-full"
-                      onClick={clearFilters}
-                    >
+                    <Button variant="outline" className="flex-1 rounded-full" onClick={clearFilters}>
                       Limpar tudo
                     </Button>
                     <Button
@@ -1572,7 +1605,15 @@ export default function ActivitiesPage() {
               <Plus className="h-4 w-4" />
               Nova atividade
             </Button>
-          </>
+
+            <Button
+              className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
+              onClick={handleOpenIntelligencePanel}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
+              Menux Intelligence
+            </Button>
+          </div>
         }
       />
 
@@ -1864,6 +1905,7 @@ export default function ActivitiesPage() {
         </div>
 
         <aside
+          ref={intelligenceRailRef}
           className={cn(
             "self-start xl:sticky xl:top-6",
             "transition-shadow duration-120 ease-out",
