@@ -50,9 +50,14 @@ interface SavedFilter {
 }
 
 const MAX_SAVED_FILTERS = 10;
+const FILTERS_APPLIED_EVENT = "flow:filters-applied";
 
 function getSavedFiltersKey(context: FilterContext) {
   return `flow-saved-filters-${context}`;
+}
+
+function getActiveFilterCountKey(context: FilterContext) {
+  return `flow-active-filters-count-${context}`;
 }
 
 function loadSavedFilters(context: FilterContext): SavedFilter[] {
@@ -70,6 +75,15 @@ function persistSavedFilters(context: FilterContext, filters: SavedFilter[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(getSavedFiltersKey(context), JSON.stringify(filters));
+  } catch {
+    // Ignore storage errors in mock frontend mode.
+  }
+}
+
+function persistActiveFilterCount(context: FilterContext, count: number) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(getActiveFilterCountKey(context), String(count));
   } catch {
     // Ignore storage errors in mock frontend mode.
   }
@@ -876,6 +890,15 @@ export function FiltersPanel({ context, onApplyFilters }: FiltersPanelProps) {
     // Call the onApplyFilters callback if provided
     if (onApplyFilters) {
       onApplyFilters(currentFilters as unknown as Record<string, unknown>);
+    }
+
+    persistActiveFilterCount(context, filterCount);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(FILTERS_APPLIED_EVENT, {
+          detail: { context, count: filterCount },
+        })
+      );
     }
 
     closeDrawer();

@@ -16,7 +16,8 @@ export interface ModuleCommandHeaderChip {
 }
 
 interface ModuleCommandHeaderProps {
-  title: string;
+  title: ReactNode;
+  titleAccessory?: ReactNode;
   description?: string;
   actions?: ReactNode;
   actionsClassName?: string;
@@ -75,6 +76,7 @@ function renderChip(chip: ModuleCommandHeaderChip) {
 
 export function ModuleCommandHeader({
   title,
+  titleAccessory,
   description,
   actions,
   actionsClassName,
@@ -103,9 +105,12 @@ export function ModuleCommandHeader({
       <div className="relative z-10 space-y-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0">
-            <h1 className="font-heading text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
-              {title}
-            </h1>
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="min-w-0 font-heading text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
+                {title}
+              </h1>
+              {titleAccessory ? <div className="shrink-0">{titleAccessory}</div> : null}
+            </div>
             {description ? (
               <p className="mt-1 font-body text-sm text-zinc-600">{description}</p>
             ) : null}
@@ -126,9 +131,14 @@ export function ModuleCommandHeader({
         {children}
 
         {hasSecondRow ? (
-          <div className="flex flex-col gap-2 border-t border-zinc-200/75 pt-2 md:flex-row md:items-center md:justify-between">
-            <div className="text-xs text-zinc-500/80">{meta}</div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
+          <div
+            className={cn(
+              "flex flex-col gap-2 border-t border-zinc-200/75 pt-2 md:flex-row md:items-center",
+              meta ? "md:justify-between" : "md:justify-end"
+            )}
+          >
+            {meta ? <div className="text-xs text-zinc-500/80">{meta}</div> : null}
+            <div className={cn("flex flex-wrap items-center justify-end gap-2", !meta && "md:w-full")}>
               {chips.length > 0 ? chips.map((chip) => renderChip(chip)) : null}
               {chips.length === 0 && fallbackChip ? renderChip(fallbackChip) : null}
             </div>

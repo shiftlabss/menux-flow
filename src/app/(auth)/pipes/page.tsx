@@ -20,6 +20,12 @@ import {
   Check,
   CheckCircle2,
   AlertTriangle,
+  CircleDollarSign,
+  Columns3,
+  MoreHorizontal,
+  SlidersHorizontal,
+  Download,
+  ChevronDown,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -32,12 +38,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 // Stores
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -64,6 +69,8 @@ import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 // Main Page Component
 // ===================================================================
 
+const FILTERS_APPLIED_EVENT = "flow:filters-applied";
+
 function PipesPageContent() {
   const { openDrawer, openModal } = useUIStore();
   const { user } = useAuthStore();
@@ -78,9 +85,13 @@ function PipesPageContent() {
   const opportunities = localOpportunities;
   const [isManageDrawerOpen, setIsManageDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchInputValue, setSearchInputValue] = useState("");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [appliedFiltersCount, setAppliedFiltersCount] = useState(0);
+  const [recentFiltersCount, setRecentFiltersCount] = useState<number | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const liveRegionRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
@@ -123,12 +134,44 @@ function PipesPageContent() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleFiltersApplied = (event: Event) => {
+      const customEvent = event as CustomEvent<{ context?: string; count?: number }>;
+      if (customEvent.detail?.context !== "pipes") return;
+      const count = Number(customEvent.detail?.count ?? 0);
+      const safeCount = Number.isFinite(count) && count >= 0 ? count : 0;
+      setAppliedFiltersCount(safeCount);
+      setRecentFiltersCount(safeCount);
+    };
+
+    window.addEventListener(FILTERS_APPLIED_EVENT, handleFiltersApplied as EventListener);
+    return () =>
+      window.removeEventListener(
+        FILTERS_APPLIED_EVENT,
+        handleFiltersApplied as EventListener
+      );
+  }, []);
+
+  useEffect(() => {
+    if (recentFiltersCount === null) return;
+    const timer = window.setTimeout(() => setRecentFiltersCount(null), 1200);
+    return () => window.clearTimeout(timer);
+  }, [recentFiltersCount]);
+
   // Announce to screen readers
   const announce = useCallback((message: string) => {
     if (liveRegionRef.current) {
       liveRegionRef.current.textContent = message;
     }
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearchQuery(searchInputValue);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [searchInputValue]);
 
   // Normalize search query
   const normalizedSearch = useMemo(
@@ -147,7 +190,6 @@ function PipesPageContent() {
     };
     for (const opp of opportunities) {
       if (!effectiveStageIds.includes(opp.stage)) continue;
-      if (showOnlyMine && opp.responsibleId !== currentUserId) continue;
       if (
         normalizedSearch &&
         !opp.title.toLowerCase().includes(normalizedSearch) &&
@@ -166,20 +208,16 @@ function PipesPageContent() {
       });
     }
     return grouped;
-  }, [opportunities, effectiveStageIds, showOnlyMine, normalizedSearch, currentUserId]);
+  }, [opportunities, effectiveStageIds, normalizedSearch, currentUserId]);
 
-  const { myCount, myTotal, boardCount, boardTotal } = useMemo(() => {
+  const { boardTotal } = useMemo(() => {
     const active = opportunities.filter((o) =>
       effectiveStageIds.includes(o.stage)
     );
-    const mine = active.filter((o) => o.responsibleId === currentUserId);
     return {
-      myCount: mine.length,
-      myTotal: mine.reduce((acc, o) => acc + o.value, 0),
-      boardCount: active.length,
       boardTotal: active.reduce((acc, o) => acc + o.value, 0),
     };
-  }, [opportunities, effectiveStageIds, currentUserId]);
+  }, [opportunities, effectiveStageIds]);
 
   const averageDealValue = useMemo(() => {
     const active = opportunities.filter((o) =>
@@ -196,6 +234,97 @@ function PipesPageContent() {
     },
     [averageDealValue]
   );
+
+  const activeFilterCount = useMemo(
+    () => appliedFiltersCount + (stageFilter ? 1 : 0),
+    [appliedFiltersCount, stageFilter]
+  );
+
+  const clearSearch = useCallback(() => {
+    setSearchInputValue("");
+    setSearchQuery("");
+    setIsMobileSearchOpen(false);
+  }, []);
+
+  const handleFunnelChange = useCallback(
+    (pipelineId: string) => {
+      setSelectedFunnel(pipelineId);
+      if (searchInputValue) {
+        clearSearch();
+      }
+    },
+    [clearSearch, searchInputValue]
+  );
+
+  const handleExportBoard = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const rows = opportunities
+      .filter((opp) => effectiveStageIds.includes(opp.stage))
+      .map((opp) =>
+        [
+          opp.title,
+          opp.clientName,
+          opp.stage,
+          opp.responsibleName,
+          String(opp.value),
+          String(opp.monthlyValue),
+        ]
+          .map((field) => `"${String(field).replaceAll('"', '""')}"`)
+          .join(",")
+      );
+    const csv = [
+      "titulo,cliente,etapa,responsavel,valor,valor_mensal",
+      ...rows,
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `pipes-${selectedFunnel}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    announce("Exportacao iniciada.");
+  }, [announce, opportunities, effectiveStageIds, selectedFunnel]);
+
+  const metricChips = useMemo(() => {
+    const chips: Array<{
+      id: string;
+      label: string;
+      icon: React.ReactNode;
+      tone: "neutral" | "info" | "warning" | "danger" | "success";
+      onClick?: () => void;
+    }> = [
+      {
+        id: "pipeline-total",
+        label: `Pipeline: ${formatCurrencyBRL(boardTotal)}`,
+        icon: <CircleDollarSign className="h-3.5 w-3.5" />,
+        tone: "info",
+      },
+      {
+        id: "stages-visible",
+        label: `Etapas: ${visibleStages.length}`,
+        icon: <Columns3 className="h-3.5 w-3.5" />,
+        tone: "neutral",
+        onClick: () => setIsManageDrawerOpen(true),
+      },
+    ];
+
+    if (recentFiltersCount !== null) {
+      chips.push({
+        id: "filters-feedback",
+        label: `Filtros: ${activeFilterCount}`,
+        icon: <Filter className="h-3.5 w-3.5" />,
+        tone: activeFilterCount > 0 ? "warning" : "neutral",
+      });
+    }
+
+    return chips;
+  }, [
+    boardTotal,
+    visibleStages.length,
+    recentFiltersCount,
+    activeFilterCount,
+  ]);
 
   // Announce search results to screen readers
   useEffect(() => {
@@ -251,13 +380,24 @@ function PipesPageContent() {
         e.preventDefault();
         setTimeout(() => searchInputRef.current?.focus(), 50);
       } else if (e.key === "Escape") {
+        setIsMobileSearchOpen(false);
+        setSearchInputValue("");
         setSearchQuery("");
         searchInputRef.current?.blur();
+        mobileSearchInputRef.current?.blur();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileSearchOpen) return;
+    const timer = window.setTimeout(() => {
+      mobileSearchInputRef.current?.focus();
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [isMobileSearchOpen]);
 
   // ===================================================================
   // Render
@@ -286,129 +426,173 @@ function PipesPageContent() {
         {/* Header & Toolbar */}
         <motion.div variants={sectionEnter} className="shrink-0">
           <ModuleCommandHeader
-            title="Pipes"
+            title={activeFunnel.label}
+            titleAccessory={
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Trocar funil"
+                    className="inline-flex h-8 w-6 items-center justify-center rounded-md text-zinc-500 transition-colors duration-120 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 rounded-[14px]">
+                  {funnels.map((funnel) => (
+                    <DropdownMenuItem
+                      key={funnel.id}
+                      onClick={() => handleFunnelChange(funnel.id)}
+                      className="justify-between"
+                    >
+                      <span>{funnel.label}</span>
+                      {funnel.id === selectedFunnel ? (
+                        <Check className="h-3.5 w-3.5 text-zinc-500" />
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            }
             description="Execução visual do pipeline comercial."
-            meta={`Funil ${activeFunnel.label} · ${myCount} meus · ${boardCount} no board`}
-            chips={[
-              {
-                id: "value",
-                label: `${formatCurrencyBRL(boardTotal)} em pipeline`,
-                icon: <ArrowDownToLine className="h-3.5 w-3.5" />,
-                tone: "info",
-              },
-              {
-                id: "mine",
-                label: `${myCount} meus`,
-                icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-                tone: showOnlyMine ? "success" : "neutral",
-              },
-              {
-                id: "stages",
-                label: `${visibleStages.length} etapas visíveis`,
-                icon: <Filter className="h-3.5 w-3.5" />,
-                tone: "neutral",
-              },
-            ]}
+            chips={metricChips}
             actions={
-              <>
-                <Select
-                  value={selectedFunnel}
-                  onValueChange={(pipelineId) => {
-                    setSelectedFunnel(pipelineId);
-                    if (showOnlyMine || searchQuery) {
-                      setShowOnlyMine(false);
-                      setSearchQuery("");
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-9 min-w-[118px] rounded-full border-zinc-200 bg-white/90 px-3 font-body text-sm sm:min-w-[132px]">
-                    <SelectValue placeholder="Funil" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {funnels.map((funnel) => (
-                      <SelectItem key={funnel.id} value={funnel.id}>
-                        {funnel.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  variant={showOnlyMine ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowOnlyMine((prev) => !prev)}
-                  className={`h-9 rounded-full font-heading text-sm ${
-                    showOnlyMine ? "bg-black text-white hover:bg-zinc-800" : ""
-                  }`}
-                >
-                  <span className="hidden 2xl:inline">
-                    {showOnlyMine ? "Meus cards" : "Todos os cards"}
-                  </span>
-                  <span className="2xl:hidden">{showOnlyMine ? "Meus" : "Todos"}</span>
-                </Button>
-
-                {stageFilter && stageFilterLabel && (
-                  <div className="flex items-center gap-1 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-1.5">
-                    <span className="text-[11px] font-medium text-brand-strong">
-                      Etapa: {stageFilterLabel}
-                    </span>
-                    <button
-                      onClick={() => router.replace("/pipes")}
-                      className="text-brand/70 transition-colors hover:text-brand"
-                      aria-label="Limpar filtro de etapa"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                )}
-
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                  <Input
-                    ref={searchInputRef}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar cards..."
-                    className="h-9 w-[116px] rounded-full pl-8 pr-8 font-body text-sm sm:w-[148px] lg:w-[172px] xl:w-[190px] 2xl:w-[220px]"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+              <div className="flex w-full min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-end">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => openDrawer("new-opportunity")}
+                    className="h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800 sm:hidden"
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Novo
+                  </Button>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openDrawer("filters")}
-                  className="h-9 rounded-full font-heading text-sm"
-                >
-                  <Filter className="mr-1.5 h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Filtros</span>
-                </Button>
+                <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
+                  <Popover open={isMobileSearchOpen} onOpenChange={setIsMobileSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 rounded-full sm:hidden"
+                      >
+                        <Search className="h-3.5 w-3.5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      side="bottom"
+                      sideOffset={8}
+                      className="w-[min(92vw,320px)] rounded-[16px] border-zinc-200 bg-white p-2"
+                    >
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                        <Input
+                          ref={mobileSearchInputRef}
+                          value={searchInputValue}
+                          onChange={(e) => setSearchInputValue(e.target.value)}
+                          placeholder="Buscar cards..."
+                          className="h-9 w-full rounded-full pl-8 pr-8 font-body text-sm"
+                        />
+                        {searchInputValue && (
+                          <button
+                            type="button"
+                            onClick={clearSearch}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
 
-                <Button
-                  size="sm"
-                  onClick={() => openDrawer("new-opportunity")}
-                  className="h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800"
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Novo Card</span>
-                </Button>
+                  <div className="group relative hidden sm:block">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                    <Input
+                      ref={searchInputRef}
+                      value={searchInputValue}
+                      onChange={(e) => setSearchInputValue(e.target.value)}
+                      placeholder="Buscar cards..."
+                      className="h-9 w-[148px] rounded-full pl-8 pr-8 font-body text-sm md:w-[180px] lg:w-[220px]"
+                    />
+                    {searchInputValue && (
+                      <button
+                        type="button"
+                        onClick={clearSearch}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 transition-opacity hover:text-zinc-600 sm:opacity-0 sm:group-hover:opacity-100"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsManageDrawerOpen(true)}
-                  className="hidden h-9 rounded-full font-heading text-sm 2xl:inline-flex"
-                >
-                  Gerenciar
-                </Button>
-              </>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openDrawer("filters")}
+                    className="h-9 rounded-full font-heading text-sm"
+                  >
+                    <Filter className="h-3.5 w-3.5" />
+                    <span className="hidden md:inline">
+                      {activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : "Filtros"}
+                    </span>
+                    {activeFilterCount > 0 && (
+                      <span className="ml-1 rounded-full bg-zinc-200 px-1.5 py-0 text-[10px] font-semibold text-zinc-700 md:hidden">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    onClick={() => openDrawer("new-opportunity")}
+                    className="hidden h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800 sm:inline-flex"
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                    Novo Card
+                  </Button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 rounded-full">
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                        <span className="hidden md:inline">Mais</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 rounded-[14px]">
+                      <DropdownMenuItem onClick={() => setIsManageDrawerOpen(true)}>
+                        <Columns3 className="mr-2 h-4 w-4" />
+                        Gerenciar etapas
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          boardRef.current?.scrollTo({ left: 0, behavior: "smooth" });
+                          announce("Colunas reposicionadas.");
+                        }}
+                      >
+                        <SlidersHorizontal className="mr-2 h-4 w-4" />
+                        Reordenar colunas
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportBoard}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Exportar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openDrawer("filters")}>
+                        <Filter className="mr-2 h-4 w-4" />
+                        Preferencias de visualizacao
+                      </DropdownMenuItem>
+                      {stageFilter && stageFilterLabel && (
+                        <DropdownMenuItem onClick={() => router.replace("/pipes")}>
+                          <X className="mr-2 h-4 w-4" />
+                          Limpar etapa ({stageFilterLabel})
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             }
           />
         </motion.div>
