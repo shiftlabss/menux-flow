@@ -9,19 +9,19 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   ChevronUp,
   CircleAlert,
   CircleDashed,
   Copy,
   Filter,
-  GitCommitVertical,
   List,
   Loader2,
   Plus,
   Sparkles,
   WandSparkles,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,12 +43,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 import { cn } from "@/lib/utils";
 
-type ViewMode = "list" | "agenda" | "timeline";
+type ViewMode = "list" | "agenda";
 type SlaFilter = "all" | "breached" | "risk";
 type SectionKey = "intelligence" | "overdue" | "today" | "next7";
 
@@ -121,6 +128,33 @@ function toISODate(date: Date): string {
 
 function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+}
+
+function startOfWeek(date: Date): Date {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = start.getDay();
+  return addDays(start, -day);
+}
+
+function endOfWeek(date: Date): Date {
+  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const day = end.getDay();
+  return addDays(end, 6 - day);
+}
+
+function formatMonthTitle(date: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 function formatDateBR(dateStr: string): string {
@@ -485,9 +519,14 @@ export default function ActivitiesPage() {
   // Modal State
   const [generatedModalOpen, setGeneratedModalOpen] = useState(false);
   const [generatedContent, setGeneratedContent] = useState({ title: "", content: "" });
+  const [detailsModalActivityId, setDetailsModalActivityId] = useState<string | null>(null);
 
   const timeoutRef = useRef<number[]>([]);
   const now = useMemo(() => new Date(), []);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => startOfMonth(now));
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
+    () => toISODate(startOfDay(now))
+  );
 
   const schedule = useCallback((fn: () => void, ms: number) => {
     const id = window.setTimeout(() => {
@@ -555,6 +594,45 @@ export default function ActivitiesPage() {
       ),
     [filteredActivities]
   );
+
+  const calendarActivitiesByDate = useMemo(() => {
+    const byDate = new Map<string, Activity[]>();
+
+    for (const activity of executionActivities) {
+      const key = activity.dueDate;
+      const list = byDate.get(key) || [];
+      list.push(activity);
+      byDate.set(key, list);
+    }
+
+    for (const [key, list] of byDate.entries()) {
+      list.sort((a, b) => (a.dueTime || "99:99").localeCompare(b.dueTime || "99:99"));
+      byDate.set(key, list);
+    }
+
+    return byDate;
+  }, [executionActivities]);
+
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const gridStart = startOfWeek(monthStart);
+    const gridEnd = endOfWeek(monthEnd);
+
+    const days: Date[] = [];
+    let cursor = gridStart;
+
+    while (cursor.getTime() <= gridEnd.getTime()) {
+      days.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+
+    return days;
+  }, [calendarMonth]);
+
+  const selectedCalendarDayActivities = useMemo(() => {
+    return calendarActivitiesByDate.get(selectedCalendarDate) || [];
+  }, [calendarActivitiesByDate, selectedCalendarDate]);
 
   const overdueActivities = useMemo(
     () =>
@@ -674,6 +752,11 @@ export default function ActivitiesPage() {
   const selectedActivity = useMemo(
     () => activities.find((activity) => activity.id === selectedActivityId) || null,
     [activities, selectedActivityId]
+  );
+
+  const detailsModalActivity = useMemo(
+    () => activities.find((activity) => activity.id === detailsModalActivityId) || null,
+    [activities, detailsModalActivityId]
   );
 
   const hasActiveFilters =
@@ -926,15 +1009,44 @@ export default function ActivitiesPage() {
     [postponeActivity, schedule]
   );
 
-  const handleGenerateFollowup = useCallback(
+  const handleOpenIntelligenceFromActivity = useCallback(
     (activity: Activity) => {
+      const insight = getActivityInsight(activity, now);
+      const contextLabel =
+        activity.clientName || activity.opportunityTitle || "atividade selecionada";
+
       setSelectedActivityId(activity.id);
+      setGeneratedContent({
+        title: `Menux Intelligence · ${contextLabel}`,
+        content: `Mensagem pronta:\n${insight.message}\n\nPróximo passo:\n${insight.nextStep}\n\nRisco se ignorar:\n${insight.risk}`,
+      });
+      setGeneratedModalOpen(true);
       setCommandResult({
         status: "success",
-        text: `Follow-up pronto para ${activity.clientName || activity.opportunityTitle || "atividade selecionada"}.`,
+        text: `Sugestões da Menux Intelligence abertas para ${contextLabel}.`,
       });
     },
-    []
+    [now]
+  );
+
+  const handleGenerateFollowup = useCallback(
+    (activity: Activity) => {
+      const insight = getActivityInsight(activity, now);
+      const contextLabel =
+        activity.clientName || activity.opportunityTitle || "atividade selecionada";
+
+      setSelectedActivityId(activity.id);
+      setGeneratedContent({
+        title: `Follow-up · ${contextLabel}`,
+        content: insight.message,
+      });
+      setGeneratedModalOpen(true);
+      setCommandResult({
+        status: "success",
+        text: `Follow-up pronto para ${contextLabel}.`,
+      });
+    },
+    [now]
   );
 
   const handleRunCommand = useCallback(
@@ -1153,54 +1265,6 @@ export default function ActivitiesPage() {
         );
       }
 
-      if (viewMode === "timeline") {
-        const sorted = [...items].sort((a, b) => {
-          const diff = parseDateISO(a.dueDate).getTime() - parseDateISO(b.dueDate).getTime();
-          if (diff !== 0) return diff;
-          return (a.dueTime || "99:99").localeCompare(b.dueTime || "99:99");
-        });
-
-        return (
-          <div className="relative pl-4">
-            <div className="absolute left-[11px] top-3 bottom-4 w-px bg-zinc-200" />
-            <div className="space-y-3">
-              <AnimatePresence initial={false}>
-                {sorted.map((activity) => (
-                  <motion.div
-                    key={activity.id}
-                    layout
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.16, ease: "easeOut" }}
-                    className="relative"
-                  >
-                    <span className="absolute -left-4.5 top-5 h-2.5 w-2.5 rounded-full bg-brand" />
-                    <ExecutionActivityCard
-                      activity={activity}
-                      now={now}
-                      isExpanded={expandedActivityId === activity.id}
-                      isHighlighted={highlightedPostponedId === activity.id}
-                      feedback={activityFeedback[activity.id]}
-                      onToggleExpand={() => {
-                        setExpandedActivityId((prev) =>
-                          prev === activity.id ? null : activity.id
-                        );
-                        setSelectedActivityId(activity.id);
-                      }}
-                      onComplete={() => handleCompleteActivity(activity.id)}
-                      onPostpone={(newDate) => handlePostponeActivity(activity.id, newDate)}
-                      onSelectIntelligence={() => setSelectedActivityId(activity.id)}
-                      onGenerateFollowup={() => handleGenerateFollowup(activity)}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          </div>
-        );
-      }
-
       return (
         <div className="space-y-3">
           <AnimatePresence initial={false}>
@@ -1299,7 +1363,6 @@ export default function ActivitiesPage() {
               {[
                 { key: "list" as const, label: "Lista", icon: List },
                 { key: "agenda" as const, label: "Agenda", icon: CalendarDays },
-                { key: "timeline" as const, label: "Timeline", icon: GitCommitVertical },
               ].map((mode) => {
                 const active = viewMode === mode.key;
                 return (
@@ -1515,6 +1578,44 @@ export default function ActivitiesPage() {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(320px,3fr)]">
         <div className="space-y-4">
+          {viewMode === "agenda" ? (
+            <ActivitiesCalendarView
+              now={now}
+              monthDate={calendarMonth}
+              days={calendarDays}
+              selectedDate={selectedCalendarDate}
+              activitiesByDate={calendarActivitiesByDate}
+              selectedDayActivities={selectedCalendarDayActivities}
+              expandedActivityId={expandedActivityId}
+              highlightedPostponedId={highlightedPostponedId}
+              activityFeedback={activityFeedback}
+              onPreviousMonth={() =>
+                setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+              }
+              onNextMonth={() =>
+                setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+              }
+              onSelectDate={(date) => {
+                const monthStart = startOfMonth(date);
+                const iso = toISODate(date);
+                setSelectedCalendarDate(iso);
+                setCalendarMonth(monthStart);
+              }}
+              onToggleExpand={(activityId) => {
+                setExpandedActivityId((prev) => (prev === activityId ? null : activityId));
+                setSelectedActivityId(activityId);
+              }}
+              onComplete={handleCompleteActivity}
+              onPostpone={handlePostponeActivity}
+              onSelectIntelligence={setSelectedActivityId}
+              onGenerateFollowup={handleGenerateFollowup}
+              onOpenActivityDetails={(activity) => {
+                setSelectedActivityId(activity.id);
+                setDetailsModalActivityId(activity.id);
+              }}
+            />
+          ) : (
+            <>
           <ExecutionSection
             title="O que a Menux Intelligence recomenda agora"
             count={menuxIntelligenceRecommendations.length}
@@ -1758,6 +1859,8 @@ export default function ActivitiesPage() {
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
 
         <aside
@@ -1884,7 +1987,345 @@ export default function ActivitiesPage() {
         title={generatedContent.title}
         content={generatedContent.content}
       />
+
+      <ActivityDetailsModal
+        open={Boolean(detailsModalActivity)}
+        activity={detailsModalActivity}
+        now={now}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailsModalActivityId(null);
+          }
+        }}
+        onSelectIntelligence={(activity) => {
+          setDetailsModalActivityId(null);
+          handleOpenIntelligenceFromActivity(activity);
+        }}
+        onGenerateFollowup={(activity) => {
+          setDetailsModalActivityId(null);
+          handleGenerateFollowup(activity);
+        }}
+      />
     </motion.div>
+  );
+}
+
+function ActivitiesCalendarView({
+  now,
+  monthDate,
+  days,
+  selectedDate,
+  activitiesByDate,
+  selectedDayActivities,
+  expandedActivityId,
+  highlightedPostponedId,
+  activityFeedback,
+  onPreviousMonth,
+  onNextMonth,
+  onSelectDate,
+  onToggleExpand,
+  onComplete,
+  onPostpone,
+  onSelectIntelligence,
+  onGenerateFollowup,
+  onOpenActivityDetails,
+}: {
+  now: Date;
+  monthDate: Date;
+  days: Date[];
+  selectedDate: string;
+  activitiesByDate: Map<string, Activity[]>;
+  selectedDayActivities: Activity[];
+  expandedActivityId: string | null;
+  highlightedPostponedId: string | null;
+  activityFeedback: Record<string, ActivityFeedback>;
+  onPreviousMonth: () => void;
+  onNextMonth: () => void;
+  onSelectDate: (date: Date) => void;
+  onToggleExpand: (activityId: string) => void;
+  onComplete: (activityId: string) => void;
+  onPostpone: (activityId: string, newDate: string) => void;
+  onSelectIntelligence: (activityId: string) => void;
+  onGenerateFollowup: (activity: Activity) => void;
+  onOpenActivityDetails: (activity: Activity) => void;
+}) {
+  const monthStart = startOfMonth(monthDate);
+  const selectedDateLabel = formatDateFull(selectedDate);
+  const weekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const todayIso = toISODate(startOfDay(now));
+
+  return (
+    <section className="rounded-[20px] border border-zinc-200 bg-white p-4 shadow-sm md:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-heading text-lg font-semibold text-zinc-900">Agenda em calendário</h3>
+          <p className="font-body text-xs text-zinc-500">
+            Visualização mensal para planejar a execução por dia.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50/90 p-1">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-full text-zinc-600"
+            onClick={onPreviousMonth}
+            aria-label="Mês anterior"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="min-w-[164px] text-center font-heading text-sm font-semibold text-zinc-900 capitalize">
+            {formatMonthTitle(monthDate)}
+          </span>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 rounded-full text-zinc-600"
+            onClick={onNextMonth}
+            aria-label="Próximo mês"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-[16px] border border-zinc-200 bg-white">
+        <div className="grid grid-cols-7 border-b border-zinc-200 bg-zinc-50/80">
+          {weekdayLabels.map((label) => (
+            <div
+              key={label}
+              className="px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500"
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-px bg-zinc-200/80">
+          {days.map((date) => {
+            const iso = toISODate(date);
+            const activities = activitiesByDate.get(iso) || [];
+            const inCurrentMonth = date.getMonth() === monthStart.getMonth();
+            const isSelected = iso === selectedDate;
+            const isToday = iso === todayIso;
+
+            return (
+              <div
+                key={iso}
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectDate(date)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelectDate(date);
+                  }
+                }}
+                className={cn(
+                  "min-h-[116px] bg-white px-2 py-2 text-left transition-colors duration-120 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/35",
+                  "hover:bg-zinc-50",
+                  !inCurrentMonth && "bg-zinc-50/70 text-zinc-400",
+                  isSelected && "bg-brand/6 ring-2 ring-inset ring-brand/35",
+                  isToday && !isSelected && "ring-1 ring-inset ring-zinc-300"
+                )}
+                aria-label={`Dia ${date.getDate()} com ${activities.length} atividade${activities.length === 1 ? "" : "s"}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={cn(
+                      "inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
+                      isSelected
+                        ? "bg-brand text-white"
+                        : isToday
+                          ? "bg-zinc-900 text-white"
+                          : "text-zinc-700"
+                    )}
+                  >
+                    {date.getDate()}
+                  </span>
+
+                  {activities.length > 0 ? (
+                    <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">
+                      {activities.length}
+                    </span>
+                  ) : null}
+                </div>
+
+                <div className="mt-2 space-y-1">
+                  {activities.slice(0, 2).map((activity) => (
+                    <button
+                      key={activity.id}
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelectDate(date);
+                        onOpenActivityDetails(activity);
+                      }}
+                      className="block w-full truncate rounded-[8px] bg-zinc-100/85 px-1.5 py-1 text-left text-[10px] text-zinc-700 transition-colors duration-120 hover:bg-zinc-200/70"
+                    >
+                      {activity.dueTime ? `${activity.dueTime} ` : ""}
+                      {activity.title}
+                    </button>
+                  ))}
+
+                  {activities.length > 2 ? (
+                    <p className="text-[10px] font-medium text-zinc-500">
+                      +{activities.length - 2} atividades
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-[16px] border border-zinc-200 bg-zinc-50/70 p-3 md:p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <p className="font-heading text-sm font-semibold text-zinc-900">
+              {selectedDateLabel}
+            </p>
+            <p className="text-xs text-zinc-500">
+              {selectedDayActivities.length}{" "}
+              {selectedDayActivities.length === 1 ? "atividade" : "atividades"} no dia
+            </p>
+          </div>
+        </div>
+
+        {selectedDayActivities.length === 0 ? (
+          <div className="rounded-[12px] border border-dashed border-zinc-200 bg-white px-3 py-4 text-sm text-zinc-500">
+            Sem atividades para este dia.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <AnimatePresence initial={false}>
+              {selectedDayActivities.map((activity) => (
+                <motion.div
+                  key={activity.id}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4, scale: 0.995 }}
+                  transition={{ duration: 0.16, ease: "easeOut" }}
+                >
+                  <ExecutionActivityCard
+                    activity={activity}
+                    now={now}
+                    isExpanded={expandedActivityId === activity.id}
+                    isHighlighted={highlightedPostponedId === activity.id}
+                    feedback={activityFeedback[activity.id]}
+                    onToggleExpand={() => onToggleExpand(activity.id)}
+                    onComplete={() => onComplete(activity.id)}
+                    onPostpone={(newDate) => onPostpone(activity.id, newDate)}
+                    onSelectIntelligence={() => onSelectIntelligence(activity.id)}
+                    onGenerateFollowup={() => onGenerateFollowup(activity)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ActivityDetailsModal({
+  open,
+  activity,
+  now,
+  onOpenChange,
+  onSelectIntelligence,
+  onGenerateFollowup,
+}: {
+  open: boolean;
+  activity: Activity | null;
+  now: Date;
+  onOpenChange: (open: boolean) => void;
+  onSelectIntelligence: (activity: Activity) => void;
+  onGenerateFollowup: (activity: Activity) => void;
+}) {
+  if (!activity) return null;
+
+  const statusChip = getStatusChip(activity, now);
+  const insight = getActivityInsight(activity, now);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[680px] rounded-[20px] border-zinc-200 p-5 sm:p-6">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-xl font-semibold text-zinc-900">
+            {activity.title}
+          </DialogTitle>
+          <DialogDescription className="text-sm text-zinc-500">
+            {activity.clientName || activity.opportunityTitle || "Atividade comercial"}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", statusChip.className)}>
+              {statusChip.label}
+            </span>
+            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-600">
+              {typeLabels[activity.type]}
+            </span>
+            <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-600">
+              {getRelativeTimeLabel(activity, now)}
+            </span>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Responsável</p>
+              <p className="mt-1 text-sm text-zinc-700">{activity.responsibleName}</p>
+            </div>
+            <div className="rounded-[12px] border border-zinc-200 bg-zinc-50/80 px-3 py-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Prazo</p>
+              <p className="mt-1 text-sm text-zinc-700">
+                {formatDateBR(activity.dueDate)}
+                {activity.dueTime ? ` · ${activity.dueTime}` : ""}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-[14px] border border-zinc-200 bg-white p-3.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Descrição</p>
+            <p className="mt-1 text-sm text-zinc-700">
+              {activity.description || "Sem descrição detalhada para esta atividade."}
+            </p>
+          </div>
+
+          <div className="rounded-[14px] border border-zinc-200 bg-zinc-50/80 p-3.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Recomendação da Menux Intelligence
+            </p>
+            <p className="mt-1 text-sm text-zinc-700">{insight.nextStep}</p>
+            <p className="mt-2 text-xs text-zinc-500">{insight.risk}</p>
+          </div>
+        </div>
+
+        <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9 rounded-full"
+            onClick={() => onSelectIntelligence(activity)}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Menux Intelligence
+          </Button>
+          <Button
+            size="sm"
+            className="h-9 rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+            onClick={() => onGenerateFollowup(activity)}
+          >
+            Gerar follow-up
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -9,8 +9,6 @@ import {
   LayoutGrid,
   ShieldAlert,
   Sparkles,
-  User,
-  Users,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,18 +70,16 @@ const REFERENCE_DATE = new Date("2026-02-16T12:00:00.000Z");
 export function DashboardHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const { period, context, setPeriod, setContext } = useDashboardStore();
+  const { period, setPeriod } = useDashboardStore();
   const { user, isLoading } = useAuthStore();
   const [retryingIndicators, setRetryingIndicators] = useState(false);
 
   const firstName = user?.name?.trim().split(" ")[0] ?? "Admin";
 
   const scopedActivities =
-    context === "team"
-      ? mockActivities
-      : !user?.id
-        ? []
-        : mockActivities.filter((activity) => activity.responsibleId === user.id);
+    !user?.id
+      ? []
+      : mockActivities.filter((activity) => activity.responsibleId === user.id);
 
   const overdueCount = scopedActivities.filter(
     (activity) => activity.status === "overdue"
@@ -94,13 +90,8 @@ export function DashboardHeader() {
       ? scopedActivities.length / Math.max(mockActivities.length, 1)
       : 0;
 
-  const slaBreaches =
-    context === "team"
-      ? mockDashboardMetrics.slaBreaches
-      : Math.round(mockDashboardMetrics.slaBreaches * scopeFactor);
-
-  const riskValue =
-    context === "team" ? 45_000 : Math.round(45_000 * scopeFactor);
+  const slaBreaches = Math.round(mockDashboardMetrics.slaBreaches * scopeFactor);
+  const riskValue = Math.round(45_000 * scopeFactor);
 
   const hasIndicatorsError =
     !Number.isFinite(overdueCount) ||
@@ -199,37 +190,6 @@ export function DashboardHeader() {
         isLoading && "pointer-events-none opacity-60"
       )}
     >
-      <div className="flex items-center rounded-full border border-zinc-200/90 bg-zinc-50/95 p-1">
-        {[
-          {
-            id: "me" as const,
-            label: "Meus",
-            icon: <User className="h-3.5 w-3.5" />,
-          },
-          {
-            id: "team" as const,
-            label: "Time",
-            icon: <Users className="h-3.5 w-3.5" />,
-          },
-        ].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setContext(item.id)}
-            className={cn(
-              "relative inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium",
-              "transition-colors duration-120 ease-out",
-              context === item.id
-                ? "bg-white text-brand-strong shadow-[0_8px_16px_-14px_rgba(15,23,42,0.45)]"
-                : "text-zinc-500 hover:text-zinc-900"
-            )}
-          >
-            {item.icon}
-            {item.label}
-          </button>
-        ))}
-      </div>
-
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

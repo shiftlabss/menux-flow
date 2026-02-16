@@ -840,18 +840,25 @@ export default function ReportsPage() {
     });
   }, []);
 
-  const generateReport = useCallback(() => {
-    if (!selectedReportId) return;
+  const generateReport = useCallback((reportId?: string) => {
+    const targetReportId = reportId ?? selectedReportId;
+    if (!targetReportId) return;
+
+    if (reportId) {
+      selectReport(reportId);
+    }
+
+    setGeneratedReportId(null);
     setIsGenerating(true);
     setBuilderError(false);
 
     window.setTimeout(() => {
       const nextIndex = (history.length + generatedCycle) % HISTORY_TIMESTAMPS.length;
       setIsGenerating(false);
-      setGeneratedReportId(selectedReportId);
+      setGeneratedReportId(targetReportId);
       setGeneratedCycle((current) => current + 1);
       setHistory((prev) => [
-        { reportId: selectedReportId, generatedAt: HISTORY_TIMESTAMPS[nextIndex] },
+        { reportId: targetReportId, generatedAt: HISTORY_TIMESTAMPS[nextIndex] },
         ...prev,
       ]);
       setPageFeedback({
@@ -860,7 +867,7 @@ export default function ReportsPage() {
       });
       if (isMobile) setMobileStep("visualize");
     }, 900);
-  }, [generatedCycle, history.length, isMobile, selectedReportId]);
+  }, [generatedCycle, history.length, isMobile, selectReport, selectedReportId]);
 
   const runExport = useCallback(
     async (type: "csv" | "pdf" | "excel" | "copy") => {
@@ -933,12 +940,26 @@ export default function ReportsPage() {
     [selectReport]
   );
 
+  const openHistoryEntry = useCallback((reportId: string) => {
+    selectReport(reportId);
+    setGeneratedReportId(reportId);
+    if (isMobile) setMobileStep("visualize");
+  }, [isMobile, selectReport]);
+
   const clearAllFilters = useCallback(() => {
     setCategoryFilter("Todos");
     setStatusFilter("all");
     setSearchInput("");
     setSearchQuery("");
   }, []);
+
+  const openReportsLibrary = useCallback(() => {
+    clearAllFilters();
+    setSelectedReportId(null);
+    setGeneratedReportId(null);
+    setHighlightCardId(null);
+    if (!isDesktopLibrary) setIsLibraryOpen(true);
+  }, [clearAllFilters, isDesktopLibrary]);
 
   if (isLoading) {
     return <ReportsPageSkeleton />;
@@ -989,7 +1010,7 @@ export default function ReportsPage() {
                           <button
                             key={`${entry.reportId}-${entry.generatedAt}-${index}`}
                             type="button"
-                            onClick={() => selectReport(entry.reportId)}
+                            onClick={() => openHistoryEntry(entry.reportId)}
                             className="flex w-full items-center justify-between rounded-[10px] border border-zinc-200 bg-zinc-50/80 px-2.5 py-2 text-left text-xs transition-colors hover:bg-zinc-100"
                           >
                             <span className="truncate pr-2 text-zinc-700">{entry.title}</span>
@@ -1160,11 +1181,7 @@ export default function ReportsPage() {
                 onRetry={() => setLibraryError(false)}
                 onSelect={selectReport}
                 onToggleFavorite={toggleFavorite}
-                onGenerate={(reportId) => {
-                  selectReport(reportId);
-                  setGeneratedReportId(null);
-                  setTimeout(() => generateReport(), 40);
-                }}
+                onGenerate={(reportId) => generateReport(reportId)}
                 onPreview={selectReport}
                 highlightCardId={highlightCardId}
               />
@@ -1174,7 +1191,10 @@ export default function ReportsPage() {
               <div className="flex h-full min-h-0 min-w-0 gap-3 p-3">
                 <div className="min-h-0 min-w-0 flex-1 overflow-y-auto pr-1">
                   {!selectedReport || !selectedTemplate ? (
-                    <ReportBuilderEmptyState onOpenQuickReport={openQuickReport} />
+                    <ReportBuilderEmptyState
+                      onOpenQuickReport={openQuickReport}
+                      onOpenLibrary={openReportsLibrary}
+                    />
                   ) : (
                     <div className="space-y-3 pb-3">
                       {builderError ? (
@@ -1748,11 +1768,7 @@ export default function ReportsPage() {
                 onRetry={() => setLibraryError(false)}
                 onSelect={selectReport}
                 onToggleFavorite={toggleFavorite}
-                onGenerate={(reportId) => {
-                  selectReport(reportId);
-                  setGeneratedReportId(null);
-                  setTimeout(() => generateReport(), 40);
-                }}
+                onGenerate={(reportId) => generateReport(reportId)}
                 onPreview={selectReport}
                 highlightCardId={highlightCardId}
                 onClose={() => setIsLibraryOpen(false)}
@@ -2001,8 +2017,10 @@ function ReportLibraryCard({
 
 function ReportBuilderEmptyState({
   onOpenQuickReport,
+  onOpenLibrary,
 }: {
   onOpenQuickReport: (reportId: string) => void;
+  onOpenLibrary: () => void;
 }) {
   return (
     <div className="flex min-h-full flex-col items-center justify-center rounded-[16px] border border-dashed border-zinc-200 bg-zinc-50/70 p-6 text-center">
@@ -2041,7 +2059,7 @@ function ReportBuilderEmptyState({
       <Button
         variant="outline"
         className="mt-4 rounded-full"
-        onClick={() => onOpenQuickReport("pipeline-performance")}
+        onClick={onOpenLibrary}
       >
         Ver todos os relatórios
       </Button>

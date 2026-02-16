@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -404,6 +405,7 @@ function useAnimatedNumber(target: number, duration = 220): number {
 }
 
 export default function FinancePage() {
+  const router = useRouter();
   const tableRef = useRef<HTMLDivElement>(null);
   const railAutoOpenedRef = useRef(false);
 
@@ -1349,11 +1351,7 @@ export default function FinancePage() {
                                           <DropdownMenuContent align="end" className="w-52 rounded-[14px]">
                                             <DropdownMenuItem
                                               onClick={() =>
-                                                setRowInlineFeedback(
-                                                  commission.id,
-                                                  "info",
-                                                  "Preview da oportunidade aberto."
-                                                )
+                                                router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                                               }
                                             >
                                               <ArrowUpRight className="mr-2 h-4 w-4" />
