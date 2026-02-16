@@ -14,16 +14,14 @@ import {
   Activity,
   AlertTriangle,
   ArrowDownRight,
+  ArrowRight,
   ArrowUpRight,
   Bot,
   Calendar,
   Check,
   Clock3,
-  Copy,
   DollarSign,
   Minus,
-  MoreHorizontal,
-  Plus,
   Search,
   Sparkles,
   Target,
@@ -37,6 +35,8 @@ import type { Goal } from "@/types";
 import { cn } from "@/lib/cn";
 import { useGoalStore } from "@/stores/goal-store";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
+import { GeneratedContentModal } from "../activities/components/generated-content-modal";
+import { useUIStore } from "@/stores/ui-store";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,13 +51,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -74,7 +67,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 
-type PeriodFilter = "monthly" | "quarterly" | "yearly";
+type PeriodFilter = "weekly" | "monthly" | "quarterly" | "yearly";
 type GoalStatus = "risk" | "pace" | "achieved";
 type GoalStatusFilter = "all" | GoalStatus;
 type GoalTypeFilter = "all" | Goal["type"];
@@ -190,8 +183,9 @@ const goalTypeConfig: Record<
 };
 
 const periodLabel: Record<PeriodFilter, string> = {
-  monthly: "Mensal",
-  quarterly: "Trimestral",
+  weekly: "Semana",
+  monthly: "Mês",
+  quarterly: "Trimestre",
   yearly: "Ano",
 };
 
@@ -304,194 +298,11 @@ function scoreGoal(goal: Goal) {
   return Math.min(100, Math.round(getProgress(goal)));
 }
 
-function NewGoalDialog({
-  onCreated,
-}: {
-  onCreated: (message: string) => void;
-}) {
-  const { addGoal } = useGoalStore();
-
-  const [open, setOpen] = useState(false);
-  const [goalType, setGoalType] = useState<Goal["type"] | "">("");
-  const [target, setTarget] = useState("");
-  const [period, setPeriod] = useState<Goal["period"] | "">("");
-  const [assignedTo, setAssignedTo] = useState("team-all");
-
-  const canCreate = Boolean(goalType && target && period && Number(target) > 0);
-
-  const resetForm = useCallback(() => {
-    setGoalType("");
-    setTarget("");
-    setPeriod("");
-    setAssignedTo("team-all");
-  }, []);
-
-  const handleCreate = useCallback(() => {
-    if (!goalType || !period || !target) return;
-
-    const now = new Date("2026-02-16T12:00:00.000Z");
-    let startDate = "";
-    let endDate = "";
-
-    if (period === "monthly") {
-      startDate = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
-      endDate = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-28`;
-    } else {
-      const quarter = Math.floor(now.getUTCMonth() / 3);
-      startDate = `${now.getUTCFullYear()}-${String(quarter * 3 + 1).padStart(2, "0")}-01`;
-      endDate = `${now.getUTCFullYear()}-${String(quarter * 3 + 3).padStart(2, "0")}-30`;
-    }
-
-    addGoal({
-      title: `${goalTypeConfig[goalType].label} ${period === "monthly" ? "mensal" : "trimestral"} - Novo ciclo`,
-      type: goalType,
-      target: Number(target),
-      current: 0,
-      period,
-      startDate,
-      endDate,
-      userId: assignedTo === "team-all" ? undefined : assignedTo,
-      userName:
-        assignedTo === "team-all"
-          ? undefined
-          : assignedTo === "user-1"
-            ? "Ana Souza"
-            : assignedTo === "user-2"
-              ? "Carlos Lima"
-              : assignedTo === "user-3"
-                ? "Fernanda Reis"
-                : assignedTo === "user-4"
-                  ? "Pedro Alves"
-                  : "Julia Mendes",
-    });
-
-    onCreated("Meta criada com sucesso.");
-    resetForm();
-    setOpen(false);
-  }, [addGoal, assignedTo, goalType, onCreated, period, resetForm, target]);
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) resetForm();
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button className="h-9 rounded-full bg-black px-3 text-sm text-white hover:bg-zinc-800">
-          <Plus className="h-3.5 w-3.5" />
-          Nova meta
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-[calc(100%-2rem)] rounded-[18px] border-zinc-200 bg-white sm:max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle className="font-heading text-xl font-semibold text-zinc-900">
-            Nova meta
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 pt-1">
-          <div className="space-y-1.5">
-            <Label className="text-sm text-zinc-700">Tipo da meta</Label>
-            <Select value={goalType} onValueChange={(value) => setGoalType(value as Goal["type"])}>
-              <SelectTrigger className="rounded-[12px]">
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent className="rounded-[12px]">
-                {(Object.keys(goalTypeConfig) as Goal["type"][]).map((type) => (
-                  <SelectItem key={type} value={type}>
-                    <div className="flex items-center gap-2">
-                      {goalTypeConfig[type].icon}
-                      {goalTypeConfig[type].label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-sm text-zinc-700">Valor alvo</Label>
-            <Input
-              type="number"
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-              placeholder="Ex: 100"
-              className="rounded-[12px]"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-sm text-zinc-700">Período</Label>
-            <Select value={period} onValueChange={(value) => setPeriod(value as Goal["period"])}>
-              <SelectTrigger className="rounded-[12px]">
-                <SelectValue placeholder="Selecione o período" />
-              </SelectTrigger>
-              <SelectContent className="rounded-[12px]">
-                <SelectItem value="monthly">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-zinc-500" />
-                    Mensal
-                  </div>
-                </SelectItem>
-                <SelectItem value="quarterly">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-zinc-500" />
-                    Trimestral
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-sm text-zinc-700">Responsável</Label>
-            <Select value={assignedTo} onValueChange={setAssignedTo}>
-              <SelectTrigger className="rounded-[12px]">
-                <SelectValue placeholder="Selecione o responsável" />
-              </SelectTrigger>
-              <SelectContent className="rounded-[12px]">
-                <SelectItem value="team-all">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-zinc-500" />
-                    Todo o time
-                  </div>
-                </SelectItem>
-                <SelectItem value="user-1">Ana Souza</SelectItem>
-                <SelectItem value="user-2">Carlos Lima</SelectItem>
-                <SelectItem value="user-3">Fernanda Reis</SelectItem>
-                <SelectItem value="user-4">Pedro Alves</SelectItem>
-                <SelectItem value="user-5">Julia Mendes</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="mt-5 flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            className="flex-1 rounded-full"
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={!canCreate}
-            className="flex-1 rounded-full bg-black text-white hover:bg-zinc-800 disabled:opacity-50"
-          >
-            Criar meta
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export default function GoalsPage() {
   const router = useRouter();
   const { goals, addGoal, deleteGoal } = useGoalStore();
+  const { openDrawer } = useUIStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshingPeriod, setIsRefreshingPeriod] = useState(false);
@@ -588,9 +399,9 @@ export default function GoalsPage() {
     const current =
       periodGoals.length > 0
         ? Math.round(
-            periodGoals.reduce((sum, goal) => sum + scoreGoal(goal), 0) /
-              periodGoals.length
-          )
+          periodGoals.reduce((sum, goal) => sum + scoreGoal(goal), 0) /
+          periodGoals.length
+        )
         : 0;
     const previous = Math.max(
       0,
@@ -602,6 +413,10 @@ export default function GoalsPage() {
       delta: current - previous,
     };
   }, [periodGoals, selectedPeriod]);
+
+  // Modal State
+  const [generatedModalOpen, setGeneratedModalOpen] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState({ title: "", content: "" });
 
   const filteredGoals = useMemo(() => {
     return periodGoals.filter((goal) => {
@@ -755,10 +570,74 @@ export default function GoalsPage() {
       window.setTimeout(() => {
         callback?.();
         setRunningIntelAction(null);
-        setIntelResult(resultMessage);
-      }, 220);
+
+        // Define content based on actionId
+        let title = "Conteúdo Gerado";
+        let content = resultMessage;
+
+        if (actionId === "weekly-plan") {
+          title = "Plano Semanal de Metas";
+          content = `### Plano Semanal Focado em Resultados
+1. **Segunda-feira**: Revisão de Pipeline - Identificar oportunidades estagnadas há +5 dias.
+2. **Terça-feira**: Prospecção Ativa - Focar em perfis semelhantes aos clientes fechados no último mês.
+3. **Quarta-feira**: Follow-up de Propostas - Contatar todos os leads em fase de negociação.
+4. **Quinta-feira**: Recuperação de Clientes - Reativar contatos frios da base.
+5. **Sexta-feira**: Fechamento e Relatório - Garantir assinaturas pendentes e preparar próxima semana.
+
+*Dica: Utilize o filtro de "Em Risco" para priorizar ações.*
+`;
+        } else if (actionId === "risk-plan") {
+          title = "Plano de Recuperação de Risco";
+          content = `### Estratégia de Recuperação Acelerada
+**Diagnóstico**: Metas marcadas como "Em Risco" indicam desvio significativo da projeção ideal.
+
+**Ações Imediatas:**
+1. **Auditoria de Oportunidades**: Verifique se os valores e datas de fechamento no CRM estão realistas.
+2. **Campanha Relâmpago**: Ofereça uma condição especial (ex: consultoria extra) para fechamentos até sexta-feira.
+3. **Aumento de Volume**: Dobre a meta de ligações/mensagens diárias pelos próximos 3 dias.
+
+**Mensagem Sugerida para Clientes:**
+"Olá [Nome], identifiquei uma oportunidade de acelerar seu projeto. Tenho uma condição exclusiva válida apenas esta semana..."
+`;
+        } else if (actionId === "daily-actions") {
+          title = "Sugestões de Atividades Diárias";
+          content = `### Foco do Dia: Alta Performance
+- [ ] Enviar 10 mensagens de introdução para novos leads.
+- [ ] Realizar 5 ligações de qualificação.
+- [ ] Fazer follow-up em 3 propostas enviadas na semana passada.
+- [ ] Postar conteúdo relevante no LinkedIn para atrair inbound.
+- [ ] Revisar tarefas atrasadas no CRM.
+`;
+        } else if (actionId === "speech") {
+          title = "Discurso Motivacional para o Time";
+          content = `### Discurso: Foco na Reta Final
+"Time, estamos em um momento crucial do nosso ciclo. Sei que os desafios são grandes e o mercado está exigente, mas é exatamente aqui que nos diferenciamos.
+Olhem para as metas 'Batidas' - elas provam que é possível. Olhem para as metas 'Em Risco' - elas são apenas oportunidades disfarçadas de trabalho duro.
+Nesta semana, quero ver cada um de vocês superando seu próprio recorde de atividade. Não estamos aqui para tentar, estamos aqui para fazer acontecer.
+Vamos transformar esse cenário. Um dia de cada vez, uma ligação de cada vez. Conto com a energia de todos!"
+`;
+        } else if (actionId === "export-summary") {
+          title = "Resumo de Performance Exportado";
+          content = `### Resumo de Performance - ${new Date().toLocaleDateString()}
+**Status Geral:**
+- Metas Ativas: ${counts.active}
+- Metas Batidas: ${counts.achieved}
+- Metas em Risco: ${counts.risk}
+
+**Destaques:**
+- Melhor performance: ${ranking[0]?.name || "N/A"}
+- Maior evolução semanal: ${rankingInsights.mostUp.name || "N/A"}
+
+*Este resumo está pronto para ser copiado e enviado por e-mail ou Slack.*
+`;
+        }
+
+        setGeneratedContent({ title, content });
+        setGeneratedModalOpen(true);
+        // setIntelResult(resultMessage); // Optional: keep small feedback or remove
+      }, 700);
     },
-    []
+    [counts, ranking, rankingInsights]
   );
 
   if (isLoading) {
@@ -791,7 +670,7 @@ export default function GoalsPage() {
           className="shrink-0"
         >
           <ModuleCommandHeader
-            title="Metas"
+            title="Minhas metas"
             description="Performance do time e gamificação"
             actions={
               <div className="flex w-full min-w-0 flex-wrap items-center gap-2 xl:justify-end">
@@ -813,16 +692,10 @@ export default function GoalsPage() {
                   ))}
                 </div>
 
-                <NewGoalDialog
-                  onCreated={(message) => {
-                    setPageFeedback({ type: "success", message });
-                  }}
-                />
-
                 <Button
                   size="sm"
                   onClick={() => setIsIntelligenceOpen((prev) => !prev)}
-                  className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
+                  className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99] xl:hidden"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
                   Menux Intelligence
@@ -954,532 +827,534 @@ export default function GoalsPage() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.16, delay: 0.05, ease: "easeOut" }}
-          className="flex min-h-0 flex-1 gap-4"
+          className="flex-1"
         >
-          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto pr-1">
-            {!hasGoalsInPeriod ? (
-              <GoalsEmptyState
-                onCreateGoal={() => {
-                  addGoal({
-                    title: "Receita mensal - Novo ciclo",
-                    type: "revenue",
-                    target: 500000,
-                    current: 0,
-                    period: "monthly",
-                    startDate: "2026-02-01",
-                    endDate: "2026-02-28",
-                  });
-                  setPageFeedback({
-                    type: "success",
-                    message: "Meta inicial criada para o período.",
-                  });
-                }}
-                onOpenIntelligence={() => setIsIntelligenceOpen(true)}
-              />
-            ) : isRefreshingPeriod ? (
-              <GoalsContentSkeleton />
-            ) : (
-              <motion.div
-                key={`${selectedPeriod}-${statusFilter}-${typeFilter}-${searchQuery}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.16, ease: "easeOut" }}
-                className="space-y-4 pb-4"
-              >
-                <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  {kpiError ? (
-                    <SectionError
-                      message="Falha ao carregar indicadores de metas."
-                      onRetry={() => setKpiError(false)}
-                    />
-                  ) : (
-                    <>
-                      <GoalsKpiCard
-                        icon={<Target className="h-5 w-5 text-zinc-700" />}
-                        label="Metas ativas"
-                        value={`${counts.active}`}
-                        subtext="no período selecionado"
-                        trend={`${counts.active} metas em acompanhamento`}
-                        miniVisual={
-                          <div className="mt-1 flex gap-1.5">
-                            <span className="h-2 w-8 rounded-full bg-zinc-300/80" />
-                            <span className="h-2 w-8 rounded-full bg-zinc-200/80" />
-                            <span className="h-2 w-8 rounded-full bg-zinc-400/80" />
-                          </div>
-                        }
+          <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+            {/* Left Column: Goals Execution */}
+            <div className="min-h-0 min-w-0 overflow-y-auto pb-8">
+              {!hasGoalsInPeriod ? (
+                <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50/50 py-20 text-center">
+                  <div className="mb-4 rounded-full bg-white p-4 shadow-sm ring-1 ring-zinc-100">
+                    <Target className="h-8 w-8 text-zinc-300" />
+                  </div>
+                  <h3 className="font-heading text-lg font-semibold text-zinc-900">
+                    Nenhuma meta atribuída
+                  </h3>
+                  <p className="mt-2 max-w-sm text-sm text-zinc-500">
+                    Você não possui metas definidas para este período. Entre em contato com seu
+                    gestor para alinhar seus objetivos.
+                  </p>
+                </div>
+              ) : isRefreshingPeriod ? (
+                <GoalsContentSkeleton />
+              ) : (
+                <motion.div
+                  key={`${selectedPeriod}-${statusFilter}-${typeFilter}-${searchQuery}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.16, ease: "easeOut" }}
+                  className="space-y-4 pb-4"
+                >
+                  <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {kpiError ? (
+                      <SectionError
+                        message="Falha ao carregar indicadores de metas."
+                        onRetry={() => setKpiError(false)}
                       />
-                      <GoalsKpiCard
-                        icon={<Trophy className="h-5 w-5 text-emerald-700" />}
-                        label="Metas batidas"
-                        value={`${counts.achieved}`}
-                        subtext="taxa de sucesso do período"
-                        trend={
-                          counts.active > 0
-                            ? `${Math.round((counts.achieved / counts.active) * 100)}% de sucesso`
-                            : "Sem metas no período"
-                        }
-                        miniVisual={
-                          <div className="w-full">
-                            <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
-                              <div
-                                className="h-full rounded-full bg-emerald-400 transition-[width] duration-200"
-                                style={{
-                                  width:
-                                    counts.active > 0
-                                      ? `${Math.round((counts.achieved / counts.active) * 100)}%`
-                                      : "0%",
-                                }}
-                              />
+                    ) : (
+                      <>
+                        <GoalsKpiCard
+                          icon={<Target className="h-5 w-5 text-zinc-700" />}
+                          label="Metas ativas"
+                          value={`${counts.active}`}
+                          subtext="no período selecionado"
+                          trend={`${counts.active} metas em acompanhamento`}
+                          miniVisual={
+                            <div className="mt-1 flex gap-1.5">
+                              <span className="h-2 w-8 rounded-full bg-zinc-300/80" />
+                              <span className="h-2 w-8 rounded-full bg-zinc-200/80" />
+                              <span className="h-2 w-8 rounded-full bg-zinc-400/80" />
                             </div>
-                          </div>
-                        }
-                      />
-                      <GoalsKpiCard
-                        icon={<AlertTriangle className="h-5 w-5 text-red-700" />}
-                        label="Metas em risco"
-                        value={`${counts.risk}`}
-                        subtext="atenção imediata"
-                        trend={counts.risk > 0 ? "Prioridade de execução" : "Sem alertas críticos"}
-                        miniVisual={
-                          <Badge
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[10px]",
-                              counts.risk > 0
-                                ? "border border-red-200 bg-red-50 text-red-700"
-                                : "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                            )}
-                          >
-                            {counts.risk > 0 ? "Atenção" : "Tudo em dia"}
-                          </Badge>
-                        }
-                      />
-                      <GoalsKpiCard
-                        icon={<Sparkles className="h-5 w-5 text-blue-700" />}
-                        label="Score do time"
-                        value={`${scoreMetrics.current}`}
-                        subtext="média de pontos do time"
-                        trend={
-                          scoreMetrics.delta >= 0
-                            ? `+${scoreMetrics.delta} vs período anterior`
-                            : `${scoreMetrics.delta} vs período anterior`
-                        }
-                        miniVisual={
-                          <div className="flex h-8 items-end gap-1">
-                            {[0.42, 0.48, 0.44, 0.52, 0.56, 0.63].map((height, index) => (
-                              <span
-                                key={index}
-                                className="w-1.5 rounded bg-blue-300/80"
-                                style={{ height: `${height * 100}%` }}
+                          }
+                        />
+                        <GoalsKpiCard
+                          icon={<Trophy className="h-5 w-5 text-emerald-700" />}
+                          label="Metas batidas"
+                          value={`${counts.achieved}`}
+                          subtext="taxa de sucesso do período"
+                          trend={
+                            counts.active > 0
+                              ? `${Math.round((counts.achieved / counts.active) * 100)}% de sucesso`
+                              : "Sem metas no período"
+                          }
+                          miniVisual={
+                            <div className="w-full">
+                              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+                                <div
+                                  className="h-full rounded-full bg-emerald-400 transition-[width] duration-200"
+                                  style={{
+                                    width:
+                                      counts.active > 0
+                                        ? `${Math.round((counts.achieved / counts.active) * 100)}%`
+                                        : "0%",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          }
+                        />
+                        <GoalsKpiCard
+                          icon={<AlertTriangle className="h-5 w-5 text-red-700" />}
+                          label="Metas em risco"
+                          value={`${counts.risk}`}
+                          subtext="atenção imediata"
+                          trend={counts.risk > 0 ? "Prioridade de execução" : "Sem alertas críticos"}
+                          miniVisual={
+                            <Badge
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-[10px]",
+                                counts.risk > 0
+                                  ? "border border-red-200 bg-red-50 text-red-700"
+                                  : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                              )}
+                            >
+                              {counts.risk > 0 ? "Atenção" : "Tudo em dia"}
+                            </Badge>
+                          }
+                        />
+                        <GoalsKpiCard
+                          icon={<Sparkles className="h-5 w-5 text-blue-700" />}
+                          label="Score do time"
+                          value={`${scoreMetrics.current}`}
+                          subtext="média de pontos do time"
+                          trend={
+                            scoreMetrics.delta >= 0
+                              ? `+${scoreMetrics.delta} vs período anterior`
+                              : `${scoreMetrics.delta} vs período anterior`
+                          }
+                          miniVisual={
+                            <div className="flex h-8 items-end gap-1">
+                              {[0.42, 0.48, 0.44, 0.52, 0.56, 0.63].map((height, index) => (
+                                <span
+                                  key={index}
+                                  className="w-1.5 rounded bg-blue-300/80"
+                                  style={{ height: `${height * 100}%` }}
+                                />
+                              ))}
+                            </div>
+                          }
+                        />
+                      </>
+                    )}
+                  </section>
+
+                  <section className="space-y-4">
+                    <GoalsGroupSection
+                      title="Em risco"
+                      description="Metas que precisam de ação imediata."
+                      goals={groupedGoals.risk}
+                      emptyLabel="Nenhuma meta em risco no período."
+                      renderGoal={(goal) => (
+                        <GoalPerformanceCard
+                          key={goal.id}
+                          goal={goal}
+                          expanded={expandedPlans.has(goal.id)}
+                          isRunningAction={cardLoadingId === goal.id}
+                          inlineFeedback={cardFeedback[goal.id]}
+                          onTogglePlan={() => togglePlan(goal.id)}
+                          onEdit={() =>
+                            setGoalFeedback(goal.id, {
+                              type: "info",
+                              message: "Editor de meta em preview.",
+                            })
+                          }
+                          onDuplicate={() =>
+                            runCardAction(
+                              goal.id,
+                              () => {
+                                addGoal({
+                                  ...goal,
+                                  title: `${goal.title} (cópia)`,
+                                  current: 0,
+                                });
+                              },
+                              "Meta duplicada"
+                            )
+                          }
+                          onArchive={() =>
+                            runCardAction(
+                              goal.id,
+                              () => deleteGoal(goal.id),
+                              "Meta arquivada"
+                            )
+                          }
+                          onViewHistory={() =>
+                            setGoalFeedback(goal.id, {
+                              type: "info",
+                              message: "Histórico do período carregado.",
+                            })
+                          }
+                          onPrimaryAction={() => {
+                            const status = getGoalStatus(goal);
+                            if (status === "risk") {
+                              togglePlan(goal.id);
+                              return;
+                            }
+                            if (status === "pace") {
+                              runCardAction(
+                                goal.id,
+                                () => { },
+                                "Plano de ações criado"
+                              );
+                              return;
+                            }
+                            setGoalFeedback(goal.id, {
+                              type: "info",
+                              message: "Meta batida: detalhes exibidos.",
+                            });
+                          }}
+                          onCreateActivities={() =>
+                            openDrawer("new-activity", {
+                              initialNote: `Ação para recuperar meta em risco: ${goal.title}`,
+                            })
+                          }
+                          onOpenActivities={() =>
+                            router.push(
+                              `/activities?source=goals&goal=${encodeURIComponent(goal.title)}&status=${getGoalStatus(goal)}`
+                            )
+                          }
+                        />
+                      )}
+                    />
+
+                    <GoalsGroupSection
+                      title="No ritmo"
+                      description="Metas com execução saudável, focadas em aceleração."
+                      goals={groupedGoals.pace}
+                      emptyLabel="Sem metas em ritmo no filtro selecionado."
+                      renderGoal={(goal) => (
+                        <GoalPerformanceCard
+                          key={goal.id}
+                          goal={goal}
+                          expanded={expandedPlans.has(goal.id)}
+                          isRunningAction={cardLoadingId === goal.id}
+                          inlineFeedback={cardFeedback[goal.id]}
+                          onTogglePlan={() => togglePlan(goal.id)}
+                          onEdit={() =>
+                            setGoalFeedback(goal.id, {
+                              type: "info",
+                              message: "Editor de meta em preview.",
+                            })
+                          }
+                          onDuplicate={() =>
+                            runCardAction(
+                              goal.id,
+                              () => {
+                                addGoal({
+                                  ...goal,
+                                  title: `${goal.title} (cópia)`,
+                                  current: 0,
+                                });
+                              },
+                              "Meta duplicada"
+                            )
+                          }
+                          onArchive={() =>
+                            runCardAction(
+                              goal.id,
+                              () => deleteGoal(goal.id),
+                              "Meta arquivada"
+                            )
+                          }
+                          onViewHistory={() =>
+                            setGoalFeedback(goal.id, {
+                              type: "info",
+                              message: "Histórico do período carregado.",
+                            })
+                          }
+                          onPrimaryAction={() =>
+                            openDrawer("new-activity", {
+                              initialNote: `Ação para acelerar meta: ${goal.title}`,
+                            })
+                          }
+                          onCreateActivities={() =>
+                            openDrawer("new-activity", {
+                              initialNote: `Nova atividade para meta: ${goal.title}`,
+                            })
+                          }
+                          onOpenActivities={() =>
+                            router.push(
+                              `/activities?source=goals&goal=${encodeURIComponent(goal.title)}&status=${getGoalStatus(goal)}`
+                            )
+                          }
+                        />
+                      )}
+                    />
+
+                    <section className="rounded-[20px] border border-zinc-200/80 bg-white/82 p-3 shadow-[0_16px_32px_-28px_rgba(15,23,42,0.45)] md:p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h3 className="font-heading text-base font-semibold text-zinc-900">
+                            Batidas
+                          </h3>
+                          <p className="text-xs text-zinc-500">
+                            Metas concluídas no período. Seção colapsável para manter foco.
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 rounded-full"
+                          onClick={() => setIsAchievedCollapsed((value) => !value)}
+                        >
+                          {isAchievedCollapsed ? "Expandir" : "Recolher"}
+                        </Button>
+                      </div>
+
+                      {!isAchievedCollapsed ? (
+                        groupedGoals.achieved.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {groupedGoals.achieved.map((goal) => (
+                              <GoalPerformanceCard
+                                key={goal.id}
+                                goal={goal}
+                                expanded={expandedPlans.has(goal.id)}
+                                isRunningAction={cardLoadingId === goal.id}
+                                inlineFeedback={cardFeedback[goal.id]}
+                                onTogglePlan={() => togglePlan(goal.id)}
+                                onEdit={() =>
+                                  setGoalFeedback(goal.id, {
+                                    type: "info",
+                                    message: "Editor de meta em preview.",
+                                  })
+                                }
+                                onDuplicate={() =>
+                                  runCardAction(
+                                    goal.id,
+                                    () => {
+                                      addGoal({
+                                        ...goal,
+                                        title: `${goal.title} (cópia)`,
+                                        current: 0,
+                                      });
+                                    },
+                                    "Meta duplicada"
+                                  )
+                                }
+                                onArchive={() =>
+                                  runCardAction(
+                                    goal.id,
+                                    () => deleteGoal(goal.id),
+                                    "Meta arquivada"
+                                  )
+                                }
+                                onViewHistory={() =>
+                                  setGoalFeedback(goal.id, {
+                                    type: "info",
+                                    message: "Histórico do período carregado.",
+                                  })
+                                }
+                                onPrimaryAction={() => {
+                                  setGeneratedContent({
+                                    title: "Meta Batida! 🚀",
+                                    content: `### Parabéns pela Conquista!
+A meta **${goal.title}** foi superada com sucesso.
+
+**Destaques:**
+- Execução consistente durante todo o período.
+- Superação do alvo em **${Math.round(getProgress(goal) - 100)}%**.
+
+*Continue assim no próximo ciclo!*`,
+                                  });
+                                  setGeneratedModalOpen(true);
+                                }}
+                                onCreateActivities={() =>
+                                  openDrawer("new-activity", {
+                                    initialNote: `Manter ritmo da meta batida: ${goal.title}`,
+                                  })
+                                }
+                                onOpenActivities={() =>
+                                  router.push(
+                                    `/activities?source=goals&goal=${encodeURIComponent(goal.title)}&status=${getGoalStatus(goal)}`
+                                  )
+                                }
                               />
                             ))}
                           </div>
-                        }
-                      />
-                    </>
-                  )}
-                </section>
-
-                <section className="space-y-4">
-                  <GoalsGroupSection
-                    title="Em risco"
-                    description="Metas que precisam de ação imediata."
-                    goals={groupedGoals.risk}
-                    emptyLabel="Nenhuma meta em risco no período."
-                    renderGoal={(goal) => (
-                      <GoalPerformanceCard
-                        key={goal.id}
-                        goal={goal}
-                        expanded={expandedPlans.has(goal.id)}
-                        isRunningAction={cardLoadingId === goal.id}
-                        inlineFeedback={cardFeedback[goal.id]}
-                        onTogglePlan={() => togglePlan(goal.id)}
-                        onEdit={() =>
-                          setGoalFeedback(goal.id, {
-                            type: "info",
-                            message: "Editor de meta em preview.",
-                          })
-                        }
-                        onDuplicate={() =>
-                          runCardAction(
-                            goal.id,
-                            () => {
-                              addGoal({
-                                ...goal,
-                                title: `${goal.title} (cópia)`,
-                                current: 0,
-                              });
-                            },
-                            "Meta duplicada"
-                          )
-                        }
-                        onArchive={() =>
-                          runCardAction(
-                            goal.id,
-                            () => deleteGoal(goal.id),
-                            "Meta arquivada"
-                          )
-                        }
-                        onViewHistory={() =>
-                          setGoalFeedback(goal.id, {
-                            type: "info",
-                            message: "Histórico do período carregado.",
-                          })
-                        }
-                        onPrimaryAction={() => {
-                          const status = getGoalStatus(goal);
-                          if (status === "risk") {
-                            togglePlan(goal.id);
-                            return;
-                          }
-                          if (status === "pace") {
-                            runCardAction(
-                              goal.id,
-                              () => {},
-                              "Plano de ações criado"
-                            );
-                            return;
-                          }
-                          setGoalFeedback(goal.id, {
-                            type: "info",
-                            message: "Meta batida: detalhes exibidos.",
-                          });
-                        }}
-                        onCreateActivities={() =>
-                          runCardAction(
-                            goal.id,
-                            () => {},
-                            "Criado"
-                          )
-                        }
-                        onOpenActivities={() =>
-                          router.push(
-                            `/activities?source=goals&goal=${encodeURIComponent(goal.title)}&status=${getGoalStatus(goal)}`
-                          )
-                        }
-                      />
-                    )}
-                  />
-
-                  <GoalsGroupSection
-                    title="No ritmo"
-                    description="Metas com execução saudável, focadas em aceleração."
-                    goals={groupedGoals.pace}
-                    emptyLabel="Sem metas em ritmo no filtro selecionado."
-                    renderGoal={(goal) => (
-                      <GoalPerformanceCard
-                        key={goal.id}
-                        goal={goal}
-                        expanded={expandedPlans.has(goal.id)}
-                        isRunningAction={cardLoadingId === goal.id}
-                        inlineFeedback={cardFeedback[goal.id]}
-                        onTogglePlan={() => togglePlan(goal.id)}
-                        onEdit={() =>
-                          setGoalFeedback(goal.id, {
-                            type: "info",
-                            message: "Editor de meta em preview.",
-                          })
-                        }
-                        onDuplicate={() =>
-                          runCardAction(
-                            goal.id,
-                            () => {
-                              addGoal({
-                                ...goal,
-                                title: `${goal.title} (cópia)`,
-                                current: 0,
-                              });
-                            },
-                            "Meta duplicada"
-                          )
-                        }
-                        onArchive={() =>
-                          runCardAction(
-                            goal.id,
-                            () => deleteGoal(goal.id),
-                            "Meta arquivada"
-                          )
-                        }
-                        onViewHistory={() =>
-                          setGoalFeedback(goal.id, {
-                            type: "info",
-                            message: "Histórico do período carregado.",
-                          })
-                        }
-                        onPrimaryAction={() =>
-                          runCardAction(goal.id, () => {}, "Plano de ações criado")
-                        }
-                        onCreateActivities={() =>
-                          runCardAction(goal.id, () => {}, "Criado")
-                        }
-                        onOpenActivities={() =>
-                          router.push(
-                            `/activities?source=goals&goal=${encodeURIComponent(goal.title)}&status=${getGoalStatus(goal)}`
-                          )
-                        }
-                      />
-                    )}
-                  />
+                        ) : (
+                          <div className="rounded-[14px] border border-dashed border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-500">
+                            Sem metas batidas no filtro atual.
+                          </div>
+                        )
+                      ) : (
+                        <div className="rounded-[14px] border border-zinc-200 bg-zinc-50/80 p-3 text-xs text-zinc-600">
+                          Seção recolhida para reduzir ruído visual.
+                        </div>
+                      )}
+                    </section>
+                  </section>
 
                   <section className="rounded-[20px] border border-zinc-200/80 bg-white/82 p-3 shadow-[0_16px_32px_-28px_rgba(15,23,42,0.45)] md:p-4">
-                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="h-4 w-4 text-zinc-500" />
                         <h3 className="font-heading text-base font-semibold text-zinc-900">
-                          Batidas
+                          Ranking
                         </h3>
-                        <p className="text-xs text-zinc-500">
-                          Metas concluídas no período. Seção colapsável para manter foco.
-                        </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 rounded-full"
-                        onClick={() => setIsAchievedCollapsed((value) => !value)}
-                      >
-                        {isAchievedCollapsed ? "Expandir" : "Recolher"}
-                      </Button>
+                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] text-zinc-600">
+                        Semana atual
+                      </span>
                     </div>
 
-                    {!isAchievedCollapsed ? (
-                      groupedGoals.achieved.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                          {groupedGoals.achieved.map((goal) => (
-                            <GoalPerformanceCard
-                              key={goal.id}
-                              goal={goal}
-                              expanded={expandedPlans.has(goal.id)}
-                              isRunningAction={cardLoadingId === goal.id}
-                              inlineFeedback={cardFeedback[goal.id]}
-                              onTogglePlan={() => togglePlan(goal.id)}
-                              onEdit={() =>
-                                setGoalFeedback(goal.id, {
-                                  type: "info",
-                                  message: "Editor de meta em preview.",
-                                })
-                              }
-                              onDuplicate={() =>
-                                runCardAction(
-                                  goal.id,
-                                  () => {
-                                    addGoal({
-                                      ...goal,
-                                      title: `${goal.title} (cópia)`,
-                                      current: 0,
-                                    });
-                                  },
-                                  "Meta duplicada"
-                                )
-                              }
-                              onArchive={() =>
-                                runCardAction(
-                                  goal.id,
-                                  () => deleteGoal(goal.id),
-                                  "Meta arquivada"
-                                )
-                              }
-                              onViewHistory={() =>
-                                setGoalFeedback(goal.id, {
-                                  type: "info",
-                                  message: "Histórico do período carregado.",
-                                })
-                              }
-                              onPrimaryAction={() =>
-                                setGoalFeedback(goal.id, {
-                                  type: "info",
-                                  message: "Meta batida: detalhe exibido.",
-                                })
-                              }
-                              onCreateActivities={() =>
-                                runCardAction(goal.id, () => {}, "Criado")
-                              }
-                              onOpenActivities={() =>
-                                router.push(
-                                  `/activities?source=goals&goal=${encodeURIComponent(goal.title)}&status=${getGoalStatus(goal)}`
-                                )
-                              }
-                            />
+                    {rankingError ? (
+                      <SectionError
+                        message="Falha ao carregar ranking de performance."
+                        onRetry={() => setRankingError(false)}
+                      />
+                    ) : ranking.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_320px]">
+                        <div className="space-y-2 rounded-[14px] border border-zinc-200 bg-zinc-50/80 p-2.5">
+                          {ranking.map((user, index) => (
+                            <Popover key={user.id}>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    "flex w-full items-center justify-between rounded-[12px] border px-3 py-2.5 text-left transition-colors duration-120",
+                                    user.isCurrentUser
+                                      ? "border-blue-200 bg-blue-50"
+                                      : "border-zinc-200 bg-white hover:bg-zinc-50"
+                                  )}
+                                >
+                                  <div className="flex min-w-0 items-center gap-2.5">
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-700">
+                                      {index + 1}
+                                    </span>
+                                    <Avatar size="sm">
+                                      <AvatarFallback className="bg-zinc-100 text-zinc-600">
+                                        {getInitials(user.name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-medium text-zinc-900">
+                                        {user.name}
+                                      </p>
+                                      <p className="text-xs text-zinc-500">{user.role}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="ml-3 flex items-center gap-3">
+                                    <div className="text-right">
+                                      <p className="text-sm font-semibold text-zinc-900">
+                                        {user.score.toLocaleString("pt-BR")}
+                                      </p>
+                                      <p className="text-[11px] text-zinc-500">pontos</p>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      {getRankingTrendIcon(user.trend)}
+                                      {user.isCurrentUser ? (
+                                        <Badge className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0 text-[10px] text-blue-700">
+                                          Você
+                                        </Badge>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                align="end"
+                                className="w-[min(92vw,300px)] rounded-[14px] border-zinc-200 bg-white p-3"
+                              >
+                                <p className="text-sm font-semibold text-zinc-900">{user.name}</p>
+                                <p className="mt-0.5 text-xs text-zinc-500">{user.role}</p>
+                                <div className="mt-3 space-y-2 text-xs">
+                                  <div className="flex items-center justify-between rounded-[10px] border border-zinc-200 bg-zinc-50 px-2.5 py-2">
+                                    <span className="text-zinc-600">Metas batidas</span>
+                                    <span className="font-semibold text-zinc-900">{user.completedGoals}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between rounded-[10px] border border-zinc-200 bg-zinc-50 px-2.5 py-2">
+                                    <span className="text-zinc-600">Metas em risco</span>
+                                    <span className="font-semibold text-zinc-900">{user.riskGoals}</span>
+                                  </div>
+                                  <div className="rounded-[10px] border border-zinc-200 bg-zinc-50 px-2.5 py-2">
+                                    <p className="font-medium text-zinc-700">Próximo passo sugerido</p>
+                                    <p className="mt-1 text-zinc-600">
+                                      {user.riskGoals > 0
+                                        ? "Focar em metas de alta alavancagem nas próximas 48h."
+                                        : "Replicar rotina da semana atual no próximo ciclo."}
+                                    </p>
+                                  </div>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           ))}
                         </div>
-                      ) : (
-                        <div className="rounded-[14px] border border-dashed border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-500">
-                          Sem metas batidas no filtro atual.
+
+                        <div className="space-y-2 rounded-[14px] border border-zinc-200 bg-zinc-50/80 p-3">
+                          <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                            Insights da semana
+                          </h4>
+                          <div className="rounded-[12px] border border-zinc-200 bg-white p-2.5">
+                            <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
+                              Quem mais subiu
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-zinc-900">
+                              {rankingInsights.mostUp.name}
+                            </p>
+                          </div>
+                          <div className="rounded-[12px] border border-zinc-200 bg-white p-2.5">
+                            <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
+                              Quem está travado
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-zinc-900">
+                              {rankingInsights.stuck.name}
+                            </p>
+                          </div>
+                          <div className="rounded-[12px] border border-zinc-200 bg-white p-2.5">
+                            <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
+                              Top closer
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-zinc-900">
+                              {rankingInsights.topCloser.name}
+                            </p>
+                          </div>
                         </div>
-                      )
+                      </div>
                     ) : (
-                      <div className="rounded-[14px] border border-zinc-200 bg-zinc-50/80 p-3 text-xs text-zinc-600">
-                        Seção recolhida para reduzir ruído visual.
+                      <div className="rounded-[14px] border border-dashed border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-500">
+                        Ranking será exibido quando houver pontuação registrada.
                       </div>
                     )}
                   </section>
-                </section>
+                </motion.div>
+              )}
+            </div>
 
-                <section className="rounded-[20px] border border-zinc-200/80 bg-white/82 p-3 shadow-[0_16px_32px_-28px_rgba(15,23,42,0.45)] md:p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Trophy className="h-4 w-4 text-zinc-500" />
-                      <h3 className="font-heading text-base font-semibold text-zinc-900">
-                        Ranking
-                      </h3>
-                    </div>
-                    <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] text-zinc-600">
-                      Semana atual
-                    </span>
-                  </div>
-
-                  {rankingError ? (
-                    <SectionError
-                      message="Falha ao carregar ranking de performance."
-                      onRetry={() => setRankingError(false)}
-                    />
-                  ) : ranking.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_320px]">
-                      <div className="space-y-2 rounded-[14px] border border-zinc-200 bg-zinc-50/80 p-2.5">
-                        {ranking.map((user, index) => (
-                          <Popover key={user.id}>
-                            <PopoverTrigger asChild>
-                              <button
-                                type="button"
-                                className={cn(
-                                  "flex w-full items-center justify-between rounded-[12px] border px-3 py-2.5 text-left transition-colors duration-120",
-                                  user.isCurrentUser
-                                    ? "border-blue-200 bg-blue-50"
-                                    : "border-zinc-200 bg-white hover:bg-zinc-50"
-                                )}
-                              >
-                                <div className="flex min-w-0 items-center gap-2.5">
-                                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-semibold text-zinc-700">
-                                    {index + 1}
-                                  </span>
-                                  <Avatar size="sm">
-                                    <AvatarFallback className="bg-zinc-100 text-zinc-600">
-                                      {getInitials(user.name)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-zinc-900">
-                                      {user.name}
-                                    </p>
-                                    <p className="text-xs text-zinc-500">{user.role}</p>
-                                  </div>
-                                </div>
-
-                                <div className="ml-3 flex items-center gap-3">
-                                  <div className="text-right">
-                                    <p className="text-sm font-semibold text-zinc-900">
-                                      {user.score.toLocaleString("pt-BR")}
-                                    </p>
-                                    <p className="text-[11px] text-zinc-500">pontos</p>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    {getRankingTrendIcon(user.trend)}
-                                    {user.isCurrentUser ? (
-                                      <Badge className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0 text-[10px] text-blue-700">
-                                        Você
-                                      </Badge>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              </button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              align="end"
-                              className="w-[min(92vw,300px)] rounded-[14px] border-zinc-200 bg-white p-3"
-                            >
-                              <p className="text-sm font-semibold text-zinc-900">{user.name}</p>
-                              <p className="mt-0.5 text-xs text-zinc-500">{user.role}</p>
-                              <div className="mt-3 space-y-2 text-xs">
-                                <div className="flex items-center justify-between rounded-[10px] border border-zinc-200 bg-zinc-50 px-2.5 py-2">
-                                  <span className="text-zinc-600">Metas batidas</span>
-                                  <span className="font-semibold text-zinc-900">{user.completedGoals}</span>
-                                </div>
-                                <div className="flex items-center justify-between rounded-[10px] border border-zinc-200 bg-zinc-50 px-2.5 py-2">
-                                  <span className="text-zinc-600">Metas em risco</span>
-                                  <span className="font-semibold text-zinc-900">{user.riskGoals}</span>
-                                </div>
-                                <div className="rounded-[10px] border border-zinc-200 bg-zinc-50 px-2.5 py-2">
-                                  <p className="font-medium text-zinc-700">Próximo passo sugerido</p>
-                                  <p className="mt-1 text-zinc-600">
-                                    {user.riskGoals > 0
-                                      ? "Focar em metas de alta alavancagem nas próximas 48h."
-                                      : "Replicar rotina da semana atual no próximo ciclo."}
-                                  </p>
-                                </div>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        ))}
-                      </div>
-
-                      <div className="space-y-2 rounded-[14px] border border-zinc-200 bg-zinc-50/80 p-3">
-                        <h4 className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                          Insights da semana
-                        </h4>
-                        <div className="rounded-[12px] border border-zinc-200 bg-white p-2.5">
-                          <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
-                            Quem mais subiu
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-zinc-900">
-                            {rankingInsights.mostUp.name}
-                          </p>
-                        </div>
-                        <div className="rounded-[12px] border border-zinc-200 bg-white p-2.5">
-                          <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
-                            Quem está travado
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-zinc-900">
-                            {rankingInsights.stuck.name}
-                          </p>
-                        </div>
-                        <div className="rounded-[12px] border border-zinc-200 bg-white p-2.5">
-                          <p className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">
-                            Top closer
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-zinc-900">
-                            {rankingInsights.topCloser.name}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-[14px] border border-dashed border-zinc-200 bg-zinc-50/80 p-4 text-sm text-zinc-500">
-                      Ranking será exibido quando houver pontuação registrada.
-                    </div>
-                  )}
-                </section>
-              </motion.div>
-            )}
+            <div className="hidden h-full min-w-0 lg:block">
+              <GoalsIntelligenceRail
+                activeCount={counts.active}
+                riskCount={counts.risk}
+                paceCount={counts.pace}
+                achievedCount={counts.achieved}
+                runningAction={runningIntelAction}
+                result={intelResult}
+                onClose={() => { }}
+                onRunAction={runIntelAction}
+                onFilterRisk={() => setStatusFilter("risk")}
+                onFilterOpportunities={() => setTypeFilter("opportunities")}
+                onFilterConversion={() => setTypeFilter("conversion")}
+                onFilterActivities={() => setTypeFilter("activities")}
+                onOpenActivities={() => router.push("/activities?source=goals&focus=metas")}
+                onGenerateSummary={() =>
+                  setPageFeedback({
+                    type: "success",
+                    message: "Resumo de coaching gerado.",
+                  })
+                }
+              />
+            </div>
           </div>
-
-          <aside
-            className={cn(
-              "hidden xl:block shrink-0 transition-[width,opacity] duration-[220ms] ease-out",
-              isIntelligenceOpen
-                ? "w-[360px] opacity-100"
-                : "pointer-events-none w-0 opacity-0"
-            )}
-          >
-            <GoalsIntelligenceRail
-              activeCount={counts.active}
-              riskCount={counts.risk}
-              paceCount={counts.pace}
-              achievedCount={counts.achieved}
-              runningAction={runningIntelAction}
-              result={intelResult}
-              onClose={() => setIsIntelligenceOpen(false)}
-              onRunAction={runIntelAction}
-              onFilterRisk={() => setStatusFilter("risk")}
-              onFilterOpportunities={() => setTypeFilter("opportunities")}
-              onFilterConversion={() => setTypeFilter("conversion")}
-              onFilterActivities={() => setTypeFilter("activities")}
-              onOpenActivities={() => router.push("/activities?source=goals&focus=metas")}
-              onGenerateSummary={() =>
-                setPageFeedback({
-                  type: "success",
-                  message: "Resumo de coaching gerado.",
-                })
-              }
-            />
-          </aside>
         </motion.div>
 
         {!isDesktopXL ? (
@@ -1538,7 +1413,14 @@ export default function GoalsPage() {
           </>
         ) : null}
       </motion.div>
-    </TooltipProvider>
+
+      <GeneratedContentModal
+        open={generatedModalOpen}
+        onOpenChange={setGeneratedModalOpen}
+        title={generatedContent.title}
+        content={generatedContent.content}
+      />
+    </TooltipProvider >
   );
 }
 
@@ -1667,37 +1549,6 @@ function GoalPerformanceCard({
             <h4 className="truncate text-sm font-semibold text-zinc-900">{goal.title}</h4>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full text-zinc-500"
-                aria-label="Ações da meta"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 rounded-[14px]">
-              <DropdownMenuItem onClick={onEdit}>
-                <Target className="mr-2 h-4 w-4" />
-                Editar meta
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDuplicate}>
-                <Copy className="mr-2 h-4 w-4" />
-                Duplicar meta
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onViewHistory}>
-                <Clock3 className="mr-2 h-4 w-4" />
-                Ver histórico
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onArchive} className="text-red-700">
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                Arquivar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         <div className="mt-3">
@@ -1728,12 +1579,17 @@ function GoalPerformanceCard({
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              variant="outline"
-              className="h-8 rounded-full px-3 text-xs"
+              className={cn(
+                "h-8 rounded-full px-4 text-xs font-medium shadow-sm transition-transform active:scale-95",
+                status === "risk"
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-zinc-900 text-white hover:bg-zinc-800"
+              )}
               onClick={onPrimaryAction}
               disabled={isRunningAction}
             >
               {statusCfg.ctaLabel}
+              <ArrowRight className="ml-1.5 h-3 w-3" />
             </Button>
             <Button
               size="sm"
