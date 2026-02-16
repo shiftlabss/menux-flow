@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Column - Flex Vertical */}
       <div
         className={cn(
-          "flex flex-1 flex-col h-full relative transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
+          "flex min-w-0 flex-1 flex-col h-full relative transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
           "ml-0 md:ml-0" // Sidebar handles its own spacing via width interaction if needed, or we adapt layout
         )}
         style={{

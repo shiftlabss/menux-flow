@@ -281,7 +281,7 @@ function PipesPageContent() {
         initial="hidden"
         animate="show"
         variants={screenContainer}
-        className="flex h-[calc(100dvh-96px)] min-h-0 flex-col gap-4"
+        className="flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-full flex-col gap-4"
       >
         {/* Header & Toolbar */}
         <motion.div variants={sectionEnter} className="shrink-0">
@@ -415,13 +415,13 @@ function PipesPageContent() {
 
         {/* Board */}
         <div
-          className="premium-ambient premium-grain relative flex min-h-0 flex-1 items-stretch overflow-hidden rounded-[20px] border border-zinc-200/75 bg-white/68 p-3 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm md:p-4"
+          className="premium-ambient premium-grain relative flex min-h-0 min-w-0 flex-1 items-stretch overflow-hidden rounded-[20px] border border-zinc-200/75 bg-white/68 p-3 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm md:p-4"
           role="region"
           aria-label="Pipeline de vendas — arraste os cards entre as etapas"
         >
           <div
             ref={boardRef}
-            className="flex flex-1 gap-4 overflow-x-auto scroll-smooth px-1 pb-1 md:px-2"
+            className="flex min-w-0 flex-1 gap-4 overflow-x-auto scroll-smooth px-1 pb-1 md:px-2"
             style={{ scrollSnapType: "x proximity" }}
           >
             {visibleStages.map((stageDef, index) => {
