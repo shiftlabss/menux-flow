@@ -31,6 +31,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 // Stores
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -51,7 +58,6 @@ import { GhostDealCard } from "./components/ghost-deal-card";
 import { PipelineSkeleton } from "./components/pipeline-skeleton";
 // External components
 import { PipelineManagerDrawer } from "@/components/pipeline/pipeline-manager-drawer";
-import { PipelineSwitcher } from "@/components/pipeline/pipeline-switcher";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 // ===================================================================
@@ -275,7 +281,7 @@ function PipesPageContent() {
         initial="hidden"
         animate="show"
         variants={screenContainer}
-        className="flex h-[calc(100vh-96px)] min-h-[560px] flex-col gap-4"
+        className="flex h-[calc(100dvh-96px)] min-h-0 flex-col gap-4"
       >
         {/* Header & Toolbar */}
         <motion.div variants={sectionEnter} className="shrink-0">
@@ -305,6 +311,42 @@ function PipesPageContent() {
             ]}
             actions={
               <>
+                <Select
+                  value={selectedFunnel}
+                  onValueChange={(pipelineId) => {
+                    setSelectedFunnel(pipelineId);
+                    if (showOnlyMine || searchQuery) {
+                      setShowOnlyMine(false);
+                      setSearchQuery("");
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-9 min-w-[118px] rounded-full border-zinc-200 bg-white/90 px-3 font-body text-sm sm:min-w-[132px]">
+                    <SelectValue placeholder="Funil" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {funnels.map((funnel) => (
+                      <SelectItem key={funnel.id} value={funnel.id}>
+                        {funnel.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant={showOnlyMine ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowOnlyMine((prev) => !prev)}
+                  className={`h-9 rounded-full font-heading text-sm ${
+                    showOnlyMine ? "bg-black text-white hover:bg-zinc-800" : ""
+                  }`}
+                >
+                  <span className="hidden 2xl:inline">
+                    {showOnlyMine ? "Meus cards" : "Todos os cards"}
+                  </span>
+                  <span className="2xl:hidden">{showOnlyMine ? "Meus" : "Todos"}</span>
+                </Button>
+
                 {stageFilter && stageFilterLabel && (
                   <div className="flex items-center gap-1 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-1.5">
                     <span className="text-[11px] font-medium text-brand-strong">
@@ -327,7 +369,7 @@ function PipesPageContent() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar cards..."
-                    className="h-9 w-[220px] rounded-full pl-8 pr-8 font-body text-sm"
+                    className="h-9 w-[116px] rounded-full pl-8 pr-8 font-body text-sm sm:w-[148px] lg:w-[172px] xl:w-[190px] 2xl:w-[220px]"
                   />
                   {searchQuery && (
                     <button
@@ -346,7 +388,7 @@ function PipesPageContent() {
                   className="h-9 rounded-full font-heading text-sm"
                 >
                   <Filter className="mr-1.5 h-3.5 w-3.5" />
-                  Filtros
+                  <span className="hidden lg:inline">Filtros</span>
                 </Button>
 
                 <Button
@@ -355,35 +397,20 @@ function PipesPageContent() {
                   className="h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800"
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  Novo Card
+                  <span className="hidden lg:inline">Novo Card</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsManageDrawerOpen(true)}
+                  className="hidden h-9 rounded-full font-heading text-sm 2xl:inline-flex"
+                >
+                  Gerenciar
                 </Button>
               </>
             }
-          >
-            <div className="min-w-0">
-              <PipelineSwitcher
-                selectedPipeline={activeFunnel}
-                availablePipelines={funnels}
-                hasActiveFilters={showOnlyMine || searchQuery.length > 0 || !!stageFilter}
-                isAdmin={true}
-                showOnlyMine={showOnlyMine}
-                onToggleShowOnlyMine={() => setShowOnlyMine((prev) => !prev)}
-                onPipelineChange={(pipelineId) => {
-                  setSelectedFunnel(pipelineId);
-                  if (showOnlyMine || searchQuery) {
-                    setShowOnlyMine(false);
-                    setSearchQuery("");
-                  }
-                }}
-                onSettingsClick={() => setIsManageDrawerOpen(true)}
-              />
-              <p className="mt-0.5 font-body text-sm text-zinc-500">
-                {myCount} meus · {formatCurrencyBRL(myTotal)}
-                <span className="mx-1.5 text-zinc-300">|</span>
-                {boardCount} total · {formatCurrencyBRL(boardTotal)}
-              </p>
-            </div>
-          </ModuleCommandHeader>
+          />
         </motion.div>
 
         {/* Board */}

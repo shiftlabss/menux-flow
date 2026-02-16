@@ -31,11 +31,11 @@ import { useAuthStore } from "@/stores/auth-store";
 
 // Simple useMediaQuery hook
 function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia(query).matches : false
-  );
+  // Keep first client render equal to SSR to avoid hydration mismatch.
+  const [matches, setMatches] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const mql = window.matchMedia(query);
     startTransition(() => {
       setMatches(mql.matches);

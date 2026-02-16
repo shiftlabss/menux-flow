@@ -14,8 +14,8 @@ import { useUIStore } from "@/stores/ui-store";
 
 export function GlobalDrawers() {
   const { modalData, drawerData } = useUIStore();
-  const leadDrawerKey = String(modalData?.id ?? "default");
-  const clientDrawerKey = String(drawerData?.id ?? "default");
+  const leadDrawerKey = `lead-${String(modalData?.id ?? "default")}`;
+  const clientDrawerKey = `client-${String(drawerData?.id ?? "default")}`;
 
   return (
     <>

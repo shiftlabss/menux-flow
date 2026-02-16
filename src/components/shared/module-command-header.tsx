@@ -19,6 +19,7 @@ interface ModuleCommandHeaderProps {
   title: string;
   description?: string;
   actions?: ReactNode;
+  actionsClassName?: string;
   meta?: ReactNode;
   chips?: ModuleCommandHeaderChip[];
   fallbackChip?: ModuleCommandHeaderChip;
@@ -76,6 +77,7 @@ export function ModuleCommandHeader({
   title,
   description,
   actions,
+  actionsClassName,
   meta,
   chips = [],
   fallbackChip,
@@ -109,7 +111,13 @@ export function ModuleCommandHeader({
             ) : null}
           </div>
           {actions ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-[16px] border border-zinc-200/85 bg-white/85 px-2 py-1.5 shadow-[0_8px_16px_-16px_rgba(15,23,42,0.36)]">
+            <div
+              className={cn(
+                "flex w-full min-w-0 flex-wrap items-center gap-2 rounded-[16px] border border-zinc-200/85 bg-white/85 px-2 py-1.5 shadow-[0_8px_16px_-16px_rgba(15,23,42,0.36)]",
+                "xl:ml-auto xl:w-auto xl:max-w-full xl:justify-end",
+                actionsClassName
+              )}
+            >
               {actions}
             </div>
           ) : null}
@@ -130,4 +138,3 @@ export function ModuleCommandHeader({
     </section>
   );
 }
-
