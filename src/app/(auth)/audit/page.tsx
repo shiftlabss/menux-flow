@@ -422,7 +422,15 @@ function AuditRow({
               {event.details}
             </span>
             {event.fullDetails && (
-              <button className="shrink-0 text-zinc-400">
+              <button
+                type="button"
+                className="shrink-0 text-zinc-400"
+                aria-label={isExpanded ? "Ocultar detalhes" : "Exibir detalhes"}
+                onClick={(eventClick) => {
+                  eventClick.stopPropagation();
+                  onToggle();
+                }}
+              >
                 {isExpanded ? (
                   <ChevronUp className="h-4 w-4" />
                 ) : (

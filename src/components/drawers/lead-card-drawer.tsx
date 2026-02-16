@@ -95,7 +95,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useUIStore } from "@/stores/ui-store";
-import type { Temperature, PipelineStage } from "@/types";
+import type { Activity as FlowActivity, Temperature, PipelineStage } from "@/types";
 import { calculateLeadScore, calculateTemperature } from "@/lib/business-rules";
 import { mockActivities } from "@/lib/mock-data";
 import { stageFieldsConfig } from "@/lib/mock-stage-fields";
@@ -1344,6 +1344,8 @@ function ExecutiveCompanyStrip({
   onStageChange,
   onTemperatureChange,
   onResponsibleChange,
+  onOpenPrimaryContact,
+  onCreatePrimaryContact,
   teamMembers,
   isLocked,
   stageBanner,
@@ -1371,6 +1373,8 @@ function ExecutiveCompanyStrip({
   onStageChange: (s: PipelineStage) => void;
   onTemperatureChange: (t: Temperature) => void;
   onResponsibleChange: (id: string, name: string) => void;
+  onOpenPrimaryContact: () => void;
+  onCreatePrimaryContact: () => void;
   teamMembers: { id: string; name: string; avatar: string }[];
   isLocked: boolean;
   stageBanner: InlineBanner | null;
@@ -1531,7 +1535,11 @@ function ExecutiveCompanyStrip({
                     </CopyButton>
                   )}
                 </div>
-                <button className="absolute top-0 right-0 inline-flex items-center gap-0.5 rounded-md border border-zinc-200/50 bg-white px-1.5 py-0.5 font-body text-[9px] font-medium text-zinc-400 shadow-sm opacity-0 transition-all duration-[120ms] group-hover/contact:opacity-100 hover:text-brand hover:border-brand/20 active:scale-[0.98]">
+                <button
+                  type="button"
+                  onClick={onOpenPrimaryContact}
+                  className="absolute top-0 right-0 inline-flex items-center gap-0.5 rounded-md border border-zinc-200/50 bg-white px-1.5 py-0.5 font-body text-[9px] font-medium text-zinc-400 shadow-sm opacity-0 transition-all duration-[120ms] group-hover/contact:opacity-100 hover:text-brand hover:border-brand/20 active:scale-[0.98]"
+                >
                   <ChevronRight className="h-2 w-2" />
                   Abrir
                 </button>
@@ -1545,7 +1553,11 @@ function ExecutiveCompanyStrip({
                   <p className="font-body text-[10px] text-zinc-400">
                     Sem contato principal
                   </p>
-                  <button className="mt-0.5 inline-flex items-center gap-0.5 font-body text-[10px] font-medium text-brand transition-colors hover:text-brand/80">
+                  <button
+                    type="button"
+                    onClick={onCreatePrimaryContact}
+                    className="mt-0.5 inline-flex items-center gap-0.5 font-body text-[10px] font-medium text-brand transition-colors hover:text-brand/80"
+                  >
                     <Plus className="h-2.5 w-2.5" />
                     Definir contato
                   </button>
@@ -1908,12 +1920,24 @@ export default function LeadCardDrawer() {
     telefone: "",
     cargo: "",
   });
+  const [activeTab, setActiveTab] = useState("empresa");
+  const [visitRows, setVisitRows] = useState(() => [...mockVisits]);
+  const [activityFilter, setActivityFilter] = useState<"all" | "pending" | "completed">("all");
+  const [dealActivities, setDealActivities] = useState<FlowActivity[]>(() =>
+    mockActivities.filter((activity) => activity.opportunityId === resolvedLead.id)
+  );
 
   // Computed
-  const relatedActivities = useMemo(
-    () => mockActivities.filter((a) => a.opportunityId === resolvedLead.id),
-    [resolvedLead.id],
-  );
+  const relatedActivities = useMemo(() => dealActivities, [dealActivities]);
+  const visibleDealActivities = useMemo(() => {
+    if (activityFilter === "pending") {
+      return dealActivities.filter((activity) => activity.status !== "completed");
+    }
+    if (activityFilter === "completed") {
+      return dealActivities.filter((activity) => activity.status === "completed");
+    }
+    return dealActivities;
+  }, [activityFilter, dealActivities]);
   const leadScore = useMemo(
     () => calculateLeadScore(resolvedLead, relatedActivities),
     [resolvedLead, relatedActivities],
@@ -1934,6 +1958,15 @@ export default function LeadCardDrawer() {
       });
     }
   }, [isOpen, resolvedLead.id]);
+
+  useEffect(() => {
+    setActiveTab("empresa");
+    setVisitRows([...mockVisits]);
+    setActivityFilter("all");
+    setDealActivities(
+      mockActivities.filter((activity) => activity.opportunityId === resolvedLead.id)
+    );
+  }, [resolvedLead.id]);
 
   // ── Handlers ─────────────────────────────────────────────────
 
@@ -2027,6 +2060,116 @@ export default function LeadCardDrawer() {
       setEditContact({ nome: "", email: "", telefone: "", cargo: "" });
     }
   };
+
+  const appendActivity = useCallback(
+    (activityTitle: string, type: FlowActivity["type"] = "follow-up") => {
+      const dueAt = new Date(Date.now() + 60 * 60 * 1000);
+      const dueDate = `${dueAt.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      })} ${dueAt.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+
+      const newActivity: FlowActivity = {
+        id: `activity-${Date.now()}`,
+        title: activityTitle,
+        type,
+        status: "pending",
+        dueDate,
+        responsibleId,
+        responsibleName,
+        opportunityId: resolvedLead.id,
+        opportunityTitle: title,
+        clientId: resolvedLead.id,
+        clientName: resolvedLead.clientName ?? nomeFantasia,
+        createdAt: new Date().toISOString(),
+      };
+
+      setDealActivities((prev) => [newActivity, ...prev]);
+      setHeaderBanner({
+        message: "Atividade criada com sucesso",
+        variant: "success",
+      });
+    },
+    [
+      nomeFantasia,
+      resolvedLead.clientName,
+      resolvedLead.id,
+      responsibleId,
+      responsibleName,
+      title,
+    ],
+  );
+
+  const handleCreateQuickActivity = useCallback(
+    (source: "menu" | "tab") => {
+      setActiveTab("atividades");
+      appendActivity(
+        source === "menu" ? "Nova atividade a partir do card" : "Follow-up da oportunidade",
+        source === "menu" ? "task" : "follow-up",
+      );
+    },
+    [appendActivity],
+  );
+
+  const handleCompleteDealActivity = useCallback((activityId: string) => {
+    setDealActivities((prev) =>
+      prev.map((activity) =>
+        activity.id === activityId
+          ? {
+              ...activity,
+              status: "completed",
+              completedAt: new Date().toISOString(),
+            }
+          : activity,
+      ),
+    );
+    setHeaderBanner({
+      message: "Atividade concluída",
+      variant: "success",
+    });
+  }, []);
+
+  const handleToggleActivityFilter = useCallback(() => {
+    const nextFilter =
+      activityFilter === "all"
+        ? "pending"
+        : activityFilter === "pending"
+          ? "completed"
+          : "all";
+
+    setActivityFilter(nextFilter);
+    const label =
+      nextFilter === "all"
+        ? "Todos"
+        : nextFilter === "pending"
+          ? "Pendentes"
+          : "Concluídas";
+    setHeaderBanner({
+      message: `Filtro de atividades: ${label}`,
+      variant: "info",
+    });
+  }, [activityFilter]);
+
+  const handleAddVisit = useCallback(() => {
+    const visitDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const nextVisit = {
+      id: `visit-${Date.now()}`,
+      type: "presencial",
+      location: resolvedLead.clientName || nomeFantasia,
+      status: "agendada",
+      date: `${visitDate.toLocaleDateString("pt-BR")} 10:00`,
+      responsible: responsibleName,
+    };
+
+    setVisitRows((prev) => [nextVisit, ...prev]);
+    setHeaderBanner({
+      message: "Visita adicionada na agenda",
+      variant: "success",
+    });
+  }, [nomeFantasia, resolvedLead.clientName, responsibleName]);
 
   // --- Company Refactor Handlers ---
   const toggleType = (id: string) => {
@@ -2162,7 +2305,11 @@ export default function LeadCardDrawer() {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="rounded-[12px]">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          handleCreateQuickActivity("menu");
+                        }}
+                      >
                         <Calendar className="mr-2 h-4 w-4" />
                         Nova atividade
                       </DropdownMenuItem>
@@ -2243,6 +2390,11 @@ export default function LeadCardDrawer() {
                   setResponsibleId(id);
                   setResponsibleName(name);
                 }}
+                onOpenPrimaryContact={() => setActiveTab("contatos")}
+                onCreatePrimaryContact={() => {
+                  setActiveTab("contatos");
+                  setShowAddContact(true);
+                }}
                 teamMembers={mockTeamMembers}
                 isLocked={isLocked}
                 stageBanner={stageBanner}
@@ -2259,7 +2411,7 @@ export default function LeadCardDrawer() {
             <div className="min-h-0 flex-1">
               <ScrollArea className="h-full">
                 <div className="p-5 md:px-8 lg:px-10">
-                    <Tabs defaultValue="empresa">
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList className="inline-flex h-9 items-center justify-start rounded-full bg-zinc-100/80 p-1">
                       {[
                         { value: "empresa", label: "Empresa" },
@@ -2985,14 +3137,19 @@ export default function LeadCardDrawer() {
                         <TabsContent value="visitas" className="mt-0 space-y-4">
                             <div className="flex items-center justify-between">
                                 <h3 className="font-heading text-sm font-semibold text-zinc-700">Visitas Agendadas</h3>
-                                <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full text-xs">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 gap-1.5 rounded-full text-xs"
+                                  onClick={handleAddVisit}
+                                >
                                     <Plus className="h-3.5 w-3.5" />
                                     Nova Visita
                                 </Button>
                             </div>
                             
                             <div className="space-y-3">
-                                {mockVisits.map((visit) => (
+                                {visitRows.map((visit) => (
                                     <div key={visit.id} className="group relative flex gap-3 rounded-2xl border border-zinc-100 bg-white p-4 transition-all hover:border-zinc-200 hover:shadow-sm">
                                         <div className={cn(
                                             "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border",
@@ -3046,10 +3203,21 @@ export default function LeadCardDrawer() {
                              <div className="flex items-center justify-between">
                                 <h3 className="font-heading text-sm font-semibold text-zinc-700">Atividades</h3>
                                 <div className="flex gap-2">
-                                     <Button size="sm" variant="outline" className="h-8 w-8 rounded-full p-0">
+                                     <Button
+                                       size="sm"
+                                       variant="outline"
+                                       className="h-8 w-8 rounded-full p-0"
+                                       onClick={handleToggleActivityFilter}
+                                       title="Alternar filtro de atividades"
+                                     >
                                         <Filter className="h-3.5 w-3.5" />
                                      </Button>
-                                    <Button size="sm" variant="outline" className="h-8 gap-1.5 rounded-full text-xs">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 gap-1.5 rounded-full text-xs"
+                                      onClick={() => handleCreateQuickActivity("tab")}
+                                    >
                                         <Plus className="h-3.5 w-3.5" />
                                         Nova
                                     </Button>
@@ -3057,7 +3225,7 @@ export default function LeadCardDrawer() {
                             </div>
 
                             <div className="space-y-3">
-                                {mockActivities.map((activity) => (
+                                {visibleDealActivities.map((activity) => (
                                     <div key={activity.id} className="flex items-start gap-3 rounded-2xl border border-zinc-100 bg-white p-3 transition-all hover:border-zinc-200">
                                         <div className={cn(
                                             "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
@@ -3074,7 +3242,13 @@ export default function LeadCardDrawer() {
                                                     {activity.title}
                                                 </p>
                                                 <div className="flex gap-1">
-                                                     <button className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-300 hover:bg-zinc-100 hover:text-zinc-600">
+                                                     <button
+                                                       type="button"
+                                                       onClick={() => handleCompleteDealActivity(activity.id)}
+                                                       disabled={activity.status === "completed"}
+                                                       className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                                       aria-label="Concluir atividade"
+                                                     >
                                                         <CheckCircle className="h-4 w-4" />
                                                      </button>
                                                 </div>
@@ -3095,6 +3269,11 @@ export default function LeadCardDrawer() {
                                         </div>
                                     </div>
                                 ))}
+                                {visibleDealActivities.length === 0 && (
+                                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500">
+                                    Nenhuma atividade para o filtro atual.
+                                  </div>
+                                )}
                             </div>
                         </TabsContent>
 

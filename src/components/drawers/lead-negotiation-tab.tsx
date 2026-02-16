@@ -47,6 +47,19 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+function downloadTextFile(fileName: string, content: string) {
+  if (typeof window === "undefined") return;
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Components
 // ═══════════════════════════════════════════════════════════════════
@@ -59,6 +72,10 @@ interface NegotiationTabProps {
 export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
   const [rounds, setRounds] = useState<NegotiationRound[]>(mockNegotiationRounds);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Derived Summary
   const lastRound = rounds[rounds.length - 1];
@@ -81,6 +98,57 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
     setIsFormOpen(false);
   };
 
+  const showActionFeedback = (type: "success" | "error", message: string) => {
+    setActionFeedback({ type, message });
+    window.setTimeout(() => setActionFeedback(null), 1200);
+  };
+
+  const handleExportSummary = () => {
+    try {
+      const lines = rounds.map((round, index) => {
+        const createdAt = round.createdAt
+          ? format(new Date(round.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })
+          : "Sem data";
+        return `${index + 1}. ${round.type.toUpperCase()} | Mensal: ${formatCurrency(round.monthlyValue || 0)} | Setup: ${formatCurrency(round.setupValue || 0)} | Prazo: ${round.termMonths} meses | ${createdAt}`;
+      });
+      const summary = [
+        `Resumo da negociacao: ${dealTitle}`,
+        `Total de rodadas: ${rounds.length}`,
+        "",
+        ...lines,
+      ].join("\n");
+      downloadTextFile(`negociacao-${dealId}.txt`, summary);
+      showActionFeedback("success", "Resumo exportado.");
+    } catch {
+      showActionFeedback("error", "Falha ao exportar resumo.");
+    }
+  };
+
+  const handleDownloadContract = () => {
+    const agreement = rounds.find((round) => round.type === "agreement");
+    if (!agreement) {
+      showActionFeedback("error", "Sem acordo final para download.");
+      return;
+    }
+
+    try {
+      const contract = [
+        `Contrato Comercial - ${dealTitle}`,
+        "",
+        `Valor mensal: ${formatCurrency(agreement.monthlyValue || 0)}`,
+        `Setup: ${formatCurrency(agreement.setupValue || 0)}`,
+        `Prazo: ${agreement.termMonths} meses`,
+        `Registrado em: ${agreement.createdAt ? format(new Date(agreement.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "Sem data"}`,
+        "",
+        "Documento mockado para fluxo frontend.",
+      ].join("\n");
+      downloadTextFile(`contrato-${dealId}.txt`, contract);
+      showActionFeedback("success", "Contrato baixado.");
+    } catch {
+      showActionFeedback("error", "Falha ao baixar contrato.");
+    }
+  };
+
   return (
     <div className="space-y-6" data-deal-id={dealId}>
       {/* Header */}
@@ -99,7 +167,12 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-8 gap-2 text-zinc-500">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-2 text-zinc-500"
+              onClick={handleExportSummary}
+            >
                 <Download className="h-3.5 w-3.5" />
                 Exportar resumo
             </Button>
@@ -113,6 +186,20 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
             </Button>
         </div>
       </header>
+
+      {actionFeedback ? (
+        <div
+          className={cn(
+            "rounded-lg border px-3 py-2 text-xs font-medium",
+            actionFeedback.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-red-200 bg-red-50 text-red-700"
+          )}
+          role="status"
+        >
+          {actionFeedback.message}
+        </div>
+      ) : null}
 
       {/* Main Layout: 2 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -165,6 +252,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
                 lastClient={lastClient}
                 finalAgreement={finalAgreement}
                 onAddRound={() => setIsFormOpen(true)}
+                onDownloadContract={handleDownloadContract}
             />
         </div>
 
@@ -245,7 +333,17 @@ function NegotiationRoundCard({ round, displayIndex, isLast }: { round: Negotiat
                         </div>
                     </div>
                     
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-zinc-400"
+                      type="button"
+                      aria-label={isExpanded ? "Ocultar rodada" : "Exibir rodada"}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setIsExpanded((prev) => !prev);
+                      }}
+                    >
                         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                 </div>
@@ -319,13 +417,15 @@ function NegotiationSummaryCard({
     lastInternal, 
     lastClient, 
     finalAgreement, 
-    onAddRound 
+    onAddRound,
+    onDownloadContract
 }: { 
     status: string, 
     lastInternal?: NegotiationRound, 
     lastClient?: NegotiationRound, 
     finalAgreement?: NegotiationRound, 
-    onAddRound: () => void 
+    onAddRound: () => void,
+    onDownloadContract: () => void
 }) {
     // Determine what to show in the "Current Deal" section
     // If agreed, show agreement. Else show internal proposal (our offer).
@@ -389,7 +489,11 @@ function NegotiationSummaryCard({
                     {/* CTA */}
                     <div className="pt-2">
                         {status === 'agreed' ? (
-                             <Button className="w-full bg-zinc-100 text-zinc-900 hover:bg-zinc-200 border border-zinc-200 shadow-none">
+                             <Button
+                               type="button"
+                               className="w-full bg-zinc-100 text-zinc-900 hover:bg-zinc-200 border border-zinc-200 shadow-none"
+                               onClick={onDownloadContract}
+                             >
                                 <Download className="mr-2 h-4 w-4" /> Baixar Contrato
                              </Button>
                         ) : (

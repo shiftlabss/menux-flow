@@ -1346,7 +1346,7 @@ export default function ReportsPage() {
                             </div>
                             <Button
                               className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800"
-                              onClick={generateReport}
+                              onClick={() => generateReport()}
                               disabled={isGenerating}
                             >
                               {isGenerating ? (

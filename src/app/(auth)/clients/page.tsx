@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useState,
   useMemo,
   useEffect,
@@ -259,23 +260,26 @@ function getIntelligenceSuggestions(client: Client): {
   return { messages, nextStep, risk };
 }
 
-export default function ClientsPage() {
+function ClientsPageContent() {
   const { openDrawer } = useUIStore();
   const { clients: storeClients } = useClientStore();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const hasRiskFilterParam = searchParams.get("filter") === "risk";
 
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<ClientsView>("board");
   const [visiblePhase, setVisiblePhase] = useState<SuccessPhase>("all");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState<FiltersState>({
-    health: "all",
+  const [filters, setFilters] = useState<FiltersState>(() => ({
+    health: hasRiskFilterParam ? "critical" : "all",
     responsible: "all",
     staleOnly: false,
-  });
-  const [metricsFilter, setMetricsFilter] = useState<MetricsFilter>("all");
+  }));
+  const [metricsFilter, setMetricsFilter] = useState<MetricsFilter>(() =>
+    hasRiskFilterParam ? "critical" : "all"
+  );
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
   const [isDesktopXL, setIsDesktopXL] = useState(false);
@@ -298,15 +302,6 @@ export default function ClientsPage() {
       router.replace(`/clients?${newParams.toString()}`, { scroll: false });
     }
   }, [searchParams, openDrawer, router]);
-
-  // Deep linking for filters
-  useEffect(() => {
-    const filterParam = searchParams.get("filter");
-    if (filterParam === "risk") {
-      setMetricsFilter("critical");
-      setFilters((prev) => ({ ...prev, health: "critical" }));
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 700);
@@ -1202,6 +1197,14 @@ export default function ClientsPage() {
         ) : null}
       </motion.div>
     </TooltipProvider>
+  );
+}
+
+export default function ClientsPage() {
+  return (
+    <Suspense fallback={<ClientsPageSkeleton />}>
+      <ClientsPageContent />
+    </Suspense>
   );
 }
 

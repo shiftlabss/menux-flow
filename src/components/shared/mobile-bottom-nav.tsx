@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -21,6 +21,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/auth-store";
 
 // ── Nav item type ──────────────────────────────────────────────────
 interface NavItem {
@@ -51,6 +52,8 @@ const moreNavItems: NavItem[] = [
 // ── Mobile Bottom Nav ──────────────────────────────────────────────
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const logout = useAuthStore((state) => state.logout);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const isIntelligencePage = pathname.startsWith("/intelligence");
 
@@ -60,6 +63,12 @@ export function MobileBottomNav() {
   };
 
   const isMoreActive = moreNavItems.some((item) => isActive(item));
+
+  const handleLogout = () => {
+    logout();
+    setIsMoreOpen(false);
+    router.replace("/login");
+  };
 
   return (
     <>
@@ -159,10 +168,7 @@ export function MobileBottomNav() {
             <button
               type="button"
               className="flex items-center gap-3 px-4 py-3 rounded-[10px] text-status-danger hover:bg-status-danger-light transition-colors"
-              onClick={() => {
-                setIsMoreOpen(false);
-                // logout handler would go here
-              }}
+              onClick={handleLogout}
             >
               <LogOut className="size-5" />
               <span className="font-body text-sm font-medium">Sair</span>
