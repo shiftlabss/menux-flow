@@ -10,7 +10,6 @@ interface UsePipelineBoardOptions {
   localOpportunities: Opportunity[];
   setLocalOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
   activeFunnel: FunnelDefinition;
-  currentUserId: string;
   announce: (message: string) => void;
 }
 
@@ -18,7 +17,6 @@ export function usePipelineBoard({
   localOpportunities,
   setLocalOpportunities,
   activeFunnel,
-  currentUserId,
   announce,
 }: UsePipelineBoardOptions) {
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
@@ -40,10 +38,6 @@ export function usePipelineBoard({
 
   const handleDragStart = useCallback(
     (e: React.DragEvent, opportunity: Opportunity) => {
-      if (opportunity.responsibleId !== currentUserId) {
-        e.preventDefault();
-        return;
-      }
       setDraggingCardId(opportunity.id);
       setDraggingCardStage(opportunity.stage);
       dragCardRef.current = opportunity;
@@ -54,7 +48,7 @@ export function usePipelineBoard({
         `Arrastando card ${opportunity.title}. Solte em uma etapa para mover.`
       );
     },
-    [announce, currentUserId]
+    [announce]
   );
 
   const handleDragOver = useCallback(

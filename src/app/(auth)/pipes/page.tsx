@@ -337,7 +337,6 @@ function PipesPageContent() {
     localOpportunities,
     setLocalOpportunities,
     activeFunnel,
-    currentUserId,
     announce,
   });
 
