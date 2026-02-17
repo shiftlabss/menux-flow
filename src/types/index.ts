@@ -37,6 +37,17 @@ export interface Opportunity {
   slaDeadline?: string;
   neighborhood?: string;
   metadata?: Record<string, unknown>;
+
+}
+
+export interface Contact {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  cargo: string;
+  personalidade?: string;
+  isDecisionMaker?: boolean;
 }
 
 // ===== Client Types =====

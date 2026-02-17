@@ -58,6 +58,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { VisitCard } from "@/components/cards/visit-card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1053,8 +1054,8 @@ function ContactCard({
         type="button"
         onClick={onToggleDecisionMaker}
         className={`flex w-9 shrink-0 items-center justify-center rounded-l-[14px] border-r transition-colors ${contact.isDecisionMaker
-            ? "border-brand/20 bg-brand/10 text-brand"
-            : "border-zinc-100 bg-zinc-50/50 text-zinc-300 hover:bg-zinc-100 hover:text-zinc-400"
+          ? "border-brand/20 bg-brand/10 text-brand"
+          : "border-zinc-100 bg-zinc-50/50 text-zinc-300 hover:bg-zinc-100 hover:text-zinc-400"
           }`}
         aria-label={contact.isDecisionMaker ? "Remover como decisor" : "Marcar como decisor"}
         title={contact.isDecisionMaker ? "Decisor (clique para remover)" : "Marcar como decisor"}
@@ -3341,184 +3342,18 @@ export default function LeadCardDrawer() {
                               const VisitIcon = getVisitTypeIcon(visit.type);
                               const isExpanded = expandedVisitId === visit.id;
                               return (
-                                <div
+                                <VisitCard
                                   key={visit.id}
-                                  className="group relative rounded-2xl border border-zinc-100 bg-white p-4 transition-all hover:border-zinc-200 hover:shadow-sm"
-                                >
-                                  <div className="flex gap-3">
-                                    <div className={cn(
-                                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border",
-                                      visit.type === "presencial"
-                                        ? "border-purple-100 bg-purple-50 text-purple-600"
-                                        : visit.type === "remoto"
-                                          ? "border-blue-100 bg-blue-50 text-blue-600"
-                                          : "border-zinc-200 bg-zinc-100 text-zinc-500"
-                                    )}>
-                                      <VisitIcon className="h-5 w-5" />
-                                    </div>
-
-                                    <div className="flex-1 space-y-2">
-                                      <div className="flex items-start justify-between gap-2">
-                                        <div>
-                                          <p className="font-heading text-sm font-semibold text-zinc-900">
-                                            {visitTypeLabel[visit.type]}
-                                          </p>
-                                          <p className="text-xs text-zinc-500">{visit.location}</p>
-                                        </div>
-                                        <Badge
-                                          variant="secondary"
-                                          className={cn(
-                                            "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                                            visitStatusClassName[visit.status]
-                                          )}
-                                        >
-                                          {visitStatusLabel[visit.status]}
-                                        </Badge>
-                                      </div>
-
-                                      <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
-                                        <div className="flex items-center gap-1">
-                                          <Calendar className="h-3.5 w-3.5" />
-                                          {formatVisitDateLabel(visit.startAt)}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <UserCircle className="h-3.5 w-3.5" />
-                                          {visit.responsible}
-                                        </div>
-                                        {visit.durationMinutes ? (
-                                          <div className="flex items-center gap-1">
-                                            <Clock className="h-3.5 w-3.5" />
-                                            {visit.durationMinutes} min
-                                          </div>
-                                        ) : null}
-                                      </div>
-
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        {visit.status !== "realizada" && visit.status !== "cancelada" && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 rounded-full px-2.5 text-[11px]"
-                                            onClick={() => handleVisitStatusChange(visit.id, "realizada")}
-                                            disabled={isLocked}
-                                          >
-                                            <CheckCircle className="mr-1 h-3.5 w-3.5" />
-                                            Marcar realizada
-                                          </Button>
-                                        )}
-                                        {visit.status === "agendada" && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 rounded-full px-2.5 text-[11px]"
-                                            onClick={() => handleRescheduleVisit(visit.id, 1)}
-                                            disabled={isLocked}
-                                          >
-                                            <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                                            +1 dia
-                                          </Button>
-                                        )}
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          className="h-7 rounded-full px-2.5 text-[11px] text-zinc-500 hover:text-zinc-700"
-                                          onClick={() => toggleVisitDetails(visit.id)}
-                                        >
-                                          {isExpanded ? "Ocultar detalhes" : "Ver detalhes"}
-                                        </Button>
-                                        <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-7 w-7 rounded-full p-0"
-                                              aria-label="Ações da visita"
-                                              disabled={isLocked}
-                                            >
-                                              <MoreHorizontal className="h-3.5 w-3.5" />
-                                            </Button>
-                                          </DropdownMenuTrigger>
-                                          <DropdownMenuContent align="end" className="rounded-xl">
-                                            {visit.status !== "cancelada" && (
-                                              <DropdownMenuItem
-                                                disabled={isLocked}
-                                                onClick={() => handleVisitStatusChange(visit.id, "cancelada")}
-                                              >
-                                                <X className="mr-2 h-3.5 w-3.5" />
-                                                Marcar cancelada
-                                              </DropdownMenuItem>
-                                            )}
-                                            <DropdownMenuItem
-                                              disabled={isLocked}
-                                              onClick={() => handleDuplicateVisit(visit.id)}
-                                            >
-                                              <Copy className="mr-2 h-3.5 w-3.5" />
-                                              Duplicar visita
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                              disabled={isLocked}
-                                              onClick={() => handleCreateVisitFollowUp(visit)}
-                                            >
-                                              <Plus className="mr-2 h-3.5 w-3.5" />
-                                              Criar follow-up
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                              disabled={isLocked}
-                                              className="text-status-danger focus:text-status-danger"
-                                              onClick={() => handleDeleteVisit(visit.id)}
-                                            >
-                                              <Trash2 className="mr-2 h-3.5 w-3.5" />
-                                              Excluir
-                                            </DropdownMenuItem>
-                                          </DropdownMenuContent>
-                                        </DropdownMenu>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <AnimatePresence initial={false}>
-                                    {isExpanded && (
-                                      <motion.div
-                                        initial={{ opacity: 0, height: 0, y: -4 }}
-                                        animate={{ opacity: 1, height: "auto", y: 0 }}
-                                        exit={{ opacity: 0, height: 0, y: -4 }}
-                                        transition={{ duration: 0.18, ease: "easeOut" }}
-                                        className="mt-3 space-y-2 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50/80 p-3"
-                                      >
-                                        {visit.objective && (
-                                          <p className="text-xs text-zinc-600">
-                                            <span className="font-semibold text-zinc-700">Objetivo:</span> {visit.objective}
-                                          </p>
-                                        )}
-                                        {visit.result && (
-                                          <p className="text-xs text-zinc-600">
-                                            <span className="font-semibold text-zinc-700">Resultado:</span> {visit.result}
-                                          </p>
-                                        )}
-                                        {visit.cancellationReason && (
-                                          <p className="text-xs text-zinc-600">
-                                            <span className="font-semibold text-zinc-700">Cancelamento:</span> {visit.cancellationReason}
-                                          </p>
-                                        )}
-                                        {visit.link && (
-                                          <a
-                                            href={visit.link}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
-                                          >
-                                            <ExternalLink className="h-3.5 w-3.5" />
-                                            Abrir link da reunião
-                                          </a>
-                                        )}
-                                        {visit.details && (
-                                          <p className="text-xs text-zinc-500">{visit.details}</p>
-                                        )}
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
+                                  visit={visit}
+                                  isExpanded={expandedVisitId === visit.id}
+                                  isLocked={isLocked}
+                                  onToggleDetails={() => toggleVisitDetails(visit.id)}
+                                  onStatusChange={handleVisitStatusChange}
+                                  onReschedule={handleRescheduleVisit}
+                                  onDuplicate={handleDuplicateVisit}
+                                  onFollowUp={handleCreateVisitFollowUp}
+                                  onDelete={handleDeleteVisit}
+                                />
                               );
                             })}
                           </div>
@@ -3826,6 +3661,21 @@ export default function LeadCardDrawer() {
         onClose={() => setIsNewVisitModalOpen(false)}
         onSave={handleSaveVisit}
         dealId={resolvedLead.id}
+        contacts={contacts}
+        onAddContact={(newContact) => {
+          // Adapt to the existing handleSaveContact which expects full QuickContactData but we only have partial
+          // Creating a minimal valid contact object
+          const contactToAdd = {
+            id: `c${Date.now()}`,
+            nome: newContact.nome || "Sem Nome",
+            email: newContact.email || "",
+            telefone: newContact.telefone || "",
+            cargo: newContact.cargo || "",
+            personalidade: "",
+            isDecisionMaker: false,
+          };
+          setContacts((prev) => [...prev, contactToAdd]);
+        }}
       />
       <NewActivityModal
         isOpen={isNewActivityModalOpen}
