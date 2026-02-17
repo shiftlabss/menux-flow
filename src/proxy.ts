@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySessionToken } from "@/lib/auth-session";
+import type { UserRole } from "@/lib/auth-types";
 
 const AUTH_COOKIE_NAME = "flow-token";
 
@@ -17,6 +18,8 @@ const protectedRoutes = [
 ];
 
 const authRoutes = ["/login", "/forgot-password", "/reset-password"];
+const sellerLikeRoles: UserRole[] = ["comercial", "cs", "leitura"];
+const sellerBlockedPrefixes = ["/audit", "/settings", "/reports"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -35,6 +38,16 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (session) {
+    const userRole = session.user.role;
+    const isSellerLike = sellerLikeRoles.includes(userRole);
+    const blockedForRole = isSellerLike && sellerBlockedPrefixes.some((prefix) => pathname.startsWith(prefix));
+
+    if (blockedForRole) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));

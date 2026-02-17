@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Check, Sparkles, X } from "lucide-react";
+import { Copy, Check, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +12,6 @@ import {
     DialogFooter,
     DialogClose,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 
 interface GeneratedContentModalProps {
     open: boolean;
@@ -20,7 +19,6 @@ interface GeneratedContentModalProps {
     title: string;
     description?: string;
     content: string;
-    type?: "message" | "script" | "plan";
 }
 
 export function GeneratedContentModal({
@@ -29,7 +27,6 @@ export function GeneratedContentModal({
     title,
     description,
     content,
-    type = "message",
 }: GeneratedContentModalProps) {
     const [copied, setCopied] = useState(false);
 

@@ -174,7 +174,7 @@ describe("auth-store", () => {
       expect(p.canViewReports).toBe(false);
       expect(p.canExportData).toBe(false);
       expect(p.canApproveDiscounts).toBe(false);
-      expect(p.canManageGoals).toBe(false);
+      expect(p.canManageGoals).toBe(true);
       expect(p.canViewAllUnits).toBe(false);
     });
 

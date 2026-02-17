@@ -90,7 +90,7 @@ const defaultPermissions: Record<UserRole, Permission> = {
     canViewReports: false,
     canExportData: false,
     canApproveDiscounts: false,
-    canManageGoals: false,
+    canManageGoals: true,
     canViewAllUnits: false,
   },
   cs: {

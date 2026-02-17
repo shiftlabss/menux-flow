@@ -37,6 +37,7 @@ import { mockClients } from "@/lib/mock-data";
 import type { Client, HealthScore } from "@/types";
 import { useUIStore } from "@/stores/ui-store";
 import { useClientStore } from "@/stores/client-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,6 @@ type ClientsView = "board" | "list";
 
 interface FiltersState {
   health: HealthScore | "all";
-  responsible: string;
   staleOnly: boolean;
 }
 
@@ -135,7 +135,7 @@ const healthConfig: Record<
 const intelligenceCommands = [
   { id: "plan", label: "Gerar plano de follow-up", icon: <Activity className="h-3.5 w-3.5" /> },
   { id: "critical", label: "Criar atividades para críticos", icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-  { id: "messages", label: "Sugerir mensagens por responsável", icon: <MessageSquare className="h-3.5 w-3.5" /> },
+  { id: "messages", label: "Sugerir mensagens de recuperação", icon: <MessageSquare className="h-3.5 w-3.5" /> },
   { id: "churn", label: "Mapear risco de churn", icon: <XCircle className="h-3.5 w-3.5" /> },
   { id: "upsell", label: "Identificar upsell", icon: <Sparkles className="h-3.5 w-3.5" /> },
   { id: "summary", label: "Resumo executivo da carteira", icon: <Building2 className="h-3.5 w-3.5" /> },
@@ -262,6 +262,7 @@ function getIntelligenceSuggestions(client: Client): {
 function ClientsPageContent() {
   const { openDrawer } = useUIStore();
   const { clients: storeClients } = useClientStore();
+  const { user } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasRiskFilterParam = searchParams.get("filter") === "risk";
@@ -273,7 +274,6 @@ function ClientsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<FiltersState>(() => ({
     health: hasRiskFilterParam ? "critical" : "all",
-    responsible: "all",
     staleOnly: false,
   }));
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -286,6 +286,18 @@ function ClientsPageContent() {
   const [commandResult, setCommandResult] = useState<string | null>(null);
 
   const allClients = storeClients.length > 0 ? storeClients : mockClients;
+  const scopedOwnerId = useMemo(() => {
+    const preferredId = user?.id;
+    if (preferredId && allClients.some((client) => client.responsibleId === preferredId)) {
+      return preferredId;
+    }
+    return allClients[0]?.responsibleId ?? preferredId ?? "user-5";
+  }, [allClients, user?.id]);
+
+  const scopedClients = useMemo(
+    () => allClients.filter((client) => client.responsibleId === scopedOwnerId),
+    [allClients, scopedOwnerId]
+  );
 
   // Deep linking for clientId
   useEffect(() => {
@@ -345,24 +357,15 @@ function ClientsPageContent() {
     return () => window.clearTimeout(timer);
   }, [cardFeedback]);
 
-  const responsibleNames = useMemo(
-    () =>
-      Array.from(new Set(allClients.map((client) => client.responsibleName))).sort(
-        (a, b) => a.localeCompare(b, "pt-BR")
-      ),
-    [allClients]
-  );
-
   const panelFilterCount = useMemo(() => {
     return (
       (filters.health !== "all" ? 1 : 0) +
-      (filters.responsible !== "all" ? 1 : 0) +
       (filters.staleOnly ? 1 : 0)
     );
-  }, [filters.health, filters.responsible, filters.staleOnly]);
+  }, [filters.health, filters.staleOnly]);
 
   const phaseScopedClients = useMemo(() => {
-    return allClients.filter((client) => {
+    return scopedClients.filter((client) => {
       if (visiblePhase !== "all" && getClientColumn(client) !== visiblePhase) {
         return false;
       }
@@ -379,13 +382,6 @@ function ClientsPageContent() {
       }
 
       if (
-        filters.responsible !== "all" &&
-        client.responsibleName !== filters.responsible
-      ) {
-        return false;
-      }
-
-      if (
         filters.staleOnly &&
         getDaysSinceInteraction(client.lastInteraction) <= 30
       ) {
@@ -394,7 +390,7 @@ function ClientsPageContent() {
 
       return true;
     });
-  }, [allClients, visiblePhase, searchQuery, filters]);
+  }, [scopedClients, visiblePhase, searchQuery, filters]);
 
   const criticalCount = useMemo(
     () => phaseScopedClients.filter((client) => client.healthScore === "critical").length,
@@ -564,7 +560,7 @@ function ClientsPageContent() {
                   variant="outline"
                   className="rounded-full"
                   onClick={() => {
-                    setFilters({ health: "all", responsible: "all", staleOnly: false });
+                    setFilters({ health: "all", staleOnly: false });
                     setVisiblePhase("all");
                   }}
               >
@@ -981,45 +977,6 @@ function ClientsPageContent() {
                         </div>
                       </div>
 
-                      <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                          Responsável
-                        </p>
-                        <div className="max-h-[120px] space-y-1 overflow-y-auto pr-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setFilters((prev) => ({ ...prev, responsible: "all" }))
-                            }
-                            className={cn(
-                              "flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
-                              filters.responsible === "all"
-                                ? "bg-zinc-900 text-white"
-                                : "hover:bg-zinc-100"
-                            )}
-                          >
-                            Todos
-                          </button>
-                          {responsibleNames.map((name) => (
-                            <button
-                              key={name}
-                              type="button"
-                              onClick={() =>
-                                setFilters((prev) => ({ ...prev, responsible: name }))
-                              }
-                              className={cn(
-                                "flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
-                                filters.responsible === name
-                                  ? "bg-zinc-900 text-white"
-                                  : "hover:bg-zinc-100"
-                              )}
-                            >
-                              {name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
                       <button
                         type="button"
                         onClick={() =>
@@ -1044,7 +1001,6 @@ function ClientsPageContent() {
                           onClick={() =>
                             setFilters({
                               health: "all",
-                              responsible: "all",
                               staleOnly: false,
                             })
                           }

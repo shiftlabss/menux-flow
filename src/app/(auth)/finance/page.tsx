@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -16,6 +15,7 @@ import {
   Bot,
   Calculator,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
@@ -28,18 +28,17 @@ import {
   ListChecks,
   MoreHorizontal,
   Sparkles,
-  Users,
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/cn";
 import { exportToCSV, exportToExcel, exportToPDF } from "@/lib/export";
+import { useAuthStore } from "@/stores/auth-store";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,13 +51,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -87,8 +79,10 @@ interface FinanceCommission {
 
 interface ExtraFilters {
   contestedOnly: boolean;
-  highValueOnly: boolean;
-  projectedAgingOnly: boolean;
+  riskOnly: boolean;
+  valueMin: string;
+  valueMax: string;
+  competenceRange: "selected" | "selected-and-prev";
 }
 
 interface FeedbackState {
@@ -406,19 +400,27 @@ function useAnimatedNumber(target: number, duration = 220): number {
 
 export default function FinancePage() {
   const router = useRouter();
-  const tableRef = useRef<HTMLDivElement>(null);
   const railAutoOpenedRef = useRef(false);
+  const { user } = useAuthStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [commissions, setCommissions] = useState<FinanceCommission[]>(commissionsSeed);
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [selectedYear, setSelectedYear] = useState(2026);
-  const [sellerFilter, setSellerFilter] = useState("all");
   const [statusScope, setStatusScope] = useState<StatusScope>("all");
+  const [listMode, setListMode] = useState<"group-status" | "list" | "group-competence">(
+    "group-status"
+  );
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(["paid"]));
+  const [highlightedCommissionIds, setHighlightedCommissionIds] = useState<Set<string>>(
+    new Set()
+  );
   const [extraFilters, setExtraFilters] = useState<ExtraFilters>({
     contestedOnly: false,
-    highValueOnly: false,
-    projectedAgingOnly: false,
+    riskOnly: false,
+    valueMin: "",
+    valueMax: "",
+    competenceRange: "selected",
   });
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
@@ -430,7 +432,6 @@ export default function FinancePage() {
   const [intelResult, setIntelResult] = useState<string | null>(null);
   const [kpiError, setKpiError] = useState(false);
   const [tableError, setTableError] = useState(false);
-  const [sellerSummaryError, setSellerSummaryError] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 700);
@@ -472,34 +473,56 @@ export default function FinancePage() {
 
   const periodKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
   const periodLabel = `${MONTH_NAMES[selectedMonth]} ${selectedYear}`;
+  const previousPeriodDate = new Date(selectedYear, selectedMonth - 1, 1);
+  const previousPeriodKey = `${previousPeriodDate.getFullYear()}-${String(
+    previousPeriodDate.getMonth() + 1
+  ).padStart(2, "0")}`;
 
-  const sellers = useMemo(
-    () =>
-      Array.from(
-        new Set(commissions.map((commission) => commission.sellerName))
-      ).sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [commissions]
-  );
+  const currentSellerName = useMemo(() => {
+    const preferredName = user?.name?.trim();
+    if (
+      preferredName &&
+      commissions.some((commission) => commission.sellerName === preferredName)
+    ) {
+      return preferredName;
+    }
+    return "Ana Oliveira";
+  }, [commissions, user?.name]);
+  const sellerInitials = getInitials(currentSellerName);
 
   const periodCommissions = useMemo(
     () =>
       commissions.filter((commission) => {
-        const matchesPeriod = commission.competenceMonth === periodKey;
-        const matchesSeller =
-          sellerFilter === "all" || commission.sellerName === sellerFilter;
-        return matchesPeriod && matchesSeller;
+        if (commission.sellerName !== currentSellerName) return false;
+        if (extraFilters.competenceRange === "selected-and-prev") {
+          return (
+            commission.competenceMonth === periodKey ||
+            commission.competenceMonth === previousPeriodKey
+          );
+        }
+        return commission.competenceMonth === periodKey;
       }),
-    [commissions, periodKey, sellerFilter]
+    [
+      commissions,
+      currentSellerName,
+      extraFilters.competenceRange,
+      periodKey,
+      previousPeriodKey,
+    ]
   );
 
   const filteredCommissions = useMemo(() => {
+    const minValue = Number.parseFloat(extraFilters.valueMin);
+    const maxValue = Number.parseFloat(extraFilters.valueMax);
+
     return periodCommissions
       .filter((commission) => {
         if (!matchesStatusScope(commission.status, statusScope)) return false;
         if (extraFilters.contestedOnly && commission.status !== "contested") return false;
-        if (extraFilters.highValueOnly && commission.value < 3000) return false;
+        if (Number.isFinite(minValue) && commission.value < minValue) return false;
+        if (Number.isFinite(maxValue) && commission.value > maxValue) return false;
         if (
-          extraFilters.projectedAgingOnly &&
+          extraFilters.riskOnly &&
           !(commission.status === "projected" && getDaysFromReference(commission.closeDate) > 7)
         ) {
           return false;
@@ -544,6 +567,21 @@ export default function FinancePage() {
     };
   }, [periodCommissions]);
 
+  const previousPeriodSummary = useMemo(() => {
+    const previous = commissions.filter(
+      (commission) =>
+        commission.competenceMonth === previousPeriodKey &&
+        commission.sellerName === currentSellerName
+    );
+    const prevPaid = previous
+      .filter((commission) => commission.status === "paid")
+      .reduce((sum, commission) => sum + commission.value, 0);
+    const prevTotal = previous.reduce((sum, commission) => sum + commission.value, 0);
+    return {
+      paymentRate: prevTotal > 0 ? Math.round((prevPaid / prevTotal) * 100) : 0,
+    };
+  }, [commissions, currentSellerName, previousPeriodKey]);
+
   const projectedPct =
     summary.total > 0 ? Math.round((summary.projected / summary.total) * 100) : 0;
   const confirmedPct =
@@ -555,40 +593,6 @@ export default function FinancePage() {
   const animatedCount = useAnimatedNumber(summary.totalCount, 220);
   const animatedContested = useAnimatedNumber(summary.contestedCount, 220);
   const animatedPaymentRate = useAnimatedNumber(summary.paymentRate, 220);
-
-  const sellerSummary = useMemo(() => {
-    const sellerMap = new Map<
-      string,
-      { projected: number; confirmed: number; paid: number; count: number }
-    >();
-
-    for (const commission of periodCommissions) {
-      const existing = sellerMap.get(commission.sellerName) ?? {
-        projected: 0,
-        confirmed: 0,
-        paid: 0,
-        count: 0,
-      };
-
-      existing.count += 1;
-      if (commission.status === "projected") existing.projected += commission.value;
-      if (commission.status === "paid") existing.paid += commission.value;
-      if (commission.status === "confirmed" || commission.status === "contested") {
-        existing.confirmed += commission.value;
-      }
-
-      sellerMap.set(commission.sellerName, existing);
-    }
-
-    return Array.from(sellerMap.entries())
-      .map(([seller, values]) => ({ seller, ...values }))
-      .sort(
-        (a, b) =>
-          b.projected + b.confirmed + b.paid - (a.projected + a.confirmed + a.paid)
-      );
-  }, [periodCommissions]);
-
-  const topSeller = sellerSummary[0] ?? null;
 
   const projectedAgedCount = useMemo(
     () =>
@@ -610,44 +614,25 @@ export default function FinancePage() {
 
   const aboveAverageCount = useMemo(() => {
     if (periodCommissions.length === 0) return 0;
-    const valuesBySeller = new Map<string, number[]>();
-
-    for (const commission of periodCommissions) {
-      if (!valuesBySeller.has(commission.sellerName)) {
-        valuesBySeller.set(commission.sellerName, []);
-      }
-      valuesBySeller.get(commission.sellerName)!.push(commission.value);
-    }
-
-    let count = 0;
-    for (const [seller, values] of valuesBySeller.entries()) {
-      const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-      count += periodCommissions.filter(
-        (commission) =>
-          commission.sellerName === seller && commission.value > average * 1.5
-      ).length;
-    }
-    return count;
+    const average =
+      periodCommissions.reduce((sum, commission) => sum + commission.value, 0) /
+      periodCommissions.length;
+    return periodCommissions.filter((commission) => commission.value > average * 1.5).length;
   }, [periodCommissions]);
 
   const filterCount = useMemo(
     () =>
+      (statusScope !== "all" ? 1 : 0) +
       (extraFilters.contestedOnly ? 1 : 0) +
-      (extraFilters.highValueOnly ? 1 : 0) +
-      (extraFilters.projectedAgingOnly ? 1 : 0),
-    [extraFilters]
+      (extraFilters.riskOnly ? 1 : 0) +
+      (extraFilters.valueMin ? 1 : 0) +
+      (extraFilters.valueMax ? 1 : 0) +
+      (extraFilters.competenceRange === "selected-and-prev" ? 1 : 0),
+    [extraFilters, statusScope]
   );
 
   const activeChips = useMemo(() => {
     const chips: Array<{ id: string; label: string; onClear?: () => void }> = [];
-
-    if (sellerFilter !== "all") {
-      chips.push({
-        id: "seller",
-        label: `Vendedor: ${sellerFilter}`,
-        onClear: () => setSellerFilter("all"),
-      });
-    }
 
     if (statusScope !== "all") {
       chips.push({
@@ -666,26 +651,44 @@ export default function FinancePage() {
       });
     }
 
-    if (extraFilters.highValueOnly) {
+    if (extraFilters.riskOnly) {
       chips.push({
-        id: "high-value",
-        label: "Valor > R$ 3.000",
+        id: "risk",
+        label: "Somente em risco (>7 dias)",
         onClear: () =>
-          setExtraFilters((prev) => ({ ...prev, highValueOnly: false })),
+          setExtraFilters((prev) => ({ ...prev, riskOnly: false })),
       });
     }
 
-    if (extraFilters.projectedAgingOnly) {
+    if (extraFilters.valueMin) {
       chips.push({
-        id: "aging",
-        label: "Projetadas sem confirmar >7d",
+        id: "value-min",
+        label: `Mínimo: ${formatCurrency(Number.parseFloat(extraFilters.valueMin) || 0)}`,
         onClear: () =>
-          setExtraFilters((prev) => ({ ...prev, projectedAgingOnly: false })),
+          setExtraFilters((prev) => ({ ...prev, valueMin: "" })),
+      });
+    }
+
+    if (extraFilters.valueMax) {
+      chips.push({
+        id: "value-max",
+        label: `Máximo: ${formatCurrency(Number.parseFloat(extraFilters.valueMax) || 0)}`,
+        onClear: () =>
+          setExtraFilters((prev) => ({ ...prev, valueMax: "" })),
+      });
+    }
+
+    if (extraFilters.competenceRange === "selected-and-prev") {
+      chips.push({
+        id: "competence",
+        label: "Competência: mês + anterior",
+        onClear: () =>
+          setExtraFilters((prev) => ({ ...prev, competenceRange: "selected" })),
       });
     }
 
     return chips;
-  }, [sellerFilter, statusScope, extraFilters]);
+  }, [statusScope, extraFilters]);
 
   const clearRowFeedback = useCallback((commissionId: string) => {
     window.setTimeout(() => {
@@ -707,9 +710,9 @@ export default function FinancePage() {
 
   const handleCopySummary = useCallback(
     async (commission: FinanceCommission) => {
-      const summaryText = `Oportunidade: ${commission.opportunityTitle}\nVendedor: ${
-        commission.sellerName
-      }\nComissão: ${formatCurrency(commission.value)} (${
+      const summaryText = `Oportunidade: ${commission.opportunityTitle}\nComissão: ${formatCurrency(
+        commission.value
+      )} (${
         commission.percentage
       }%)\nStatus: ${
         statusConfig[commission.status].label
@@ -762,7 +765,6 @@ export default function FinancePage() {
     (format: "csv" | "pdf" | "excel") => {
       const data = filteredCommissions.map((commission) => ({
         Oportunidade: commission.opportunityTitle,
-        Vendedor: commission.sellerName,
         Percentual: `${commission.percentage}%`,
         Valor: commission.value,
         Competencia: formatMonthLabel(commission.competenceMonth),
@@ -795,12 +797,13 @@ export default function FinancePage() {
   );
 
   const clearAllFilters = useCallback(() => {
-    setSellerFilter("all");
     setStatusScope("all");
     setExtraFilters({
       contestedOnly: false,
-      highValueOnly: false,
-      projectedAgingOnly: false,
+      riskOnly: false,
+      valueMin: "",
+      valueMax: "",
+      competenceRange: "selected",
     });
   }, []);
 
@@ -823,6 +826,110 @@ export default function FinancePage() {
     }
     setSelectedMonth((month) => month + 1);
   }, [selectedMonth]);
+
+  const toggleGroupCollapse = useCallback((groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }, []);
+
+  const highlightCommissions = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    setHighlightedCommissionIds(new Set(ids));
+    window.setTimeout(() => setHighlightedCommissionIds(new Set()), 1200);
+  }, []);
+
+  const groupedByStatus = useMemo(() => {
+    const groups: Array<{
+      id: CommissionStatus;
+      label: string;
+      items: FinanceCommission[];
+      total: number;
+    }> = (["projected", "confirmed", "contested", "paid"] as CommissionStatus[]).map(
+      (status) => {
+        const items = filteredCommissions.filter((commission) => commission.status === status);
+        return {
+          id: status,
+          label: statusConfig[status].label,
+          items,
+          total: items.reduce((sum, commission) => sum + commission.value, 0),
+        };
+      }
+    );
+    return groups.filter((group) => group.items.length > 0);
+  }, [filteredCommissions]);
+
+  const groupedByCompetence = useMemo(() => {
+    const grouped = new Map<string, FinanceCommission[]>();
+    for (const commission of filteredCommissions) {
+      if (!grouped.has(commission.competenceMonth)) grouped.set(commission.competenceMonth, []);
+      grouped.get(commission.competenceMonth)!.push(commission);
+    }
+    return Array.from(grouped.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([competence, items]) => ({
+        id: competence,
+        label: formatMonthLabel(competence),
+        items: items.sort((a, b) => b.value - a.value),
+        total: items.reduce((sum, commission) => sum + commission.value, 0),
+      }));
+  }, [filteredCommissions]);
+
+  const topClients = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const commission of periodCommissions) {
+      totals.set(
+        commission.opportunityTitle,
+        (totals.get(commission.opportunityTitle) ?? 0) + commission.value
+      );
+    }
+    return Array.from(totals.entries())
+      .map(([title, total]) => ({ title, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 3);
+  }, [periodCommissions]);
+
+  const topRiskCommissions = useMemo(
+    () =>
+      periodCommissions
+        .filter(
+          (commission) =>
+            commission.status === "projected" && getDaysFromReference(commission.closeDate) > 7
+        )
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 3),
+    [periodCommissions]
+  );
+
+  const buildPersonalSummary = useCallback(() => {
+    const delta = summary.paymentRate - previousPeriodSummary.paymentRate;
+    const deltaText = delta === 0 ? "estável" : delta > 0 ? `+${delta}pp` : `${delta}pp`;
+    return [
+      `Resumo financeiro pessoal · ${periodLabel}`,
+      `Vendedor: ${currentSellerName}`,
+      `Total no período: ${formatCurrency(summary.total)}`,
+      `Projetado: ${formatCurrency(summary.projected)}`,
+      `Confirmado: ${formatCurrency(summary.confirmed)}`,
+      `Pago: ${formatCurrency(summary.paid)}`,
+      `Taxa de pagamento: ${summary.paymentRate}% (${deltaText} vs mês anterior)`,
+      `Itens em risco (>7 dias): ${projectedAgedCount}`,
+      `Contestadas: ${summary.contestedCount}`,
+    ].join("\n");
+  }, [
+    currentSellerName,
+    periodLabel,
+    projectedAgedCount,
+    previousPeriodSummary.paymentRate,
+    summary.confirmed,
+    summary.contestedCount,
+    summary.paid,
+    summary.paymentRate,
+    summary.projected,
+    summary.total,
+  ]);
 
   if (isLoading) {
     return <FinanceLoadingSkeleton />;
@@ -856,22 +963,20 @@ export default function FinancePage() {
         >
           <ModuleCommandHeader
             title="Financeiro"
-            description="Comissões e receitas do time"
+            description="Meu previsto, confirmado e pago"
             actions={
               <div className="flex w-full min-w-0 flex-wrap items-center gap-2 xl:justify-end">
-                <Select value={sellerFilter} onValueChange={setSellerFilter}>
-                  <SelectTrigger className="h-9 min-w-[180px] rounded-full border-zinc-200 bg-white/90 text-sm">
-                    <SelectValue placeholder="Vendedor" />
-                  </SelectTrigger>
-                  <SelectContent align="end" className="rounded-[14px]">
-                    <SelectItem value="all">Todos os vendedores</SelectItem>
-                    {sellers.map((seller) => (
-                      <SelectItem key={seller} value={seller}>
-                        {seller}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="inline-flex h-9 items-center gap-2 rounded-full border border-zinc-200/85 bg-white/90 px-2.5">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[10px] font-semibold text-white">
+                    {sellerInitials}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-semibold text-zinc-900">
+                      Minha central financeira
+                    </p>
+                    <p className="truncate text-[10px] text-zinc-500">{currentSellerName}</p>
+                  </div>
+                </div>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -907,134 +1012,209 @@ export default function FinancePage() {
               </div>
             }
           >
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <div className="inline-flex h-9 items-center rounded-full border border-zinc-200/85 bg-white/90 px-1.5">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-full text-zinc-500 hover:bg-zinc-100"
-                    onClick={goPrevMonth}
-                    aria-label="Mês anterior"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="px-2 text-sm font-medium text-zinc-700">
-                    {periodLabel}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-full text-zinc-500 hover:bg-zinc-100"
-                    onClick={goNextMonth}
-                    aria-label="Próximo mês"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+            <div className="space-y-2">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <div className="inline-flex h-9 items-center rounded-full border border-zinc-200/85 bg-white/90 px-1.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-zinc-500 hover:bg-zinc-100"
+                      onClick={goPrevMonth}
+                      aria-label="Mês anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="px-2 text-sm font-medium text-zinc-700">
+                      {periodLabel}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full text-zinc-500 hover:bg-zinc-100"
+                      onClick={goNextMonth}
+                      aria-label="Próximo mês"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
-                {activeChips.map((chip) => (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    onClick={chip.onClear}
-                    className="inline-flex h-8 items-center gap-1 rounded-full border border-zinc-200 bg-white/90 px-2.5 text-xs font-medium text-zinc-600 transition-colors duration-120 hover:bg-zinc-50"
-                  >
-                    {chip.label}
-                    <span className="text-zinc-400">×</span>
-                  </button>
-                ))}
-              </div>
+                <div className="flex items-center gap-2">
+                  <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 rounded-full">
+                        <Filter className="h-3.5 w-3.5" />
+                        {filterCount > 0 ? `Filtros (${filterCount})` : "Filtros"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      className="w-[min(92vw,380px)] rounded-[16px] border-zinc-200 bg-white p-3"
+                    >
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                          Filtros das minhas comissões
+                        </p>
 
-              <div className="flex items-center gap-2">
-                <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 rounded-full">
-                      <Filter className="h-3.5 w-3.5" />
-                      {filterCount > 0 ? `Filtros (${filterCount})` : "Filtros"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="end"
-                    className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3"
-                  >
-                    <div className="space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                        Filtros de comissões
-                      </p>
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                            Status
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { id: "all" as StatusScope, label: "Todos" },
+                              { id: "projected" as StatusScope, label: "Projetadas" },
+                              { id: "confirmed" as StatusScope, label: "Confirmadas" },
+                              { id: "paid" as StatusScope, label: "Pagas" },
+                            ].map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setStatusScope(item.id)}
+                                className={cn(
+                                  "h-8 rounded-[10px] border px-2 text-xs font-medium transition-colors",
+                                  statusScope === item.id
+                                    ? "border-zinc-900 bg-zinc-900 text-white"
+                                    : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                                )}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
 
-                      <FilterOptionButton
-                        active={extraFilters.contestedOnly}
-                        label="Somente contestadas"
-                        tone="danger"
-                        onClick={() =>
-                          setExtraFilters((prev) => ({
-                            ...prev,
-                            contestedOnly: !prev.contestedOnly,
-                          }))
-                        }
-                      />
-                      <FilterOptionButton
-                        active={extraFilters.highValueOnly}
-                        label="Valor acima de R$ 3.000"
-                        tone="info"
-                        onClick={() =>
-                          setExtraFilters((prev) => ({
-                            ...prev,
-                            highValueOnly: !prev.highValueOnly,
-                          }))
-                        }
-                      />
-                      <FilterOptionButton
-                        active={extraFilters.projectedAgingOnly}
-                        label="Projetadas sem confirmação >7 dias"
-                        tone="warning"
-                        onClick={() =>
-                          setExtraFilters((prev) => ({
-                            ...prev,
-                            projectedAgingOnly: !prev.projectedAgingOnly,
-                          }))
-                        }
-                      />
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                            Competência
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <FilterOptionButton
+                              active={extraFilters.competenceRange === "selected"}
+                              label="Somente mês selecionado"
+                              tone="info"
+                              onClick={() =>
+                                setExtraFilters((prev) => ({
+                                  ...prev,
+                                  competenceRange: "selected",
+                                }))
+                              }
+                            />
+                            <FilterOptionButton
+                              active={extraFilters.competenceRange === "selected-and-prev"}
+                              label="Mês + mês anterior"
+                              tone="warning"
+                              onClick={() =>
+                                setExtraFilters((prev) => ({
+                                  ...prev,
+                                  competenceRange: "selected-and-prev",
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
 
-                      <div className="flex items-center justify-between border-t border-zinc-200 pt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="rounded-full"
+                        <div className="space-y-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                            Faixa de valor
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Mínimo"
+                              value={extraFilters.valueMin}
+                              onChange={(event) =>
+                                setExtraFilters((prev) => ({ ...prev, valueMin: event.target.value }))
+                              }
+                              className="h-9 rounded-[10px] border border-zinc-200 px-2.5 text-sm text-zinc-700 outline-none focus:border-zinc-300"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Máximo"
+                              value={extraFilters.valueMax}
+                              onChange={(event) =>
+                                setExtraFilters((prev) => ({ ...prev, valueMax: event.target.value }))
+                              }
+                              className="h-9 rounded-[10px] border border-zinc-200 px-2.5 text-sm text-zinc-700 outline-none focus:border-zinc-300"
+                            />
+                          </div>
+                        </div>
+
+                        <FilterOptionButton
+                          active={extraFilters.riskOnly}
+                          label="Somente em risco (>7 dias projetada)"
+                          tone="warning"
                           onClick={() =>
-                            setExtraFilters({
-                              contestedOnly: false,
-                              highValueOnly: false,
-                              projectedAgingOnly: false,
-                            })
+                            setExtraFilters((prev) => ({
+                              ...prev,
+                              riskOnly: !prev.riskOnly,
+                            }))
                           }
-                        >
-                          Limpar
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
-                          onClick={() => setIsFiltersOpen(false)}
-                        >
-                          Aplicar
-                        </Button>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                        />
+                        <FilterOptionButton
+                          active={extraFilters.contestedOnly}
+                          label="Somente contestadas"
+                          tone="danger"
+                          onClick={() =>
+                            setExtraFilters((prev) => ({
+                              ...prev,
+                              contestedOnly: !prev.contestedOnly,
+                            }))
+                          }
+                        />
 
-                {activeChips.length > 0 ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearAllFilters}
-                    className="h-9 rounded-full text-xs text-zinc-500 hover:text-zinc-900"
-                  >
-                    Limpar tudo
-                  </Button>
-                ) : null}
+                        <div className="flex items-center justify-between border-t border-zinc-200 pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-full"
+                            onClick={clearAllFilters}
+                          >
+                            Limpar
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                            onClick={() => setIsFiltersOpen(false)}
+                          >
+                            Aplicar
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {activeChips.length > 0 ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearAllFilters}
+                      className="h-9 rounded-full text-xs text-zinc-500 hover:text-zinc-900"
+                    >
+                      Limpar tudo
+                    </Button>
+                  ) : null}
+                </div>
               </div>
+
+              {activeChips.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeChips.map((chip) => (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      onClick={chip.onClear}
+                      className="inline-flex h-8 items-center gap-1 rounded-full border border-zinc-200 bg-white/90 px-2.5 text-xs font-medium text-zinc-600 transition-colors duration-120 hover:bg-zinc-50"
+                    >
+                      {chip.label}
+                      <span className="text-zinc-400">×</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </ModuleCommandHeader>
         </motion.div>
@@ -1066,8 +1246,8 @@ export default function FinancePage() {
                         icon={<CircleDollarSign className="h-5 w-5 text-blue-700" />}
                         label="Total no período"
                         value={formatCurrency(animatedTotal)}
-                        subtext="no período atual"
-                        trend={`${summary.totalCount} comissões`}
+                        subtext="no meu período atual"
+                        trend={`${summary.totalCount} minhas comissões`}
                         miniVisual={
                           <div className="flex h-8 items-end gap-1">
                             {[0.4, 0.56, 0.52, 0.68, 0.61, 0.74].map((height, index) => (
@@ -1084,7 +1264,7 @@ export default function FinancePage() {
                         icon={<ListChecks className="h-5 w-5 text-zinc-700" />}
                         label="Comissões"
                         value={`${Math.round(animatedCount)}`}
-                        subtext="total de comissões registradas"
+                        subtext="minhas comissões registradas"
                         trend={`${summary.projected > 0 ? "em projeção" : "sem projeção ativa"}`}
                         miniVisual={
                           <div className="mt-1 flex gap-1.5">
@@ -1098,7 +1278,7 @@ export default function FinancePage() {
                         icon={<AlertTriangle className="h-5 w-5 text-red-700" />}
                         label="Contestadas"
                         value={`${Math.round(animatedContested)}`}
-                        subtext="pendências de contestação"
+                        subtext="minhas pendências de contestação"
                         trend={summary.contestedCount === 0 ? "Tudo ok" : "Requer análise"}
                         miniVisual={
                           <Badge
@@ -1117,7 +1297,7 @@ export default function FinancePage() {
                         icon={<CheckCircle2 className="h-5 w-5 text-emerald-700" />}
                         label="Taxa de pagamento"
                         value={`${Math.round(animatedPaymentRate)}%`}
-                        subtext="pago vs total"
+                        subtext="pago vs meu total"
                         trend={summary.paid > 0 ? `${formatCurrency(summary.paid)} pagos` : "Sem pagamento"}
                         miniVisual={
                           <div className="w-full">
@@ -1141,7 +1321,7 @@ export default function FinancePage() {
                         Status Funnel
                       </h3>
                       <p className="text-xs text-zinc-500">
-                        Projetado, confirmado e pago sincronizados com a tabela.
+                        Projetado, confirmado e pago sincronizados com minhas comissões.
                       </p>
                     </div>
                     <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] text-zinc-600">
@@ -1185,36 +1365,56 @@ export default function FinancePage() {
                   </div>
                 </section>
 
-                <section
-                  ref={tableRef}
-                  className="rounded-[20px] border border-zinc-200/80 bg-white/82 p-3 shadow-[0_16px_32px_-28px_rgba(15,23,42,0.45)] md:p-4"
-                >
+                <section className="rounded-[20px] border border-zinc-200/80 bg-white/82 p-3 shadow-[0_16px_32px_-28px_rgba(15,23,42,0.45)] md:p-4">
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                       <h3 className="font-heading text-base font-semibold text-zinc-900">
-                        Comissões
+                        Minhas comissões
                       </h3>
-                      <div className="inline-flex h-9 items-center rounded-full border border-zinc-200 bg-zinc-50/90 p-1">
-                        {[
-                          { id: "all" as StatusScope, label: "Todas" },
-                          { id: "projected" as StatusScope, label: "Projetadas" },
-                          { id: "confirmed" as StatusScope, label: "Confirmadas" },
-                          { id: "paid" as StatusScope, label: "Pagas" },
-                        ].map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => setStatusScope(item.id)}
-                            className={cn(
-                              "h-7 rounded-full px-3 text-xs font-medium transition-colors duration-120",
-                              statusScope === item.id
-                                ? "bg-white text-zinc-900 shadow-sm"
-                                : "text-zinc-500 hover:text-zinc-900"
-                            )}
-                          >
-                            {item.label}
-                          </button>
-                        ))}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-flex h-9 items-center rounded-full border border-zinc-200 bg-zinc-50/90 p-1">
+                          {[
+                            { id: "group-status" as const, label: "Por status" },
+                            { id: "list" as const, label: "Lista" },
+                            { id: "group-competence" as const, label: "Competência" },
+                          ].map((mode) => (
+                            <button
+                              key={mode.id}
+                              type="button"
+                              onClick={() => setListMode(mode.id)}
+                              className={cn(
+                                "h-7 rounded-full px-3 text-xs font-medium transition-colors duration-120",
+                                listMode === mode.id
+                                  ? "bg-white text-zinc-900 shadow-sm"
+                                  : "text-zinc-500 hover:text-zinc-900"
+                              )}
+                            >
+                              {mode.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="inline-flex h-9 items-center rounded-full border border-zinc-200 bg-zinc-50/90 p-1">
+                          {[
+                            { id: "all" as StatusScope, label: "Todas" },
+                            { id: "projected" as StatusScope, label: "Projetadas" },
+                            { id: "confirmed" as StatusScope, label: "Confirmadas" },
+                            { id: "paid" as StatusScope, label: "Pagas" },
+                          ].map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => setStatusScope(item.id)}
+                              className={cn(
+                                "h-7 rounded-full px-3 text-xs font-medium transition-colors duration-120",
+                                statusScope === item.id
+                                  ? "bg-white text-zinc-900 shadow-sm"
+                                  : "text-zinc-500 hover:text-zinc-900"
+                              )}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
@@ -1223,15 +1423,22 @@ export default function FinancePage() {
                         <p className="text-xs text-zinc-600">
                           <span className="font-semibold">Menux Intelligence:</span>{" "}
                           {projectedAgedCount > 0
-                            ? `${projectedAgedCount} itens projetados sem confirmação há mais de 7 dias.`
-                            : "Sem atrasos críticos de confirmação no período."}
+                            ? `Você tem ${projectedAgedCount} itens projetados sem confirmação há mais de 7 dias.`
+                            : "Sem atrasos críticos de confirmação no seu período."}
                         </p>
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             variant="outline"
                             className="h-7 rounded-full px-2.5 text-[11px]"
-                            onClick={() => setStatusScope("projected")}
+                            onClick={() => {
+                              setStatusScope("projected");
+                              highlightCommissions(
+                                periodCommissions
+                                  .filter((commission) => commission.status === "projected")
+                                  .map((commission) => commission.id)
+                              );
+                            }}
                           >
                             Aplicar filtro
                           </Button>
@@ -1248,291 +1455,234 @@ export default function FinancePage() {
 
                     {tableError ? (
                       <SectionError
-                        message="Falha ao carregar comissões do período."
+                        message="Falha ao carregar minhas comissões do período."
                         onRetry={() => setTableError(false)}
                       />
                     ) : !hasRows ? (
                       <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[14px] border border-dashed border-zinc-200 bg-zinc-50/70 p-6 text-center">
                         <p className="font-heading text-lg font-semibold text-zinc-900">
-                          Sem comissões para este filtro
+                          Você ainda não tem comissões neste mês
                         </p>
                         <p className="mt-1 text-sm text-zinc-500">
-                          Ajuste status e filtros para visualizar dados.
+                          Ajuste filtros ou volte ao pipeline para acelerar novas oportunidades.
                         </p>
-                        <Button
-                          variant="outline"
-                          className="mt-3 rounded-full"
-                          onClick={() => {
-                            setStatusScope("all");
-                            setExtraFilters({
-                              contestedOnly: false,
-                              highValueOnly: false,
-                              projectedAgingOnly: false,
-                            });
-                          }}
-                        >
-                          Limpar filtros
-                        </Button>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="outline"
+                            className="rounded-full"
+                            onClick={() => router.push("/pipes")}
+                          >
+                            Ver pipeline
+                          </Button>
+                          <Button
+                            className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                            onClick={() => setIsIntelligenceOpen(true)}
+                          >
+                            Pedir plano do mês
+                          </Button>
+                        </div>
+                      </div>
+                    ) : listMode === "list" ? (
+                      <div className="space-y-2">
+                        {filteredCommissions.map((commission) => (
+                          <FinanceCommissionItem
+                            key={commission.id}
+                            commission={commission}
+                            highlighted={highlightedCommissionIds.has(commission.id)}
+                            inlineFeedback={rowFeedback[commission.id]}
+                            isDetailsOpen={calcOpenRowId === commission.id}
+                            onToggleDetails={() =>
+                              setCalcOpenRowId((prev) => (prev === commission.id ? null : commission.id))
+                            }
+                            onViewOpportunity={() =>
+                              router.push(`/pipes?opportunityId=${commission.opportunityId}`)
+                            }
+                            onCopySummary={() => void handleCopySummary(commission)}
+                            onMarkContested={() => handleMarkContested(commission)}
+                            onOpenIntelligence={() => {
+                              setIsIntelligenceOpen(true);
+                              setRowInlineFeedback(commission.id, "info", "Dica aberta no painel");
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : listMode === "group-status" ? (
+                      <div className="space-y-3">
+                        {groupedByStatus.map((group) => {
+                          const groupId = `status-${group.id}`;
+                          const collapsed = collapsedGroups.has(groupId);
+                          return (
+                            <div key={groupId} className="rounded-[14px] border border-zinc-200/80 bg-white/90">
+                              <button
+                                type="button"
+                                onClick={() => toggleGroupCollapse(groupId)}
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Badge className={cn("rounded-full border px-2 py-0.5 text-[11px]", statusConfig[group.id].badgeClass)}>
+                                    {group.label}
+                                  </Badge>
+                                  <span className="text-xs text-zinc-500">{group.items.length} itens</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-zinc-900">
+                                    {formatCurrency(group.total)}
+                                  </span>
+                                  <ChevronDown
+                                    className={cn(
+                                      "h-4 w-4 text-zinc-500 transition-transform duration-180",
+                                      !collapsed && "rotate-180"
+                                    )}
+                                  />
+                                </div>
+                              </button>
+                              {!collapsed ? (
+                                <div className="space-y-2 border-t border-zinc-100 p-2.5">
+                                  {group.items.map((commission) => (
+                                    <FinanceCommissionItem
+                                      key={commission.id}
+                                      commission={commission}
+                                      highlighted={highlightedCommissionIds.has(commission.id)}
+                                      inlineFeedback={rowFeedback[commission.id]}
+                                      isDetailsOpen={calcOpenRowId === commission.id}
+                                      onToggleDetails={() =>
+                                        setCalcOpenRowId((prev) => (prev === commission.id ? null : commission.id))
+                                      }
+                                      onViewOpportunity={() =>
+                                        router.push(`/pipes?opportunityId=${commission.opportunityId}`)
+                                      }
+                                      onCopySummary={() => void handleCopySummary(commission)}
+                                      onMarkContested={() => handleMarkContested(commission)}
+                                      onOpenIntelligence={() => {
+                                        setIsIntelligenceOpen(true);
+                                        setRowInlineFeedback(commission.id, "info", "Dica aberta no painel");
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : (
-                      <div className="max-h-[420px] overflow-auto rounded-[14px] border border-zinc-200/80">
-                        <table className="w-full border-collapse">
-                          <thead className="sticky top-0 z-10 bg-zinc-50">
-                            <tr className="border-b border-zinc-200">
-                              <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.05em] text-zinc-500">
-                                Oportunidade
-                              </th>
-                              <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.05em] text-zinc-500">
-                                Vendedor
-                              </th>
-                              <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.05em] text-zinc-500">
-                                %
-                              </th>
-                              <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.05em] text-zinc-500">
-                                Valor
-                              </th>
-                              <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.05em] text-zinc-500">
-                                Competência
-                              </th>
-                              <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.05em] text-zinc-500">
-                                Status
-                              </th>
-                              <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.05em] text-zinc-500">
-                                Ações
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredCommissions.map((commission) => {
-                              const status = statusConfig[commission.status];
-                              const inline = rowFeedback[commission.id];
-                              const isCalcOpen = calcOpenRowId === commission.id;
-                              return (
-                                <Fragment key={commission.id}>
-                                  <tr className="border-b border-zinc-100 transition-colors duration-120 hover:bg-zinc-50/80">
-                                    <td className="px-3 py-2 text-sm font-medium text-zinc-900">
-                                      {commission.opportunityTitle}
-                                    </td>
-                                    <td className="px-3 py-2 text-sm text-zinc-600">
-                                      {commission.sellerName}
-                                    </td>
-                                    <td className="px-3 py-2 text-sm text-zinc-600">
-                                      {commission.percentage}%
-                                    </td>
-                                    <td className="px-3 py-2 text-right text-sm font-semibold text-zinc-900">
-                                      {formatCurrency(commission.value)}
-                                    </td>
-                                    <td className="px-3 py-2 text-sm text-zinc-600">
-                                      {formatMonthLabel(commission.competenceMonth)}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                      <Badge
-                                        className={cn(
-                                          "rounded-full border px-2 py-0.5 text-[11px]",
-                                          status.badgeClass
-                                        )}
-                                      >
-                                        {status.label}
-                                      </Badge>
-                                    </td>
-                                    <td className="px-3 py-2">
-                                      <div className="flex justify-end">
-                                        <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-8 w-8 rounded-full text-zinc-500"
-                                              aria-label="Ações da comissão"
-                                            >
-                                              <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                          </DropdownMenuTrigger>
-                                          <DropdownMenuContent align="end" className="w-52 rounded-[14px]">
-                                            <DropdownMenuItem
-                                              onClick={() =>
-                                                router.push(`/pipes?opportunityId=${commission.opportunityId}`)
-                                              }
-                                            >
-                                              <ArrowUpRight className="mr-2 h-4 w-4" />
-                                              Ver oportunidade
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                              onClick={() =>
-                                                setCalcOpenRowId((prev) =>
-                                                  prev === commission.id ? null : commission.id
-                                                )
-                                              }
-                                            >
-                                              <Calculator className="mr-2 h-4 w-4" />
-                                              Ver cálculo
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                              onClick={() => void handleCopySummary(commission)}
-                                            >
-                                              <Copy className="mr-2 h-4 w-4" />
-                                              Copiar resumo
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                              disabled={commission.status !== "confirmed"}
-                                              onClick={() => handleMarkContested(commission)}
-                                              className={
-                                                commission.status === "confirmed"
-                                                  ? "text-red-700"
-                                                  : ""
-                                              }
-                                            >
-                                              <AlertTriangle className="mr-2 h-4 w-4" />
-                                              Marcar contestação
-                                            </DropdownMenuItem>
-                                          </DropdownMenuContent>
-                                        </DropdownMenu>
-                                      </div>
-                                    </td>
-                                  </tr>
-
-                                  {isCalcOpen || inline ? (
-                                    <tr className="border-b border-zinc-100 bg-zinc-50/50">
-                                      <td colSpan={7} className="px-3 py-2">
-                                        {isCalcOpen ? (
-                                          <div className="mb-2 rounded-[12px] border border-zinc-200 bg-white p-2.5 text-xs text-zinc-600">
-                                            <div className="flex items-start justify-between gap-2">
-                                              <div>
-                                                <p className="font-medium text-zinc-700">
-                                                  Cálculo da comissão
-                                                </p>
-                                                <p className="mt-1">
-                                                  {formatCurrency(commission.baseValue)} ×{" "}
-                                                  {commission.percentage}% ={" "}
-                                                  <span className="font-semibold text-zinc-900">
-                                                    {formatCurrency(commission.value)}
-                                                  </span>
-                                                </p>
-                                                <p className="mt-1 text-zinc-500">
-                                                  Etapa: {commission.stage} · Fechamento:{" "}
-                                                  {formatDate(commission.closeDate)}
-                                                  {commission.paidAt
-                                                    ? ` · Pago em ${formatDate(commission.paidAt)}`
-                                                    : ""}
-                                                </p>
-                                                {commission.contestationReason ? (
-                                                  <p className="mt-1 text-red-700">
-                                                    {commission.contestationReason}
-                                                  </p>
-                                                ) : null}
-                                              </div>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 rounded-full px-2 text-[11px]"
-                                                onClick={() => setCalcOpenRowId(null)}
-                                              >
-                                                Fechar
-                                              </Button>
-                                            </div>
-                                          </div>
-                                        ) : null}
-                                        {inline ? (
-                                          <span
-                                            className={cn(
-                                              "inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium",
-                                              inline.type === "success" &&
-                                                "bg-emerald-100 text-emerald-700",
-                                              inline.type === "error" &&
-                                                "bg-red-100 text-red-700",
-                                              inline.type === "info" &&
-                                                "bg-blue-100 text-blue-700"
-                                            )}
-                                          >
-                                            {inline.message}
-                                          </span>
-                                        ) : null}
-                                      </td>
-                                    </tr>
-                                  ) : null}
-                                </Fragment>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                      <div className="space-y-3">
+                        {groupedByCompetence.map((group) => {
+                          const groupId = `competence-${group.id}`;
+                          const collapsed = collapsedGroups.has(groupId);
+                          return (
+                            <div key={groupId} className="rounded-[14px] border border-zinc-200/80 bg-white/90">
+                              <button
+                                type="button"
+                                onClick={() => toggleGroupCollapse(groupId)}
+                                className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-zinc-900">{group.label}</span>
+                                  <span className="text-xs text-zinc-500">{group.items.length} itens</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-zinc-900">
+                                    {formatCurrency(group.total)}
+                                  </span>
+                                  <ChevronDown
+                                    className={cn(
+                                      "h-4 w-4 text-zinc-500 transition-transform duration-180",
+                                      !collapsed && "rotate-180"
+                                    )}
+                                  />
+                                </div>
+                              </button>
+                              {!collapsed ? (
+                                <div className="space-y-2 border-t border-zinc-100 p-2.5">
+                                  {group.items.map((commission) => (
+                                    <FinanceCommissionItem
+                                      key={commission.id}
+                                      commission={commission}
+                                      highlighted={highlightedCommissionIds.has(commission.id)}
+                                      inlineFeedback={rowFeedback[commission.id]}
+                                      isDetailsOpen={calcOpenRowId === commission.id}
+                                      onToggleDetails={() =>
+                                        setCalcOpenRowId((prev) => (prev === commission.id ? null : commission.id))
+                                      }
+                                      onViewOpportunity={() =>
+                                        router.push(`/pipes?opportunityId=${commission.opportunityId}`)
+                                      }
+                                      onCopySummary={() => void handleCopySummary(commission)}
+                                      onMarkContested={() => handleMarkContested(commission)}
+                                      onOpenIntelligence={() => {
+                                        setIsIntelligenceOpen(true);
+                                        setRowInlineFeedback(commission.id, "info", "Dica aberta no painel");
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 </section>
 
                 <section className="rounded-[20px] border border-zinc-200/80 bg-white/82 p-3 shadow-[0_16px_32px_-28px_rgba(15,23,42,0.45)] md:p-4">
-                  <div className="mb-3 flex items-center gap-2">
-                    <Users className="h-4 w-4 text-zinc-500" />
-                    <h3 className="font-heading text-base font-semibold text-zinc-900">
-                      Resumo por vendedor
-                    </h3>
-                  </div>
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    <div className="rounded-[14px] border border-zinc-200/80 bg-zinc-50/60 p-3">
+                      <h4 className="text-sm font-semibold text-zinc-900">Meus top 3 clientes no mês</h4>
+                      <div className="mt-2 space-y-2">
+                        {topClients.length > 0 ? (
+                          topClients.map((item) => (
+                            <button
+                              key={item.title}
+                              type="button"
+                              className="flex w-full items-center justify-between rounded-[10px] border border-zinc-200 bg-white px-2.5 py-2 text-left transition-colors duration-120 hover:bg-zinc-50"
+                              onClick={() => {
+                                const ids = filteredCommissions
+                                  .filter((commission) => commission.opportunityTitle === item.title)
+                                  .map((commission) => commission.id);
+                                highlightCommissions(ids);
+                              }}
+                            >
+                              <span className="text-sm text-zinc-700">{item.title}</span>
+                              <span className="text-sm font-semibold text-zinc-900">
+                                {formatCurrency(item.total)}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <p className="text-sm text-zinc-500">Sem clientes com comissão neste período.</p>
+                        )}
+                      </div>
+                    </div>
 
-                  {sellerSummaryError ? (
-                    <SectionError
-                      message="Falha ao carregar resumo por vendedor."
-                      onRetry={() => setSellerSummaryError(false)}
-                    />
-                  ) : sellerSummary.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {sellerSummary.map((seller) => (
-                        <button
-                          key={seller.seller}
-                          type="button"
-                          onClick={() => {
-                            setSellerFilter(seller.seller);
-                            tableRef.current?.scrollIntoView({
-                              behavior: "smooth",
-                              block: "start",
-                            });
-                          }}
-                          className="premium-lift rounded-[14px] border border-zinc-200/85 bg-white p-3 text-left shadow-[0_10px_18px_-16px_rgba(15,23,42,0.4)]"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <Avatar size="sm">
-                                <AvatarFallback className="bg-zinc-100 text-zinc-600">
-                                  {getInitials(seller.seller)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <p className="text-sm font-semibold text-zinc-900">{seller.seller}</p>
-                                <p className="text-xs text-zinc-500">{seller.count} comissões</p>
-                              </div>
-                            </div>
-                            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600">
-                              Ver detalhes
-                            </span>
-                          </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                            <div className="rounded-[10px] border border-blue-200/70 bg-blue-50 px-2 py-1.5">
-                              <p className="text-blue-700">Projetado</p>
-                              <p className="mt-0.5 font-semibold text-zinc-900">
-                                {formatCurrency(seller.projected)}
-                              </p>
-                            </div>
-                            <div className="rounded-[10px] border border-amber-200/70 bg-amber-50 px-2 py-1.5">
-                              <p className="text-amber-700">Confirmado</p>
-                              <p className="mt-0.5 font-semibold text-zinc-900">
-                                {formatCurrency(seller.confirmed)}
-                              </p>
-                            </div>
-                            <div className="rounded-[10px] border border-emerald-200/70 bg-emerald-50 px-2 py-1.5">
-                              <p className="text-emerald-700">Pago</p>
-                              <p className="mt-0.5 font-semibold text-zinc-900">
-                                {formatCurrency(seller.paid)}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+                    <div className="rounded-[14px] border border-zinc-200/80 bg-zinc-50/60 p-3">
+                      <h4 className="text-sm font-semibold text-zinc-900">Top 3 comissões em risco</h4>
+                      <div className="mt-2 space-y-2">
+                        {topRiskCommissions.length > 0 ? (
+                          topRiskCommissions.map((commission) => (
+                            <button
+                              key={commission.id}
+                              type="button"
+                              className="flex w-full items-center justify-between rounded-[10px] border border-zinc-200 bg-white px-2.5 py-2 text-left transition-colors duration-120 hover:bg-zinc-50"
+                              onClick={() => {
+                                setStatusScope("projected");
+                                setExtraFilters((prev) => ({ ...prev, riskOnly: true }));
+                                highlightCommissions([commission.id]);
+                              }}
+                            >
+                              <span className="text-sm text-zinc-700">{commission.opportunityTitle}</span>
+                              <span className="text-sm font-semibold text-red-700">
+                                {formatCurrency(commission.value)}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <p className="text-sm text-zinc-500">Nenhuma comissão em risco acima de 7 dias.</p>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="rounded-[14px] border border-dashed border-zinc-200 bg-zinc-50/70 p-4 text-sm text-zinc-500">
-                      Sem dados de vendedor para este período.
-                    </div>
-                  )}
+                  </div>
                 </section>
               </div>
             )}
@@ -1547,8 +1697,9 @@ export default function FinancePage() {
             )}
           >
             <FinanceIntelligenceRail
+              sellerName={currentSellerName}
               periodLabel={periodLabel}
-              topSeller={topSeller}
+              confirmationDelta={summary.paymentRate - previousPeriodSummary.paymentRate}
               projectedGap={summary.projected - summary.paid}
               projectedAgedCount={projectedAgedCount}
               inconsistentCount={inconsistentCount}
@@ -1557,18 +1708,49 @@ export default function FinancePage() {
               result={intelResult}
               onClose={() => setIsIntelligenceOpen(false)}
               onRunAction={runIntelligenceAction}
-              applyProjectedFilter={() => setStatusScope("projected")}
-              applyConfirmedFilter={() => setStatusScope("confirmed")}
-              applyPaidFilter={() => setStatusScope("paid")}
-              applyHighValueFilter={() =>
-                setExtraFilters((prev) => ({ ...prev, highValueOnly: true }))
-              }
-              onGenerateSummary={() =>
+              applyProjectedFilter={() => {
+                setStatusScope("projected");
+                setExtraFilters((prev) => ({ ...prev, riskOnly: false }));
+                highlightCommissions(
+                  periodCommissions
+                    .filter((commission) => commission.status === "projected")
+                    .map((commission) => commission.id)
+                );
+              }}
+              applyConfirmedFilter={() => {
+                setStatusScope("confirmed");
+                highlightCommissions(
+                  periodCommissions
+                    .filter(
+                      (commission) =>
+                        commission.status === "confirmed" || commission.status === "contested"
+                    )
+                    .map((commission) => commission.id)
+                );
+              }}
+              applyPaidFilter={() => {
+                setStatusScope("paid");
+                highlightCommissions(
+                  periodCommissions
+                    .filter((commission) => commission.status === "paid")
+                    .map((commission) => commission.id)
+                );
+              }}
+              applyHighValueFilter={() => {
+                setExtraFilters((prev) => ({ ...prev, valueMin: "3000" }));
+                highlightCommissions(
+                  periodCommissions
+                    .filter((commission) => commission.value >= 3000)
+                    .map((commission) => commission.id)
+                );
+              }}
+              onGenerateSummary={() => {
                 setPageFeedback({
                   type: "success",
-                  message: "Resumo executivo financeiro gerado.",
-                })
-              }
+                  message: "Resumo financeiro pessoal gerado.",
+                });
+                return buildPersonalSummary();
+              }}
             />
           </aside>
         </motion.div>
@@ -1589,8 +1771,9 @@ export default function FinancePage() {
               )}
             >
               <FinanceIntelligenceRail
+                sellerName={currentSellerName}
                 periodLabel={periodLabel}
-                topSeller={topSeller}
+                confirmationDelta={summary.paymentRate - previousPeriodSummary.paymentRate}
                 projectedGap={summary.projected - summary.paid}
                 projectedAgedCount={projectedAgedCount}
                 inconsistentCount={inconsistentCount}
@@ -1601,26 +1784,52 @@ export default function FinancePage() {
                 onRunAction={runIntelligenceAction}
                 applyProjectedFilter={() => {
                   setStatusScope("projected");
+                  setExtraFilters((prev) => ({ ...prev, riskOnly: false }));
+                  highlightCommissions(
+                    periodCommissions
+                      .filter((commission) => commission.status === "projected")
+                      .map((commission) => commission.id)
+                  );
                   setIsIntelligenceOpen(false);
                 }}
                 applyConfirmedFilter={() => {
                   setStatusScope("confirmed");
+                  highlightCommissions(
+                    periodCommissions
+                      .filter(
+                        (commission) =>
+                          commission.status === "confirmed" || commission.status === "contested"
+                      )
+                      .map((commission) => commission.id)
+                  );
                   setIsIntelligenceOpen(false);
                 }}
                 applyPaidFilter={() => {
                   setStatusScope("paid");
+                  highlightCommissions(
+                    periodCommissions
+                      .filter((commission) => commission.status === "paid")
+                      .map((commission) => commission.id)
+                  );
                   setIsIntelligenceOpen(false);
                 }}
                 applyHighValueFilter={() => {
-                  setExtraFilters((prev) => ({ ...prev, highValueOnly: true }));
+                  setExtraFilters((prev) => ({ ...prev, valueMin: "3000" }));
+                  highlightCommissions(
+                    periodCommissions
+                      .filter((commission) => commission.value >= 3000)
+                      .map((commission) => commission.id)
+                  );
                   setIsIntelligenceOpen(false);
                 }}
                 onGenerateSummary={() => {
                   setPageFeedback({
                     type: "success",
-                    message: "Resumo executivo financeiro gerado.",
+                    message: "Resumo financeiro pessoal gerado.",
                   });
+                  const summaryText = buildPersonalSummary();
                   setIsIntelligenceOpen(false);
+                  return summaryText;
                 }}
               />
             </aside>
@@ -1776,9 +1985,188 @@ function StatusFunnelCard({
   );
 }
 
+function FinanceCommissionItem({
+  commission,
+  highlighted,
+  inlineFeedback,
+  isDetailsOpen,
+  onToggleDetails,
+  onViewOpportunity,
+  onCopySummary,
+  onMarkContested,
+  onOpenIntelligence,
+}: {
+  commission: FinanceCommission;
+  highlighted: boolean;
+  inlineFeedback?: FeedbackState;
+  isDetailsOpen: boolean;
+  onToggleDetails: () => void;
+  onViewOpportunity: () => void;
+  onCopySummary: () => void;
+  onMarkContested: () => void;
+  onOpenIntelligence: () => void;
+}) {
+  const status = statusConfig[commission.status];
+  const isRiskyProjected =
+    commission.status === "projected" && getDaysFromReference(commission.closeDate) > 7;
+  const hasPaidDate = Boolean(commission.paidAt);
+
+  return (
+    <article
+      className={cn(
+        "rounded-[14px] border border-zinc-200/80 bg-white px-3 py-2.5 transition-all duration-140 ease-out hover:-translate-y-[1px] hover:shadow-[0_10px_20px_-18px_rgba(15,23,42,0.35)]",
+        highlighted && "border-cyan-300 bg-cyan-50/40 shadow-[0_0_0_1px_rgba(6,182,212,0.2)]"
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm font-semibold text-zinc-900">
+              {commission.opportunityTitle}
+            </p>
+            <Badge className={cn("rounded-full border px-2 py-0.5 text-[11px]", status.badgeClass)}>
+              {status.label}
+            </Badge>
+          </div>
+          <p className="mt-1 truncate text-xs text-zinc-500">
+            Competência {formatMonthLabel(commission.competenceMonth)} · {commission.percentage}%
+          </p>
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full text-zinc-500 hover:bg-zinc-100"
+              aria-label="Mais ações"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52 rounded-[14px]">
+            <DropdownMenuItem onClick={onViewOpportunity}>
+              <ArrowUpRight className="mr-2 h-4 w-4" />
+              Ver oportunidade
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onToggleDetails}>
+              <Calculator className="mr-2 h-4 w-4" />
+              Ver detalhes
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onCopySummary}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copiar resumo
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onMarkContested}
+              disabled={commission.status !== "confirmed"}
+              className={cn(commission.status === "confirmed" ? "text-red-700" : "")}
+            >
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Marcar contestação
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onOpenIntelligence}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Dica Menux Intelligence
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="font-heading text-[22px] font-semibold leading-none text-zinc-900">
+            {formatCurrency(commission.value)}
+          </p>
+          <p
+            className={cn(
+              "mt-1 text-xs",
+              isRiskyProjected ? "text-red-600" : "text-zinc-500"
+            )}
+          >
+            {isRiskyProjected
+              ? `${getDaysFromReference(commission.closeDate)} dias sem confirmação`
+              : hasPaidDate
+                ? `Pago em ${formatDate(commission.paidAt)}`
+                : `Última atualização ${formatDate(commission.closeDate)}`}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 rounded-full px-2.5 text-[11px]"
+            onClick={onToggleDetails}
+          >
+            {isDetailsOpen ? "Ocultar detalhes" : "Ver detalhes"}
+          </Button>
+          <Button
+            size="sm"
+            className="menux-intelligence-btn-soft h-7 rounded-full px-2.5 text-[11px] text-slate-100"
+            onClick={onOpenIntelligence}
+          >
+            Menux Intelligence
+          </Button>
+        </div>
+      </div>
+
+      {isDetailsOpen ? (
+        <div className="mt-2 rounded-[12px] border border-zinc-200 bg-zinc-50/75 p-2.5">
+          <div className="grid grid-cols-2 gap-2 text-xs md:grid-cols-4">
+            <div>
+              <p className="text-zinc-500">Base</p>
+              <p className="font-medium text-zinc-800">{formatCurrency(commission.baseValue)}</p>
+            </div>
+            <div>
+              <p className="text-zinc-500">Percentual</p>
+              <p className="font-medium text-zinc-800">{commission.percentage}%</p>
+            </div>
+            <div>
+              <p className="text-zinc-500">Fechamento</p>
+              <p className="font-medium text-zinc-800">{formatDate(commission.closeDate)}</p>
+            </div>
+            <div>
+              <p className="text-zinc-500">Etapa</p>
+              <p className="truncate font-medium text-zinc-800">{commission.stage}</p>
+            </div>
+          </div>
+          {commission.contestationReason ? (
+            <p className="mt-2 rounded-[10px] border border-red-100 bg-red-50 px-2 py-1.5 text-xs text-red-700">
+              {commission.contestationReason}
+            </p>
+          ) : null}
+          <div className="mt-2 flex items-center justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-full px-2.5 text-[11px] text-zinc-600 hover:text-zinc-900"
+              onClick={onViewOpportunity}
+            >
+              Abrir oportunidade
+              <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {inlineFeedback ? (
+        <InlineFeedback
+          type={inlineFeedback.type}
+          message={inlineFeedback.message}
+          compact
+          className="mt-2"
+        />
+      ) : null}
+    </article>
+  );
+}
+
 function FinanceIntelligenceRail({
+  sellerName,
   periodLabel,
-  topSeller,
+  confirmationDelta,
   projectedGap,
   projectedAgedCount,
   inconsistentCount,
@@ -1793,16 +2181,9 @@ function FinanceIntelligenceRail({
   onGenerateSummary,
   onClose,
 }: {
+  sellerName: string;
   periodLabel: string;
-  topSeller:
-    | {
-        seller: string;
-        projected: number;
-        confirmed: number;
-        paid: number;
-        count: number;
-      }
-    | null;
+  confirmationDelta: number;
   projectedGap: number;
   projectedAgedCount: number;
   inconsistentCount: number;
@@ -1814,9 +2195,27 @@ function FinanceIntelligenceRail({
   applyConfirmedFilter: () => void;
   applyPaidFilter: () => void;
   applyHighValueFilter: () => void;
-  onGenerateSummary: () => void;
+  onGenerateSummary: () => string;
   onClose?: () => void;
 }) {
+  const [generatedSummary, setGeneratedSummary] = useState("");
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  const handleCopyGeneratedSummary = useCallback(async () => {
+    if (!generatedSummary || typeof navigator === "undefined" || !navigator.clipboard) {
+      setCopyFeedback("Copiar indisponível no momento");
+      window.setTimeout(() => setCopyFeedback(null), 1200);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(generatedSummary);
+      setCopyFeedback("Copiado");
+    } catch {
+      setCopyFeedback("Falha ao copiar");
+    }
+    window.setTimeout(() => setCopyFeedback(null), 1200);
+  }, [generatedSummary]);
+
   return (
     <div className="menux-intelligence-theme flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-slate-700/70 bg-[linear-gradient(145deg,#020817_0%,#03132b_56%,#0a2340_100%)] text-slate-100 shadow-[0_34px_52px_-36px_rgba(15,23,42,0.92)]">
       <div className="border-b border-white/10 px-4 py-3">
@@ -1860,19 +2259,21 @@ function FinanceIntelligenceRail({
           </p>
           <div className="mt-2 space-y-2 text-xs text-slate-200">
             <div className="rounded-[10px] border border-white/10 bg-white/5 p-2.5">
-              <p className="text-slate-300">Maior vendedor do mês</p>
-              <p className="mt-1 font-medium text-slate-50">
-                {topSeller ? topSeller.seller : "Sem dados no período"}
-              </p>
+              <p className="text-slate-300">Central financeira de</p>
+              <p className="mt-1 font-medium text-slate-50">{sellerName}</p>
             </div>
             <div className="rounded-[10px] border border-white/10 bg-white/5 p-2.5">
-              <p className="text-slate-300">Maior gap projetado vs pago</p>
+              <p className="text-slate-300">Meu maior gap projetado vs pago</p>
               <p className="mt-1 font-medium text-slate-50">{formatCurrency(projectedGap)}</p>
             </div>
             <div className="rounded-[10px] border border-white/10 bg-white/5 p-2.5">
-              <p className="text-slate-300">Comissões em risco</p>
+              <p className="text-slate-300">Minha taxa de pagamento vs mês anterior</p>
               <p className="mt-1 font-medium text-slate-50">
-                {projectedAgedCount} itens projetados antigos
+                {confirmationDelta === 0
+                  ? "Estável"
+                  : confirmationDelta > 0
+                    ? `+${confirmationDelta}pp`
+                    : `${confirmationDelta}pp`}
               </p>
             </div>
           </div>
@@ -1892,7 +2293,7 @@ function FinanceIntelligenceRail({
               loading={runningAction === "aged"}
             />
             <IntelligenceAction
-              label={`${aboveAverageCount} valores acima da média por vendedor`}
+              label={`${aboveAverageCount} valores acima da minha média`}
               actionLabel="Filtrar altos valores"
               onClick={() =>
                 onRunAction(
@@ -1937,11 +2338,44 @@ function FinanceIntelligenceRail({
             />
             <IntelligenceQuickAction
               label="Gerar resumo para financeiro"
-              onClick={() => onRunAction("summary", "Resumo executivo gerado.", onGenerateSummary)}
+              onClick={() =>
+                onRunAction("summary", "Resumo executivo pessoal gerado.", () => {
+                  setGeneratedSummary(onGenerateSummary());
+                })
+              }
               loading={runningAction === "summary"}
             />
           </div>
         </section>
+
+        {generatedSummary ? (
+          <section className="rounded-[14px] border border-white/10 bg-white/5 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-300">
+                Resumo pronto para envio
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 rounded-full border-white/20 bg-white/5 px-2.5 text-[11px] text-slate-100 hover:bg-white/10"
+                onClick={() => void handleCopyGeneratedSummary()}
+              >
+                <Copy className="mr-1 h-3.5 w-3.5" />
+                Copiar
+              </Button>
+            </div>
+            <textarea
+              readOnly
+              value={generatedSummary}
+              className="mt-2 h-28 w-full resize-none rounded-[10px] border border-white/10 bg-slate-950/35 p-2 text-xs text-slate-100 outline-none"
+            />
+            {copyFeedback ? (
+              <span className="mt-2 inline-flex rounded-full bg-cyan-500/15 px-2 py-0.5 text-[11px] text-cyan-100">
+                {copyFeedback}
+              </span>
+            ) : null}
+          </section>
+        ) : null}
 
         {result ? (
           <div className="rounded-[12px] border border-cyan-300/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">

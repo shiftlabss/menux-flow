@@ -5,10 +5,10 @@
 4 silly config load:file:/Users/fernandocalado/Documents/Flow/.npmrc
 5 silly config load:file:/Users/fernandocalado/.npmrc
 6 silly config load:file:/usr/local/etc/npmrc
-7 verbose title npm run lint /Users/fernandocalado/Documents/Flow/src/app/(auth)/clients/page.tsx
-8 verbose argv "run" "lint" "--" "/Users/fernandocalado/Documents/Flow/src/app/(auth)/clients/page.tsx"
-9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-16T22_35_36_105Z-
-10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-16T22_35_36_105Z-debug-0.log
+7 verbose title npm run build
+8 verbose argv "run" "build"
+9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T01_55_32_120Z-
+10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T01_55_32_120Z-debug-0.log
 11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd /Users/fernandocalado/Documents/Flow

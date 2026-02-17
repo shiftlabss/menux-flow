@@ -109,7 +109,7 @@ function normalizeName(email: string): string {
 
 export function buildDemoUser(email: string): SessionUser {
   const normalizedEmail = email.trim().toLowerCase();
-  const role = ROLE_BY_EMAIL[normalizedEmail] ?? "admin";
+  const role = ROLE_BY_EMAIL[normalizedEmail] ?? "comercial";
   return {
     id: `user-${normalizedEmail.replace(/[^a-z0-9]/g, "-") || "demo"}`,
     name: normalizeName(normalizedEmail),

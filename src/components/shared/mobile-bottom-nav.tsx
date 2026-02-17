@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -38,14 +38,8 @@ const mainNavItems: NavItem[] = [
   { label: "Clientes", href: "/clients", icon: Users },
 ];
 
-const moreNavItems: NavItem[] = [
+const moreNavItemsBase: NavItem[] = [
   { label: "Financeiro", href: "/finance", icon: DollarSign },
-  {
-    label: "Configurações",
-    href: "/settings/general",
-    matchPrefix: "/settings",
-    icon: Settings,
-  },
   { label: "Menux Intelligence", href: "/intelligence", icon: Sparkles },
 ];
 
@@ -53,9 +47,23 @@ const moreNavItems: NavItem[] = [
 export function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const permissions = useAuthStore((state) => state.permissions);
   const logout = useAuthStore((state) => state.logout);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const isIntelligencePage = pathname.startsWith("/intelligence");
+
+  const moreNavItems = useMemo(() => {
+    const items: NavItem[] = [...moreNavItemsBase];
+    if (permissions?.canManageSettings) {
+      items.splice(1, 0, {
+        label: "Configurações",
+        href: "/settings/general",
+        matchPrefix: "/settings",
+        icon: Settings,
+      });
+    }
+    return items;
+  }, [permissions?.canManageSettings]);
 
   const isActive = (item: NavItem) => {
     const target = item.matchPrefix ?? item.href;

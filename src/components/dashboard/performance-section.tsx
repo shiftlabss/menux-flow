@@ -74,7 +74,7 @@ export function PipelineHealth() {
   );
 }
 
-// --- Team Performance Component ---
+// --- Performance Component ---
 const teamData = [
   { id: 1, name: "Ana Silva", role: "Closer", revenue: 145000, conversion: 22, trend: 12 },
   { id: 2, name: "Carlos M.", role: "SDR", revenue: 98000, conversion: 18, trend: -5 },
@@ -89,13 +89,13 @@ export function TeamPerformance() {
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-zinc-900 flex items-center gap-2">
             <Users className="h-4 w-4 text-blue-500" />
-            Performance do Time
+            Performance pessoal
         </h3>
         <button
           className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
-          onClick={() => router.push("/reports")}
+          onClick={() => router.push("/goals")}
         >
-          Ver todos
+          Ver metas
         </button>
       </div>
 
@@ -104,10 +104,10 @@ export function TeamPerformance() {
             <div
                 key={member.id}
                 className="flex cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-zinc-50 transition-colors"
-                onClick={() => router.push(`/reports?member=${member.id}`)}
+                onClick={() => router.push("/goals")}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter") router.push(`/reports?member=${member.id}`); }}
+                onKeyDown={(e) => { if (e.key === "Enter") router.push("/goals"); }}
             >
                 <div className="flex items-center gap-3">
                     <span className={cn(

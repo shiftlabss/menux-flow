@@ -5,15 +5,15 @@
 4 silly config load:file:/Users/fernandocalado/Documents/Flow/.npmrc
 5 silly config load:file:/Users/fernandocalado/.npmrc
 6 silly config load:file:/usr/local/etc/npmrc
-7 verbose title npm run lint src/components/dashboard/kpi-section.tsx
-8 verbose argv "run" "lint" "--" "src/components/dashboard/kpi-section.tsx"
-9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-16T22_21_46_559Z-
-10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-16T22_21_46_559Z-debug-0.log
+7 verbose title npm run dev --hostname 127.0.0.1 --port 3001
+8 verbose argv "run" "dev" "--" "--hostname" "127.0.0.1" "--port" "3001"
+9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T01_59_33_783Z-
+10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T01_59_33_783Z-debug-0.log
 11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd /Users/fernandocalado/Documents/Flow
 14 verbose os Darwin 25.3.0
 15 verbose node v24.11.1
 16 verbose npm  v11.6.2
-17 verbose exit 0
-18 info ok
+17 verbose exit 1
+18 verbose code 1

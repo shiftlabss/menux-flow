@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { useUIStore } from "@/stores/ui-store";
+import { useAuthStore } from "@/stores/auth-store";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -222,19 +223,23 @@ const mockSearchableItems: SearchableItem[] = [
 // Pages for navigation
 // ---------------------------------------------------------------------------
 
-const pages = [
+const basePages = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/activities", label: "Atividades", icon: CalendarCheck },
   { path: "/pipes", label: "Pipeline de Vendas", icon: Kanban },
   { path: "/clients", label: "Clientes", icon: Users },
   { path: "/finance", label: "Financeiro", icon: DollarSign },
   { path: "/goals", label: "Metas", icon: Target },
+  { path: "/intelligence", label: "Menux Intelligence", icon: Handshake },
+];
+
+const privilegedPages = [
   { path: "/reports", label: "Relatórios", icon: BarChart3 },
   { path: "/audit", label: "Auditoria", icon: ShieldCheck },
   { path: "/settings/general", label: "Configurações", icon: Settings },
   { path: "/settings/users", label: "Gestão de Usuários", icon: User },
   { path: "/settings/profile", label: "Meu Perfil", icon: User },
-] as const;
+];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -296,6 +301,7 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 
 export function GlobalSearch() {
   const { isSearchOpen, setSearchOpen, openDrawer } = useUIStore();
+  const { user, permissions } = useAuthStore();
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -325,20 +331,63 @@ export function GlobalSearch() {
 
   // Filter mock results based on debounced query
   const hasSearchQuery = debouncedQuery.trim().length >= MIN_QUERY_LENGTH;
+  const currentSellerName = useMemo(() => {
+    const preferredName = user?.name?.trim();
+    if (
+      preferredName &&
+      mockSearchableItems.some((item) => item.responsible === preferredName)
+    ) {
+      return preferredName;
+    }
+    return "Maria Silva";
+  }, [user?.name]);
+
+  const isSellerMode = !permissions?.canViewAllUnits;
+
+  const searchableItems = useMemo(() => {
+    if (!isSellerMode) return mockSearchableItems;
+    return mockSearchableItems.filter(
+      (item) => item.responsible === currentSellerName
+    );
+  }, [currentSellerName, isSellerMode]);
+
+  const pages = useMemo(() => {
+    const items = [...basePages];
+    if (permissions?.canViewReports) {
+      items.push(
+        ...privilegedPages.filter((page) => page.path.startsWith("/reports"))
+      );
+    }
+    if (permissions?.canManageSettings) {
+      items.push(
+        ...privilegedPages.filter((page) => page.path.startsWith("/settings"))
+      );
+    }
+    if (permissions?.canViewAllUnits) {
+      items.push(
+        ...privilegedPages.filter((page) => page.path.startsWith("/audit"))
+      );
+    }
+    return items;
+  }, [
+    permissions?.canManageSettings,
+    permissions?.canViewAllUnits,
+    permissions?.canViewReports,
+  ]);
 
   const opportunities = useMemo(() => {
     if (!hasSearchQuery) return [];
-    return mockSearchableItems
+    return searchableItems
       .filter((i) => i.type === "opportunity" && matchesQuery(i, debouncedQuery))
       .slice(0, MAX_RESULTS_PER_GROUP);
-  }, [debouncedQuery, hasSearchQuery]);
+  }, [debouncedQuery, hasSearchQuery, searchableItems]);
 
   const clients = useMemo(() => {
     if (!hasSearchQuery) return [];
-    return mockSearchableItems
+    return searchableItems
       .filter((i) => i.type === "client" && matchesQuery(i, debouncedQuery))
       .slice(0, MAX_RESULTS_PER_GROUP);
-  }, [debouncedQuery, hasSearchQuery]);
+  }, [debouncedQuery, hasSearchQuery, searchableItems]);
 
   const hasResults = opportunities.length > 0 || clients.length > 0;
   const showNoResults = hasSearchQuery && !hasResults;

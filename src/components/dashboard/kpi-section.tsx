@@ -54,7 +54,7 @@ const getKpiData = (period: string): Record<"pipeline" | "conversion" | "activit
       valueFormat: "percent",
       subtext: "Ganhos no período: 42",
       trend: { value: "+8%", tone: "positive" },
-      targetPath: "/reports",
+      targetPath: "/pipes?focus=conversion",
       state: "default",
     },
     activities: {
@@ -196,15 +196,15 @@ function ConversionBarsMini() {
 
 function ActivityMiniChips() {
   return (
-    <div className="grid h-9 w-[172px] grid-cols-2 gap-2" aria-hidden>
-      <span className="inline-flex h-9 items-center justify-between rounded-[11px] border border-red-200/80 bg-red-50 px-2 text-red-700">
-        <span className="truncate text-[10px] font-semibold">Atrasadas</span>
+    <div className="flex h-9 w-[172px] items-center gap-1.5" aria-hidden>
+      <span className="inline-flex h-9 min-w-0 flex-1 items-center justify-between rounded-[11px] border border-red-200/80 bg-red-50 px-2 text-red-700">
+        <span className="truncate text-[10px] font-semibold">Atrasadas:</span>
         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/80 px-1.5 text-[10px] font-bold leading-none">
           4
         </span>
       </span>
-      <span className="inline-flex h-9 items-center justify-between rounded-[11px] border border-zinc-200 bg-zinc-50 px-2 text-zinc-700">
-        <span className="truncate text-[10px] font-semibold">Hoje</span>
+      <span className="inline-flex h-9 min-w-0 flex-1 items-center justify-between rounded-[11px] border border-zinc-200 bg-zinc-50 px-2 text-zinc-700">
+        <span className="truncate text-[10px] font-semibold">Hoje:</span>
         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/85 px-1.5 text-[10px] font-bold leading-none">
           8
         </span>

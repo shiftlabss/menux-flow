@@ -26,10 +26,11 @@ interface HeaderProps {
 
 export function Header({ isScrolled = false }: HeaderProps) {
   const { toggle } = useSidebarStore();
-  const { user, logout } = useAuthStore();
+  const { user, permissions, logout } = useAuthStore();
   const { setSearchOpen } = useUIStore();
   const router = useRouter();
   const pathname = usePathname();
+  const canOpenSettings = Boolean(permissions?.canManageSettings);
 
   const breadcrumbMap: Record<string, string> = {
     "/dashboard": "Dashboard",
@@ -170,13 +171,17 @@ export function Header({ isScrolled = false }: HeaderProps) {
                   {user?.email || "email@menux.com"}
                 </p>
               </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
-                Meu Perfil
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/settings/general")}>
-                Configurações
-              </DropdownMenuItem>
+              {canOpenSettings ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/settings/profile")}>
+                    Meu Perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/settings/general")}>
+                    Configurações
+                  </DropdownMenuItem>
+                </>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {

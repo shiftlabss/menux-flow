@@ -20,7 +20,7 @@ export function generateDynamicMockData(
       .toISOString()
       .split("T")[0];
 
-  return [
+  const opportunities: Opportunity[] = [
     {
       id: "1",
       title: "Restaurante Bela Vista",
@@ -726,4 +726,10 @@ export function generateDynamicMockData(
       slaDeadline: h(55),
     },
   ];
+
+  return opportunities.map((opportunity) => ({
+    ...opportunity,
+    responsibleId: ownerId,
+    responsibleName: ownerName,
+  }));
 }

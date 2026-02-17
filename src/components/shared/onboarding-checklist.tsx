@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, startTransition } from "react";
+import { useState, useEffect, useCallback, useMemo, startTransition } from "react";
 import {
   CheckCircle2,
   Circle,
@@ -14,6 +14,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { useAuthStore } from "@/stores/auth-store";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,6 +25,7 @@ interface ChecklistItem {
   title: string;
   href: string;
   icon: React.ReactNode;
+  requires?: "canManageSettings" | "canViewReports";
 }
 
 // ---------------------------------------------------------------------------
@@ -36,6 +38,7 @@ const checklistItems: ChecklistItem[] = [
     title: "Completar perfil",
     href: "/settings/profile",
     icon: <User className="h-4 w-4" />,
+    requires: "canManageSettings",
   },
   {
     id: "create-opportunity",
@@ -54,18 +57,21 @@ const checklistItems: ChecklistItem[] = [
     title: "Convidar membro da equipe",
     href: "/settings/users",
     icon: <UserPlus className="h-4 w-4" />,
+    requires: "canManageSettings",
   },
   {
     id: "configure-pipeline",
     title: "Configurar pipeline",
     href: "/settings/pipeline",
     icon: <Settings className="h-4 w-4" />,
+    requires: "canManageSettings",
   },
   {
     id: "explore-reports",
     title: "Explorar relatórios",
     href: "/reports",
     icon: <BarChart3 className="h-4 w-4" />,
+    requires: "canViewReports",
   },
 ];
 
@@ -101,6 +107,7 @@ function saveCompletedItems(items: Set<string>) {
 // ---------------------------------------------------------------------------
 
 export function OnboardingChecklist() {
+  const { permissions } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isDismissed, setIsDismissed] = useState(true);
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
@@ -113,9 +120,26 @@ export function OnboardingChecklist() {
     });
   }, []);
 
-  const completedCount = completedItems.size;
-  const totalCount = checklistItems.length;
-  const progressPercent = Math.round((completedCount / totalCount) * 100);
+  const visibleChecklistItems = useMemo(
+    () =>
+      checklistItems.filter(
+        (item) => !item.requires || Boolean(permissions?.[item.requires])
+      ),
+    [permissions]
+  );
+
+  const visibleItemIds = useMemo(
+    () => new Set(visibleChecklistItems.map((item) => item.id)),
+    [visibleChecklistItems]
+  );
+
+  const completedCount = useMemo(
+    () => Array.from(completedItems).filter((id) => visibleItemIds.has(id)).length,
+    [completedItems, visibleItemIds]
+  );
+  const totalCount = visibleChecklistItems.length;
+  const progressPercent =
+    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   const toggleItem = useCallback(
     (itemId: string) => {
@@ -139,7 +163,7 @@ export function OnboardingChecklist() {
     setIsOpen(false);
   }, []);
 
-  if (isDismissed) return null;
+  if (isDismissed || totalCount === 0) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-50 hidden md:block">
@@ -176,7 +200,7 @@ export function OnboardingChecklist() {
 
             {/* Checklist items */}
             <div className="p-2 pt-3">
-              {checklistItems.map((item) => {
+              {visibleChecklistItems.map((item) => {
                 const isCompleted = completedItems.has(item.id);
                 return (
                   <div

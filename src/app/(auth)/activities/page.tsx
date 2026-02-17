@@ -467,7 +467,11 @@ const RAIL_COMMANDS = [
 export default function ActivitiesPage() {
   const { openDrawer } = useUIStore();
   const { user } = useAuthStore();
-  const { activities, completeActivity, postponeActivity } = useActivityStore();
+  const {
+    activities: storeActivities,
+    completeActivity,
+    postponeActivity,
+  } = useActivityStore();
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -480,7 +484,6 @@ export default function ActivitiesPage() {
   const [filterStatuses, setFilterStatuses] = useState<Set<ActivityStatus>>(
     () => new Set(DEFAULT_STATUS_FILTER)
   );
-  const [filterResponsible, setFilterResponsible] = useState("all");
   const [filterDateStart, setFilterDateStart] = useState("");
   const [filterDateEnd, setFilterDateEnd] = useState("");
   const [filterSla, setFilterSla] = useState<SlaFilter>("all");
@@ -529,6 +532,23 @@ export default function ActivitiesPage() {
     () => toISODate(startOfDay(now))
   );
 
+  const scopedOwnerId = useMemo(() => {
+    const preferredId = user?.id;
+    if (
+      preferredId &&
+      storeActivities.some((activity) => activity.responsibleId === preferredId)
+    ) {
+      return preferredId;
+    }
+    return storeActivities[0]?.responsibleId ?? preferredId ?? "user-5";
+  }, [storeActivities, user?.id]);
+
+  const activities = useMemo(
+    () =>
+      storeActivities.filter((activity) => activity.responsibleId === scopedOwnerId),
+    [storeActivities, scopedOwnerId]
+  );
+
   const schedule = useCallback((fn: () => void, ms: number) => {
     const id = window.setTimeout(() => {
       fn();
@@ -554,21 +574,10 @@ export default function ActivitiesPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const responsibles = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const activity of activities) {
-      map.set(activity.responsibleId, activity.responsibleName);
-    }
-    return Array.from(map.entries());
-  }, [activities]);
-
   const filteredActivities = useMemo(() => {
     return activities.filter((activity) => {
       if (!filterTypes.has(activity.type)) return false;
       if (!filterStatuses.has(activity.status)) return false;
-      if (filterResponsible !== "all" && activity.responsibleId !== filterResponsible) {
-        return false;
-      }
       if (filterDateStart && activity.dueDate < filterDateStart) return false;
       if (filterDateEnd && activity.dueDate > filterDateEnd) return false;
 
@@ -581,7 +590,6 @@ export default function ActivitiesPage() {
     activities,
     filterTypes,
     filterStatuses,
-    filterResponsible,
     filterDateStart,
     filterDateEnd,
     filterSla,
@@ -709,21 +717,6 @@ export default function ActivitiesPage() {
     return counts;
   }, [filteredActivities]);
 
-  const responsibleCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const activity of filteredActivities) {
-      counts.set(
-        activity.responsibleName,
-        (counts.get(activity.responsibleName) ?? 0) + 1
-      );
-    }
-
-    return Array.from(counts.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-  }, [filteredActivities]);
-
   const hotspotType = useMemo(() => {
     return Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0] as
       | [ActivityType, number]
@@ -763,7 +756,6 @@ export default function ActivitiesPage() {
   const hasActiveFilters =
     filterTypes.size < allActivityTypes.length ||
     filterStatuses.size < DEFAULT_STATUS_FILTER.size ||
-    filterResponsible !== "all" ||
     filterDateStart !== "" ||
     filterDateEnd !== "" ||
     filterSla !== "all";
@@ -807,15 +799,6 @@ export default function ActivitiesPage() {
       });
     }
 
-    if (filterResponsible !== "all") {
-      const found = responsibles.find(([id]) => id === filterResponsible)?.[1] || filterResponsible;
-      chips.push({
-        id: "responsible",
-        label: `Responsável: ${found}`,
-        onRemove: () => setFilterResponsible("all"),
-      });
-    }
-
     if (filterDateStart) {
       chips.push({
         id: "date-start",
@@ -844,17 +827,14 @@ export default function ActivitiesPage() {
   }, [
     filterTypes,
     filterStatuses,
-    filterResponsible,
     filterDateStart,
     filterDateEnd,
     filterSla,
-    responsibles,
   ]);
 
   const clearFilters = useCallback(() => {
     setFilterTypes(new Set(allActivityTypes));
     setFilterStatuses(new Set(DEFAULT_STATUS_FILTER));
-    setFilterResponsible("all");
     setFilterDateStart("");
     setFilterDateEnd("");
     setFilterSla("all");
@@ -1099,8 +1079,15 @@ export default function ActivitiesPage() {
           router.push("/clients?filter=risk");
           return; // Navigation handles feedback
         } else if (commandId === "week-summary") {
-          router.push("/reports");
-          return;
+          setGeneratedContent({
+            title: "Resumo da Semana",
+            content: `### Minha semana em atividades\n- Total ativas: ${executionActivities.length}\n- Atrasadas: ${overdueCount}\n- SLAs em risco: ${riskCount}\n\n**Próximo passo recomendado:** focar primeiro nas atividades atrasadas de maior impacto comercial.`,
+          });
+          setGeneratedModalOpen(true);
+          setCommandResult({
+            status: "success",
+            text: "Resumo semanal gerado com foco na sua carteira.",
+          });
         } else if (commandId === "bulk-messages") {
           setGeneratedContent({
             title: "Mensagens para Atrasadas",
@@ -1501,22 +1488,7 @@ export default function ActivitiesPage() {
 
                   <Separator />
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div>
-                      <Label className="mb-1 block text-xs text-zinc-500">Responsável</Label>
-                      <select
-                        value={filterResponsible}
-                        onChange={(event) => setFilterResponsible(event.target.value)}
-                        className="h-9 w-full rounded-[12px] border border-zinc-200 bg-white px-3 text-sm text-zinc-700 outline-none focus:border-brand"
-                      >
-                        <option value="all">Todos</option>
-                        {responsibles.map(([id, name]) => (
-                          <option key={id} value={id}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <Label className="mb-1 block text-xs text-zinc-500">SLA</Label>
                       <div className="flex rounded-[12px] border border-zinc-200 p-1">
@@ -1808,14 +1780,15 @@ export default function ActivitiesPage() {
                   size="sm"
                   variant="outline"
                   className="rounded-full text-xs"
-                  onClick={() =>
-                    setCommandResult({
-                      status: "success",
-                      text: "Relatório rápido aberto no modo de visualização da semana.",
-                    })
-                  }
+                  onClick={() => {
+                    setGeneratedContent({
+                      title: "Resumo do dia",
+                      content: `### Execução do dia\n- Total de atividades: ${filteredActivities.length}\n- Conclusão semanal: ${weeklyCompletionRate}%\n- Atrasadas: ${overdueCount}\n\n**Próximo passo:** atacar primeiro as atividades atrasadas com maior risco de SLA.`,
+                    });
+                    setGeneratedModalOpen(true);
+                  }}
                 >
-                  <Link href="/reports">Ver relatório</Link>
+                  Ver resumo
                 </Button>
                 <Button
                   size="sm"
@@ -1842,7 +1815,7 @@ export default function ActivitiesPage() {
               />
             </div>
 
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="mt-4 grid gap-3 lg:grid-cols-1">
               <div className="rounded-[14px] border border-zinc-200 bg-zinc-50/70 p-3">
                 <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   Por tipo
@@ -1857,24 +1830,6 @@ export default function ActivitiesPage() {
                         <span className="font-medium text-zinc-900">{count}</span>
                       </div>
                     ))}
-                </div>
-              </div>
-
-              <div className="rounded-[14px] border border-zinc-200 bg-zinc-50/70 p-3">
-                <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Por responsável
-                </p>
-                <div className="space-y-1.5">
-                  {responsibleCounts.length === 0 ? (
-                    <p className="text-sm text-zinc-500">Sem dados.</p>
-                  ) : (
-                    responsibleCounts.map((item) => (
-                      <div key={item.name} className="flex items-center justify-between text-sm">
-                        <span className="text-zinc-600">{item.name}</span>
-                        <span className="font-medium text-zinc-900">{item.count}</span>
-                      </div>
-                    ))
-                  )}
                 </div>
               </div>
             </div>

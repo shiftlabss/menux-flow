@@ -22,7 +22,6 @@ import {
   AlertTriangle,
   CircleDollarSign,
   Columns3,
-  SlidersHorizontal,
   ChevronDown,
   Sparkles,
 } from "lucide-react";
@@ -40,7 +39,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 // Stores
@@ -59,10 +57,7 @@ import type { PipelineStage, Opportunity } from "@/types";
 import { usePipelineBoard } from "./hooks/use-pipeline-board";
 import { useStageCustomization } from "./hooks/use-stage-customization";
 import { DealCardBento } from "./components/deal-card-bento";
-import { GhostDealCard } from "./components/ghost-deal-card";
 import { PipelineSkeleton } from "./components/pipeline-skeleton";
-// External components
-import { PipelineManagerDrawer } from "@/components/pipeline/pipeline-manager-drawer";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 // ===================================================================
@@ -83,7 +78,6 @@ function PipesPageContent() {
     () => generateDynamicMockData(currentUserId, currentUserName)
   );
   const opportunities = localOpportunities;
-  const [isManageDrawerOpen, setIsManageDrawerOpen] = useState(false);
   const [isIntelligencePopoverOpen, setIsIntelligencePopoverOpen] = useState(false);
   const [intelligenceFeedback, setIntelligenceFeedback] = useState<string | null>(null);
 
@@ -113,9 +107,6 @@ function PipesPageContent() {
       router.replace(`/pipes?${newParams.toString()}`, { scroll: false });
     }
   }, [searchParams, openDrawer, router]);
-  const [pipelineDrawerMode, setPipelineDrawerMode] = useState<
-    "manage" | "create"
-  >("manage");
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInputValue, setSearchInputValue] = useState("");
@@ -227,14 +218,10 @@ function PipesPageContent() {
       grouped[opp.stage].push(opp);
     }
     for (const stage of Object.keys(grouped) as PipelineStage[]) {
-      grouped[stage].sort((a, b) => {
-        const aOwn = a.responsibleId === currentUserId ? 0 : 1;
-        const bOwn = b.responsibleId === currentUserId ? 0 : 1;
-        return aOwn - bOwn;
-      });
+      grouped[stage].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     }
     return grouped;
-  }, [opportunities, effectiveStageIds, normalizedSearch, currentUserId]);
+  }, [opportunities, effectiveStageIds, normalizedSearch]);
 
   const { boardTotal } = useMemo(() => {
     const active = opportunities.filter((o) =>
@@ -295,16 +282,6 @@ function PipesPageContent() {
     [clearSearch, searchInputValue]
   );
 
-  const openManagePipelineDrawer = useCallback(() => {
-    setPipelineDrawerMode("manage");
-    setIsManageDrawerOpen(true);
-  }, []);
-
-  const openCreatePipelineDrawer = useCallback(() => {
-    setPipelineDrawerMode("create");
-    setIsManageDrawerOpen(true);
-  }, []);
-
   const showIntelligenceFeedback = useCallback((text: string) => {
     setIntelligenceFeedback(text);
     window.setTimeout(() => setIntelligenceFeedback(null), 1200);
@@ -323,11 +300,6 @@ function PipesPageContent() {
     router.push("/activities?status=overdue");
   }, [router]);
 
-  const handleOpenPipelineReport = useCallback(() => {
-    setIsIntelligencePopoverOpen(false);
-    router.push("/reports");
-  }, [router]);
-
   const metricChips = useMemo(() => {
     const chips: Array<{
       id: string;
@@ -341,14 +313,12 @@ function PipesPageContent() {
           label: `Pipeline: ${formatCurrencyBRL(boardTotal)}`,
           icon: <CircleDollarSign className="h-3.5 w-3.5" />,
           tone: "info",
-          onClick: handleOpenPipelineReport,
         },
         {
           id: "stages-visible",
           label: `Etapas: ${visibleStages.length}`,
           icon: <Columns3 className="h-3.5 w-3.5" />,
           tone: "neutral",
-          onClick: () => setIsManageDrawerOpen(true),
         },
       ];
 
@@ -368,7 +338,6 @@ function PipesPageContent() {
     visibleStages.length,
     recentFiltersCount,
     activeFilterCount,
-    handleOpenPipelineReport,
     openDrawer,
   ]);
 
@@ -509,23 +478,6 @@ function PipesPageContent() {
                       ) : null}
                     </DropdownMenuItem>
                   ))}
-
-                  <DropdownMenuSeparator className="my-1 bg-zinc-200/80" />
-
-                  <DropdownMenuItem
-                    onClick={openCreatePipelineDrawer}
-                    className="h-9 rounded-xl px-2.5 font-medium text-zinc-700"
-                  >
-                    <Plus className="mr-1 h-3.5 w-3.5 text-zinc-500" />
-                    Novo Funil
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={openManagePipelineDrawer}
-                    className="h-9 rounded-xl px-2.5 font-medium text-zinc-700"
-                  >
-                    <SlidersHorizontal className="mr-1 h-3.5 w-3.5 text-zinc-500" />
-                    Gerenciar Funil
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             }
@@ -682,9 +634,12 @@ function PipesPageContent() {
                         <Button
                           size="sm"
                           className="justify-start rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
-                          onClick={handleOpenPipelineReport}
+                          onClick={() => {
+                            setIsIntelligencePopoverOpen(false);
+                            openDrawer("filters");
+                          }}
                         >
-                          Abrir relatório do funil
+                          Abrir filtros avançados
                         </Button>
                       </div>
                       {intelligenceFeedback ? (
@@ -880,48 +835,36 @@ function PipesPageContent() {
                           }
 
                           cards.forEach((opportunity, idx) => {
-                            const isGhost =
-                              opportunity.responsibleId !== currentUserId;
-
-                            if (isGhost) {
-                              elements.push(
-                                <GhostDealCard
-                                  key={opportunity.id}
+                            elements.push(
+                              <div
+                                key={opportunity.id}
+                                data-card-index={idx}
+                                className={`transition-transform duration-200 ${draggingCardId === opportunity.id
+                                  ? "scale-[0.97] opacity-40"
+                                  : ""
+                                  }`}
+                              >
+                                <DealCardBento
                                   opportunity={opportunity}
+                                  temp={getTemp(opportunity)}
+                                  onOpen={() =>
+                                    openModal("lead-card", {
+                                      id: opportunity.id,
+                                    })
+                                  }
+                                  onDragStart={(e) =>
+                                    handleDragStart(e, opportunity)
+                                  }
+                                  onDragEnd={handleDragEnd}
+                                  onWin={() =>
+                                    handleWin(opportunity.id)
+                                  }
+                                  onLose={() =>
+                                    handleLose(opportunity.id)
+                                  }
                                 />
-                              );
-                            } else {
-                              elements.push(
-                                <div
-                                  key={opportunity.id}
-                                  data-card-index={idx}
-                                  className={`transition-transform duration-200 ${draggingCardId === opportunity.id
-                                    ? "scale-[0.97] opacity-40"
-                                    : ""
-                                    }`}
-                                >
-                                  <DealCardBento
-                                    opportunity={opportunity}
-                                    temp={getTemp(opportunity)}
-                                    onOpen={() =>
-                                      openModal("lead-card", {
-                                        id: opportunity.id,
-                                      })
-                                    }
-                                    onDragStart={(e) =>
-                                      handleDragStart(e, opportunity)
-                                    }
-                                    onDragEnd={handleDragEnd}
-                                    onWin={() =>
-                                      handleWin(opportunity.id)
-                                    }
-                                    onLose={() =>
-                                      handleLose(opportunity.id)
-                                    }
-                                  />
-                                </div>
-                              );
-                            }
+                              </div>
+                            );
 
                             if (
                               showPlaceholder &&
@@ -994,16 +937,6 @@ function PipesPageContent() {
           </div>
         </div>
 
-        <PipelineManagerDrawer
-          open={isManageDrawerOpen}
-          onOpenChange={(open) => {
-            setIsManageDrawerOpen(open);
-            if (!open) {
-              setPipelineDrawerMode("manage");
-            }
-          }}
-          openCreateOnOpen={pipelineDrawerMode === "create"}
-        />
       </motion.div>
     </>
   );
