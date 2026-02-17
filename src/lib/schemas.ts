@@ -201,7 +201,7 @@ export const contactSchema = z.object({
   email: z.string().email("E-mail inválido"),
   telefone: phoneValidator,
   cargo: z.string().optional(),
-  isPrimary: z.boolean(),
+  isDecisionMaker: z.boolean(),
 });
 
 export type ContactFormData = z.infer<typeof contactSchema>;

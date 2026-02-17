@@ -17,7 +17,7 @@ import {
   Tag,
   Plus,
   Trash2,
-  Star,
+  Shield,
   Check,
   Pencil,
   MapPin,
@@ -137,7 +137,7 @@ const mockContacts = [
     telefone: "(11) 99999-0001",
     cargo: "diretor-geral",
     personalidade: "Visionária e estratégica, gosta de entender o impacto no negócio como um todo.",
-    isPrimary: true,
+    isDecisionMaker: true,
   },
   {
     id: "c2",
@@ -146,7 +146,7 @@ const mockContacts = [
     telefone: "(11) 99999-0002",
     cargo: "gerente-operacoes",
     personalidade: "Prático e focado em eficiência operacional. Valoriza facilidade de uso.",
-    isPrimary: false,
+    isDecisionMaker: false,
   },
 ];
 
@@ -450,64 +450,84 @@ function ContactCard({
   contact,
   onEdit,
   onDelete,
+  onToggleDecisionMaker,
 }: {
   contact: (typeof mockContacts)[0];
   onEdit: () => void;
   onDelete: () => void;
+  onToggleDecisionMaker: () => void;
 }) {
   return (
-    <div className="flex items-start justify-between rounded-[15px] border border-zinc-200 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100">
-          <User className="h-5 w-5 text-zinc-500" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="font-heading text-sm font-semibold text-black">
-              {contact.nome}
-            </p>
-            {contact.isPrimary && (
-              <Badge className="gap-1 rounded-[10px] bg-brand-light text-brand font-body text-[10px]">
-                <Star className="h-3 w-3" />
-                Principal
-              </Badge>
+    <div className="group flex items-stretch rounded-[15px] border border-zinc-200">
+      {/* Decision-maker toggle — left side */}
+      <button
+        type="button"
+        onClick={onToggleDecisionMaker}
+        className={`flex w-10 shrink-0 items-center justify-center rounded-l-[15px] border-r transition-colors ${
+          contact.isDecisionMaker
+            ? "border-brand/20 bg-brand/10 text-brand"
+            : "border-zinc-200 bg-zinc-50/50 text-zinc-300 hover:bg-zinc-100 hover:text-zinc-400"
+        }`}
+        aria-label={contact.isDecisionMaker ? "Remover como decisor" : "Marcar como decisor"}
+        title={contact.isDecisionMaker ? "Decisor (clique para remover)" : "Marcar como decisor"}
+      >
+        <Shield className="h-4 w-4" />
+      </button>
+
+      {/* Card content */}
+      <div className="flex flex-1 items-start justify-between p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100">
+            <User className="h-5 w-5 text-zinc-500" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-heading text-sm font-semibold text-black">
+                {contact.nome}
+              </p>
+              {contact.isDecisionMaker && (
+                <Badge className="gap-1 rounded-[10px] bg-brand/10 text-brand font-body text-[10px]">
+                  <Shield className="h-3 w-3" />
+                  Decisor
+                </Badge>
+              )}
+            </div>
+            <p className="font-body text-xs text-zinc-500">{getCargoLabel(contact.cargo)}</p>
+            <div className="mt-1.5 flex items-center gap-3">
+              <span className="flex items-center gap-1 font-body text-xs text-zinc-500">
+                <Mail className="h-3 w-3" />
+                {contact.email}
+              </span>
+              <span className="flex items-center gap-1 font-body text-xs text-zinc-500">
+                <Phone className="h-3 w-3" />
+                {contact.telefone}
+              </span>
+            </div>
+            {contact.personalidade && (
+              <p className="mt-1.5 font-body text-xs italic text-zinc-400">
+                &ldquo;{contact.personalidade}&rdquo;
+              </p>
             )}
           </div>
-          <p className="font-body text-xs text-zinc-500">{getCargoLabel(contact.cargo)}</p>
-          <div className="mt-1.5 flex items-center gap-3">
-            <span className="flex items-center gap-1 font-body text-xs text-zinc-500">
-              <Mail className="h-3 w-3" />
-              {contact.email}
-            </span>
-            <span className="flex items-center gap-1 font-body text-xs text-zinc-500">
-              <Phone className="h-3 w-3" />
-              {contact.telefone}
-            </span>
-          </div>
-          {contact.personalidade && (
-            <p className="mt-1.5 font-body text-xs italic text-zinc-400">
-              &ldquo;{contact.personalidade}&rdquo;
-            </p>
-          )}
         </div>
-      </div>
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-zinc-400 hover:text-zinc-600"
-          onClick={onEdit}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-zinc-400 hover:text-status-danger"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-zinc-400 hover:text-zinc-600"
+            onClick={onEdit}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-zinc-400 hover:text-status-danger"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -775,7 +795,7 @@ export function ClientCardDrawer() {
         {
           id: `c${Date.now()}`,
           ...newContact,
-          isPrimary: false,
+          isDecisionMaker: false,
         },
       ]);
       setNewContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
@@ -785,6 +805,14 @@ export function ClientCardDrawer() {
 
   function handleDeleteContact(id: string) {
     setContacts(contacts.filter((c) => c.id !== id));
+  }
+
+  function handleToggleDecisionMaker(id: string) {
+    setContacts(
+      contacts.map((c) =>
+        c.id === id ? { ...c, isDecisionMaker: !c.isDecisionMaker } : c
+      )
+    );
   }
 
   function handleStartEditContact(contact: (typeof mockContacts)[0]) {
@@ -1260,6 +1288,7 @@ export function ClientCardDrawer() {
                         contact={contact}
                         onEdit={() => handleStartEditContact(contact)}
                         onDelete={() => handleDeleteContact(contact.id)}
+                        onToggleDecisionMaker={() => handleToggleDecisionMaker(contact.id)}
                       />
                     )
                   )}

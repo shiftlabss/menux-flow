@@ -35,6 +35,7 @@ import { getInitials, getSlaStatus, getSlaColors } from "../lib/pipeline-validat
 export function DealCardBento({
   opportunity,
   temp,
+  isDragging = false,
   onOpen,
   onDragStart,
   onDragEnd,
@@ -43,6 +44,7 @@ export function DealCardBento({
 }: {
   opportunity: Opportunity;
   temp: { icon: React.ReactNode; label: string; colorClass: string };
+  isDragging?: boolean;
   onOpen: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
@@ -55,7 +57,10 @@ export function DealCardBento({
 
   return (
     <div
-      className={`group relative cursor-pointer rounded-[var(--radius-bento-card)] border border-zinc-200 border-l-[3px] ${slaColors.border} bg-white p-3 shadow-[var(--shadow-bento-sm)] transition-all duration-[var(--transition-bento-fast)] hover:shadow-[var(--shadow-bento-sm-hover)] focus-within:ring-2 focus-within:ring-brand/40 active:scale-[var(--scale-bento-active)]`}
+      className={`group relative rounded-[var(--radius-bento-card)] border border-zinc-200 border-l-[3px] ${slaColors.border} bg-white p-3 shadow-[var(--shadow-bento-sm)] transition-all duration-[var(--transition-bento-fast)] hover:shadow-[var(--shadow-bento-sm-hover)] focus-within:ring-2 focus-within:ring-brand/40 active:scale-[var(--scale-bento-active)] ${isDragging
+        ? "cursor-grabbing shadow-[0_10px_26px_-18px_rgba(15,23,42,0.35)]"
+        : "cursor-grab"
+        }`}
       onClick={onOpen}
       draggable
       onDragStart={onDragStart}

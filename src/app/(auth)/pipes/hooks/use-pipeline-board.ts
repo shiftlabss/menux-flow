@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { Opportunity, PipelineStage } from "@/types";
 import { calculateSlaDeadline, PIPELINE_STAGE_ORDER } from "@/lib/business-rules";
 import { validateStageTransition } from "../lib/pipeline-validation";
@@ -11,6 +11,59 @@ interface UsePipelineBoardOptions {
   setLocalOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
   activeFunnel: FunnelDefinition;
   announce: (message: string) => void;
+}
+
+const AUTO_SCROLL_EDGE_PX = 96;
+const AUTO_SCROLL_MAX_DELTA = 22;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getAutoScrollDelta(
+  pointer: number,
+  start: number,
+  end: number
+) {
+  if (pointer < start + AUTO_SCROLL_EDGE_PX) {
+    const distance = pointer - start;
+    const intensity = 1 - clamp(distance, 0, AUTO_SCROLL_EDGE_PX) / AUTO_SCROLL_EDGE_PX;
+    return -Math.ceil(intensity * AUTO_SCROLL_MAX_DELTA);
+  }
+
+  if (pointer > end - AUTO_SCROLL_EDGE_PX) {
+    const distance = end - pointer;
+    const intensity = 1 - clamp(distance, 0, AUTO_SCROLL_EDGE_PX) / AUTO_SCROLL_EDGE_PX;
+    return Math.ceil(intensity * AUTO_SCROLL_MAX_DELTA);
+  }
+
+  return 0;
+}
+
+function resolveInsertIndexForEmptyStage(
+  opportunities: Opportunity[],
+  targetStage: PipelineStage,
+  stageOrder: PipelineStage[]
+) {
+  const targetStageIndex = stageOrder.indexOf(targetStage);
+  if (targetStageIndex === -1) return opportunities.length;
+
+  for (let idx = targetStageIndex - 1; idx >= 0; idx -= 1) {
+    const prevStage = stageOrder[idx];
+    for (let i = opportunities.length - 1; i >= 0; i -= 1) {
+      if (opportunities[i].stage === prevStage) {
+        return i + 1;
+      }
+    }
+  }
+
+  for (let idx = targetStageIndex + 1; idx < stageOrder.length; idx += 1) {
+    const nextStage = stageOrder[idx];
+    const nextIndex = opportunities.findIndex((op) => op.stage === nextStage);
+    if (nextIndex !== -1) return nextIndex;
+  }
+
+  return opportunities.length;
 }
 
 export function usePipelineBoard({
@@ -32,15 +85,77 @@ export function usePipelineBoard({
   } | null>(null);
   const [successFeedback, setSuccessFeedback] = useState<{
     stage: PipelineStage;
-    cardTitle: string;
+    message: string;
   } | null>(null);
   const dragCardRef = useRef<Opportunity | null>(null);
+  const autoScrollFrameRef = useRef<number | null>(null);
+  const autoScrollStateRef = useRef<{
+    clientX: number;
+    clientY: number;
+    horizontalContainer: HTMLElement | null;
+    verticalContainer: HTMLElement | null;
+  } | null>(null);
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
+    autoScrollStateRef.current = null;
+  }, []);
+
+  const runAutoScroll = useCallback(() => {
+    const tick = () => {
+      const state = autoScrollStateRef.current;
+      if (!state) {
+        autoScrollFrameRef.current = null;
+        return;
+      }
+
+      const { clientX, clientY, horizontalContainer, verticalContainer } = state;
+      let shouldKeepLooping = false;
+
+      if (verticalContainer) {
+        const rect = verticalContainer.getBoundingClientRect();
+        const deltaY = getAutoScrollDelta(clientY, rect.top, rect.bottom);
+        if (deltaY !== 0) {
+          verticalContainer.scrollTop += deltaY;
+          shouldKeepLooping = true;
+        }
+      }
+
+      if (horizontalContainer) {
+        const rect = horizontalContainer.getBoundingClientRect();
+        const deltaX = getAutoScrollDelta(clientX, rect.left, rect.right);
+        if (deltaX !== 0) {
+          horizontalContainer.scrollLeft += deltaX;
+          shouldKeepLooping = true;
+        }
+      }
+
+      if (shouldKeepLooping || autoScrollStateRef.current !== null) {
+        autoScrollFrameRef.current = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      autoScrollFrameRef.current = null;
+    };
+
+    tick();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopAutoScroll();
+    };
+  }, [stopAutoScroll]);
 
   const handleDragStart = useCallback(
     (e: React.DragEvent, opportunity: Opportunity) => {
       setDraggingCardId(opportunity.id);
       setDraggingCardStage(opportunity.stage);
       dragCardRef.current = opportunity;
+      autoScrollStateRef.current = null;
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", opportunity.id);
       document.body.style.cursor = "grabbing";
@@ -71,8 +186,23 @@ export function usePipelineBoard({
       }
 
       setDropIndicator({ stage, index: insertIndex });
+
+      const target = e.currentTarget as HTMLElement;
+      const verticalContainer = target.closest("[data-pipe-column-scroll]") as HTMLElement | null;
+      const horizontalContainer = target.closest("[data-pipe-board-scroll]") as HTMLElement | null;
+
+      autoScrollStateRef.current = {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        horizontalContainer,
+        verticalContainer,
+      };
+
+      if (autoScrollFrameRef.current === null) {
+        autoScrollFrameRef.current = window.requestAnimationFrame(runAutoScroll);
+      }
     },
-    []
+    [runAutoScroll]
   );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -92,11 +222,34 @@ export function usePipelineBoard({
       setDropIndicator(null);
       setColumnError(null);
       document.body.style.cursor = "";
+      stopAutoScroll();
 
       const card = dragCardRef.current;
       if (!card) return;
+      const stageOrder = activeFunnel.stages.map((stage) => stage.id);
+      const sourceStageCards = localOpportunities.filter(
+        (opportunity) => opportunity.stage === card.stage
+      );
+      const sourceStageIndex = sourceStageCards.findIndex(
+        (opportunity) => opportunity.id === card.id
+      );
 
-      if (card.stage === targetStage) {
+      const rawDropIndex =
+        dropIndicator?.stage === targetStage
+          ? dropIndicator.index
+          : localOpportunities.filter((opportunity) => opportunity.stage === targetStage)
+            .length;
+
+      let normalizedDropIndex = rawDropIndex;
+      if (card.stage === targetStage && sourceStageIndex > -1 && sourceStageIndex < normalizedDropIndex) {
+        normalizedDropIndex -= 1;
+      }
+
+      if (
+        card.stage === targetStage &&
+        sourceStageIndex > -1 &&
+        normalizedDropIndex === sourceStageIndex
+      ) {
         setDraggingCardId(null);
         setDraggingCardStage(null);
         dragCardRef.current = null;
@@ -111,14 +264,10 @@ export function usePipelineBoard({
       if (missing.length > 0) {
         setColumnError({
           stage: targetStage,
-          message: `Preencha: ${missing.join(", ")}`,
+          message: `Atenção: pendências em ${missing.join(", ")}`,
         });
-        setDraggingCardId(null);
-        setDraggingCardStage(null);
-        dragCardRef.current = null;
-        announce(`Erro: campos obrigatorios faltando — ${missing.join(", ")}`);
-        setTimeout(() => setColumnError(null), 5000);
-        return;
+        announce(`Aviso: campos pendentes — ${missing.join(", ")}`);
+        setTimeout(() => setColumnError(null), 4200);
       }
 
       if (isRegression) {
@@ -145,32 +294,85 @@ export function usePipelineBoard({
         ? calculateSlaDeadline(targetStageDef.slaHours)
         : undefined;
 
-      setLocalOpportunities((prev) =>
-        prev.map((o) =>
-          o.id === card.id
-            ? {
-              ...o,
-              stage: targetStage,
-              updatedAt: new Date().toISOString(),
-              slaDeadline: newSlaDeadline,
-            }
-            : o
-        )
-      );
+      setLocalOpportunities((prev) => {
+        const sourceIndex = prev.findIndex((opportunity) => opportunity.id === card.id);
+        if (sourceIndex === -1) return prev;
 
-      if (!isRegression) {
-        setSuccessFeedback({ stage: targetStage, cardTitle: card.title });
+        const sourceCard = prev[sourceIndex];
+        const remaining = prev.filter((opportunity) => opportunity.id !== sourceCard.id);
+        const targetStageCards = remaining.filter(
+          (opportunity) => opportunity.stage === targetStage
+        );
+        const safeTargetIndex = clamp(
+          normalizedDropIndex,
+          0,
+          targetStageCards.length
+        );
+
+        const updatedCard: Opportunity = {
+          ...sourceCard,
+          stage: targetStage,
+          updatedAt: new Date().toISOString(),
+          slaDeadline: newSlaDeadline,
+        };
+
+        let insertIndex = remaining.length;
+        if (targetStageCards.length === 0) {
+          insertIndex = resolveInsertIndexForEmptyStage(
+            remaining,
+            targetStage,
+            stageOrder
+          );
+        } else if (safeTargetIndex >= targetStageCards.length) {
+          const anchorId = targetStageCards[targetStageCards.length - 1].id;
+          const anchorIndex = remaining.findIndex((opportunity) => opportunity.id === anchorId);
+          insertIndex = anchorIndex === -1 ? remaining.length : anchorIndex + 1;
+        } else {
+          const anchorId = targetStageCards[safeTargetIndex].id;
+          const anchorIndex = remaining.findIndex((opportunity) => opportunity.id === anchorId);
+          insertIndex = anchorIndex === -1 ? remaining.length : anchorIndex;
+        }
+
+        const next = [...remaining];
+        next.splice(insertIndex, 0, updatedCard);
+        return next;
+      });
+
+      if (card.stage === targetStage) {
+        setSuccessFeedback({
+          stage: targetStage,
+          message: `${card.title} reordenado na etapa.`,
+        });
+        announce(`Card ${card.title} reordenado dentro da etapa.`);
+        setTimeout(() => setSuccessFeedback(null), 1800);
+      } else if (!isRegression) {
+        setSuccessFeedback({
+          stage: targetStage,
+          message:
+            missing.length > 0
+              ? `${card.title} movido para ${targetStage.replace(/-/g, " ")} com pendências.`
+              : `${card.title} movido para ${targetStage.replace(/-/g, " ")}.`,
+        });
         announce(
           `Card ${card.title} movido com sucesso para ${targetStage.replace(/-/g, " ")}`
         );
         setTimeout(() => setSuccessFeedback(null), 2500);
+      } else {
+        setSuccessFeedback({
+          stage: targetStage,
+          message:
+            missing.length > 0
+              ? `${card.title} retrocedido com pendências.`
+              : `${card.title} retrocedido para ${targetStage.replace(/-/g, " ")}.`,
+        });
+        setTimeout(() => setSuccessFeedback(null), 2300);
       }
 
       setDraggingCardId(null);
       setDraggingCardStage(null);
       dragCardRef.current = null;
     },
-    [activeFunnel, announce, setLocalOpportunities]
+    [activeFunnel, announce, dropIndicator, localOpportunities, setLocalOpportunities, stopAutoScroll]
   );
 
   const handleDragEnd = useCallback(() => {
@@ -180,7 +382,8 @@ export function usePipelineBoard({
     setDropIndicator(null);
     dragCardRef.current = null;
     document.body.style.cursor = "";
-  }, []);
+    stopAutoScroll();
+  }, [stopAutoScroll]);
 
   // Win / Lose handlers
   const handleWin = useCallback(
@@ -196,7 +399,7 @@ export function usePipelineBoard({
       if (opp) {
         setSuccessFeedback({
           stage: opp.stage,
-          cardTitle: `${opp.title} — Ganho!`,
+          message: `${opp.title} — ganho com sucesso.`,
         });
         announce(`Oportunidade ${opp.title} marcada como ganha!`);
         setTimeout(() => setSuccessFeedback(null), 3000);

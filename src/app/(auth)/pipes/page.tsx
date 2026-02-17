@@ -24,7 +24,7 @@ import {
   Columns3,
   ChevronDown,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 // UI
 import { Button } from "@/components/ui/button";
@@ -214,9 +214,6 @@ function PipesPageContent() {
       }
       grouped[opp.stage].push(opp);
     }
-    for (const stage of Object.keys(grouped) as PipelineStage[]) {
-      grouped[stage].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    }
     return grouped;
   }, [opportunities, effectiveStageIds, normalizedSearch]);
 
@@ -321,7 +318,6 @@ function PipesPageContent() {
   // Custom hooks
   const {
     draggingCardId,
-    draggingCardStage,
     dragOverStage,
     dropIndicator,
     columnError,
@@ -559,6 +555,7 @@ function PipesPageContent() {
           aria-label="Pipeline de vendas — arraste os cards entre as etapas"
         >
           <div
+            data-pipe-board-scroll
             className="flex min-w-0 flex-1 gap-4 overflow-x-auto scroll-smooth px-1 pb-1 md:px-2"
             style={{ scrollSnapType: "x proximity" }}
           >
@@ -570,7 +567,9 @@ function PipesPageContent() {
                 columnError?.stage === stageDef.id
                   ? columnError.message
                   : null;
-              const isRegressionWarning = error?.startsWith("Card retrocedido");
+              const isWarningMessage =
+                error?.startsWith("Card retrocedido") ||
+                error?.startsWith("Atenção:");
               const hasSuccess = successFeedback?.stage === stageDef.id;
 
               return (
@@ -578,8 +577,8 @@ function PipesPageContent() {
                   key={stageDef.id}
                   custom={index}
                   variants={listItemReveal}
-                  className={`group/col flex w-[85vw] shrink-0 flex-col rounded-[var(--radius-bento-card)] border transition-all duration-150 sm:w-[320px] xl:w-[340px] ${isDropTarget
-                    ? "border-brand bg-brand/5 ring-2 ring-brand/30 shadow-[0_0_0_1px_rgba(37,99,235,0.2)]"
+                  className={`group/col flex w-[85vw] shrink-0 flex-col rounded-[var(--radius-bento-card)] border transition-all duration-200 sm:w-[320px] xl:w-[340px] ${isDropTarget
+                    ? "border-brand/70 bg-brand/5 ring-2 ring-brand/28 shadow-[0_18px_30px_-22px_rgba(37,99,235,0.52)]"
                     : "border-zinc-200/70 bg-white/80"
                     }`}
                   style={{ scrollSnapAlign: "start" }}
@@ -679,13 +678,13 @@ function PipesPageContent() {
 
                     {error && (
                       <div
-                        className={`mt-2 flex items-start gap-1.5 rounded-[var(--radius-bento-inner)] px-2.5 py-2 ${isRegressionWarning
+                        className={`mt-2 flex items-start gap-1.5 rounded-[var(--radius-bento-inner)] px-2.5 py-2 ${isWarningMessage
                           ? "bg-[var(--feedback-warning-bg)] text-[var(--feedback-warning-text)]"
                           : "bg-[var(--feedback-error-bg)] text-[var(--feedback-error-text)]"
                           }`}
                         role="alert"
                       >
-                        {isRegressionWarning ? (
+                        {isWarningMessage ? (
                           <ArrowDownToLine className="mt-0.5 h-3 w-3 shrink-0" />
                         ) : (
                           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
@@ -703,7 +702,7 @@ function PipesPageContent() {
                       >
                         <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0" />
                         <span className="font-body text-[11px] leading-tight">
-                          {successFeedback!.cardTitle} movido com sucesso
+                          {successFeedback!.message}
                         </span>
                       </div>
                     )}
@@ -711,6 +710,7 @@ function PipesPageContent() {
 
                   {/* Column Cards */}
                   <div
+                    data-pipe-column-scroll
                     className="flex-1 overflow-y-auto px-3 pb-3"
                     onDragOver={(e) => handleDragOver(e, stageDef.id)}
                     onDrop={(e) => handleDrop(e, stageDef.id)}
@@ -718,100 +718,99 @@ function PipesPageContent() {
                     {cards.length > 0 || isDropTarget ? (
                       <div className="space-y-2">
                         {(() => {
-                          const showPlaceholder =
-                            draggingCardId &&
-                            dropIndicator?.stage === stageDef.id &&
-                            draggingCardStage !== stageDef.id;
+                          const showPlaceholder = Boolean(
+                            draggingCardId && dropIndicator?.stage === stageDef.id
+                          );
+                          const placeholderIndex = showPlaceholder
+                            ? Math.min(dropIndicator?.index ?? 0, cards.length)
+                            : -1;
 
-                          const elements: React.ReactNode[] = [];
+                          return (
+                            <AnimatePresence initial={false}>
+                              {cards.flatMap((opportunity, idx) => {
+                                const nodes: React.ReactNode[] = [];
+                                const isDraggingCurrentCard = draggingCardId === opportunity.id;
 
-                          if (showPlaceholder && dropIndicator.index === 0) {
-                            elements.push(
-                              <div
-                                key="drop-placeholder"
-                                className="rounded-[var(--radius-bento-card)] border-2 border-dashed border-brand/40 bg-brand/5 transition-all duration-200"
-                                style={{ height: 72 }}
-                              />
-                            );
-                          }
+                                if (showPlaceholder && placeholderIndex === idx) {
+                                  nodes.push(
+                                    <motion.div
+                                      key={`drop-placeholder-${stageDef.id}-${idx}`}
+                                      layout
+                                      initial={{ opacity: 0, scaleY: 0.82, height: 0 }}
+                                      animate={{ opacity: 1, scaleY: 1, height: 102 }}
+                                      exit={{ opacity: 0, scaleY: 0.82, height: 0 }}
+                                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                                      className="rounded-[var(--radius-bento-card)] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
+                                    />
+                                  );
+                                }
 
-                          cards.forEach((opportunity, idx) => {
-                            elements.push(
-                              <div
-                                key={opportunity.id}
-                                data-card-index={idx}
-                                className={`transition-transform duration-200 ${draggingCardId === opportunity.id
-                                  ? "scale-[0.97] opacity-40"
-                                  : ""
-                                  }`}
-                              >
-                                <DealCardBento
-                                  opportunity={opportunity}
-                                  temp={getTemp(opportunity)}
-                                  onOpen={() =>
-                                    openModal("lead-card", {
-                                      id: opportunity.id,
-                                    })
-                                  }
-                                  onDragStart={(e) =>
-                                    handleDragStart(e, opportunity)
-                                  }
-                                  onDragEnd={handleDragEnd}
-                                  onWin={() =>
-                                    handleWin(opportunity.id)
-                                  }
-                                  onLose={() =>
-                                    handleLose(opportunity.id)
-                                  }
+                                nodes.push(
+                                  <motion.div
+                                    key={opportunity.id}
+                                    layout
+                                    data-card-index={idx}
+                                    transition={{
+                                      layout: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+                                    }}
+                                    className={`transition-[transform,opacity,filter] duration-180 ease-out ${isDraggingCurrentCard
+                                      ? "scale-[0.985] opacity-30 saturate-50"
+                                      : ""
+                                      }`}
+                                  >
+                                    <DealCardBento
+                                      opportunity={opportunity}
+                                      temp={getTemp(opportunity)}
+                                      isDragging={isDraggingCurrentCard}
+                                      onOpen={() =>
+                                        openModal("lead-card", {
+                                          id: opportunity.id,
+                                        })
+                                      }
+                                      onDragStart={(e) =>
+                                        handleDragStart(e, opportunity)
+                                      }
+                                      onDragEnd={handleDragEnd}
+                                      onWin={() => handleWin(opportunity.id)}
+                                      onLose={() => handleLose(opportunity.id)}
+                                    />
+                                  </motion.div>
+                                );
+
+                                if (
+                                  idx === cards.length - 1 &&
+                                  showPlaceholder &&
+                                  placeholderIndex >= cards.length
+                                ) {
+                                  nodes.push(
+                                    <motion.div
+                                      key={`drop-placeholder-${stageDef.id}-end`}
+                                      layout
+                                      initial={{ opacity: 0, scaleY: 0.82, height: 0 }}
+                                      animate={{ opacity: 1, scaleY: 1, height: 102 }}
+                                      exit={{ opacity: 0, scaleY: 0.82, height: 0 }}
+                                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                                      className="rounded-[var(--radius-bento-card)] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
+                                    />
+                                  );
+                                }
+
+                                return nodes;
+                              })}
+
+                              {cards.length === 0 && isDropTarget && (
+                                <motion.div
+                                  key={`drop-placeholder-empty-${stageDef.id}`}
+                                  layout
+                                  initial={{ opacity: 0, scaleY: 0.82, height: 0 }}
+                                  animate={{ opacity: 1, scaleY: 1, height: 102 }}
+                                  exit={{ opacity: 0, scaleY: 0.82, height: 0 }}
+                                  transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                                  className="rounded-[var(--radius-bento-card)] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
                                 />
-                              </div>
-                            );
-
-                            if (
-                              showPlaceholder &&
-                              dropIndicator.index === idx + 1
-                            ) {
-                              elements.push(
-                                <div
-                                  key="drop-placeholder"
-                                  className="rounded-[var(--radius-bento-card)] border-2 border-dashed border-brand/40 bg-brand/5 transition-all duration-200"
-                                  style={{ height: 72 }}
-                                />
-                              );
-                            }
-                          });
-
-                          if (
-                            showPlaceholder &&
-                            dropIndicator.index >= cards.length &&
-                            !elements.some(
-                              (el) =>
-                                el !== null &&
-                                typeof el === "object" &&
-                                "key" in el &&
-                                el.key === "drop-placeholder"
-                            )
-                          ) {
-                            elements.push(
-                              <div
-                                key="drop-placeholder"
-                                className="rounded-[var(--radius-bento-card)] border-2 border-dashed border-brand/40 bg-brand/5 transition-all duration-200"
-                                style={{ height: 72 }}
-                              />
-                            );
-                          }
-
-                          if (cards.length === 0 && isDropTarget) {
-                            elements.push(
-                              <div
-                                key="drop-placeholder-empty"
-                                className="rounded-[var(--radius-bento-card)] border-2 border-dashed border-brand/40 bg-brand/5 transition-all duration-200"
-                                style={{ height: 72 }}
-                              />
-                            );
-                          }
-
-                          return elements;
+                              )}
+                            </AnimatePresence>
+                          );
                         })()}
                       </div>
                     ) : (

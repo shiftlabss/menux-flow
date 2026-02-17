@@ -22,6 +22,7 @@ import {
   Plus,
   Trash2,
   Star,
+  Shield,
   ChevronRight,
   Check,
   CheckCircle,
@@ -51,7 +52,6 @@ import {
   ChefHat,
   Wine,
   Clock3,
-  Globe2,
   LayoutList,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -101,6 +101,8 @@ import { NegotiationTab } from "./lead-negotiation-tab";
 import { useOpportunityStore } from "@/stores/opportunity-store";
 import { NewVisitModal } from "@/components/modals/new-visit-modal";
 import type { VisitFormData } from "@/lib/validations/visit";
+import { NewActivityModal } from "@/components/modals/new-activity-modal";
+import type { ActivityFormData } from "@/lib/validations/activity";
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -290,7 +292,7 @@ const mockContacts = [
     telefone: "(11) 99999-1234",
     cargo: "gerente-geral",
     personalidade: "Direto e objetivo, gosta de números e resultados. Prefere reuniões curtas.",
-    isPrimary: true,
+    isDecisionMaker: true,
   },
   {
     id: "c2",
@@ -299,7 +301,7 @@ const mockContacts = [
     telefone: "(11) 99999-5678",
     cargo: "diretor-financeiro",
     personalidade: "Analítica e detalhista, precisa de dados concretos para tomar decisões.",
-    isPrimary: false,
+    isDecisionMaker: true,
   },
   {
     id: "c3",
@@ -308,7 +310,7 @@ const mockContacts = [
     telefone: "(11) 99999-9012",
     cargo: "coordenador-ti",
     personalidade: "Técnico, curioso sobre integrações e APIs. Receptivo a demos.",
-    isPrimary: false,
+    isDecisionMaker: false,
   },
 ];
 
@@ -373,24 +375,101 @@ const mockTimeline = [
   },
 ];
 
+type VisitType = "presencial" | "remoto" | "outro";
+type VisitStatus = "agendada" | "realizada" | "cancelada";
 
-const mockVisits = [
+interface VisitRow {
+  id: string;
+  type: VisitType;
+  location: string;
+  status: VisitStatus;
+  startAt: string;
+  responsible: string;
+  objective?: string;
+  result?: string;
+  durationMinutes?: number;
+  link?: string;
+  platform?: string;
+  cancellationReason?: string;
+  accessSearch?: string;
+  details?: string;
+  createdAt: string;
+}
+
+const visitStatusLabel: Record<VisitStatus, string> = {
+  agendada: "AGENDADA",
+  realizada: "REALIZADA",
+  cancelada: "CANCELADA",
+};
+
+const visitStatusClassName: Record<VisitStatus, string> = {
+  agendada: "bg-amber-50 text-amber-600 hover:bg-amber-100",
+  realizada: "bg-emerald-50 text-emerald-600 hover:bg-emerald-100",
+  cancelada: "bg-zinc-100 text-zinc-500 hover:bg-zinc-200",
+};
+
+const visitTypeLabel: Record<VisitType, string> = {
+  presencial: "Visita Presencial",
+  remoto: "Reunião Remota",
+  outro: "Encontro Comercial",
+};
+
+const visitPlatformLabel: Record<string, string> = {
+  "google-meet": "Google Meet",
+  zoom: "Zoom",
+  whatsapp: "WhatsApp",
+  outro: "Outra plataforma",
+};
+
+const visitStatusSortOrder: Record<VisitStatus, number> = {
+  agendada: 0,
+  realizada: 1,
+  cancelada: 2,
+};
+
+function formatVisitDateLabel(isoString: string) {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return "Data inválida";
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getVisitTypeIcon(type: VisitType) {
+  if (type === "presencial") return MapPin;
+  if (type === "remoto") return Globe;
+  return Calendar;
+}
+
+const mockVisits: VisitRow[] = [
   {
     id: "v1",
     type: "presencial",
     location: "Restaurante Bela Vista",
     status: "agendada",
-    date: "15/02/2026 14:00",
+    startAt: "2026-02-15T14:00:00.000Z",
     responsible: "Maria Silva",
+    objective: "Validar escopo de onboarding e próximos marcos.",
+    durationMinutes: 60,
+    createdAt: "2026-02-10T09:00:00.000Z",
   },
   {
     id: "v2",
-    type: "online",
+    type: "remoto",
     location: "Google Meet",
     status: "realizada",
-    date: "10/02/2026 10:00",
+    startAt: "2026-02-10T10:00:00.000Z",
     responsible: "Pedro Santos",
     result: "Cliente demonstrou interesse no módulo financeiro.",
+    objective: "Apresentar proposta e mapear objeções.",
+    platform: "google-meet",
+    link: "https://meet.google.com/abc-defg-hij",
+    durationMinutes: 60,
+    createdAt: "2026-02-06T12:00:00.000Z",
   },
 ];
 
@@ -960,59 +1039,78 @@ function ContactCard({
   contact,
   onEdit,
   onDelete,
+  onToggleDecisionMaker,
 }: {
   contact: (typeof mockContacts)[0];
   onEdit: () => void;
   onDelete: () => void;
+  onToggleDecisionMaker: () => void;
 }) {
   return (
-    <div className="group flex items-start justify-between rounded-[14px] border border-zinc-100 p-3.5 transition-all hover:border-zinc-200 hover:shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-50">
-          <User className="h-4 w-4 text-zinc-400" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-heading text-sm font-semibold text-black">
-              {contact.nome}
-            </p>
-            {contact.isPrimary && (
-              <Badge className="gap-0.5 rounded-[6px] bg-brand/10 px-1.5 py-0.5 font-body text-[9px] text-brand">
-                <Star className="h-2.5 w-2.5" /> Principal
-              </Badge>
+    <div className="group flex items-stretch rounded-[14px] border border-zinc-100 transition-all hover:border-zinc-200 hover:shadow-sm">
+      {/* Decision-maker toggle — left side */}
+      <button
+        type="button"
+        onClick={onToggleDecisionMaker}
+        className={`flex w-9 shrink-0 items-center justify-center rounded-l-[14px] border-r transition-colors ${contact.isDecisionMaker
+            ? "border-brand/20 bg-brand/10 text-brand"
+            : "border-zinc-100 bg-zinc-50/50 text-zinc-300 hover:bg-zinc-100 hover:text-zinc-400"
+          }`}
+        aria-label={contact.isDecisionMaker ? "Remover como decisor" : "Marcar como decisor"}
+        title={contact.isDecisionMaker ? "Decisor (clique para remover)" : "Marcar como decisor"}
+      >
+        <Shield className="h-3.5 w-3.5" />
+      </button>
+
+      {/* Card content */}
+      <div className="flex flex-1 items-start justify-between p-3.5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-50">
+            <User className="h-4 w-4 text-zinc-400" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-heading text-sm font-semibold text-black">
+                {contact.nome}
+              </p>
+              {contact.isDecisionMaker && (
+                <Badge className="gap-0.5 rounded-[6px] bg-brand/10 px-1.5 py-0.5 font-body text-[9px] text-brand">
+                  <Shield className="h-2.5 w-2.5" /> Decisor
+                </Badge>
+              )}
+            </div>
+            <p className="font-body text-[11px] text-zinc-400">{getCargoLabel(contact.cargo)}</p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-3">
+              <span className="flex items-center gap-1 font-body text-[11px] text-zinc-500">
+                <Mail className="h-3 w-3" /> {contact.email}
+              </span>
+              <span className="flex items-center gap-1 font-body text-[11px] text-zinc-500">
+                <Phone className="h-3 w-3" /> {contact.telefone}
+              </span>
+            </div>
+            {contact.personalidade && (
+              <p className="mt-1.5 font-body text-[11px] italic text-zinc-400">
+                &ldquo;{contact.personalidade}&rdquo;
+              </p>
             )}
           </div>
-          <p className="font-body text-[11px] text-zinc-400">{getCargoLabel(contact.cargo)}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-1 font-body text-[11px] text-zinc-500">
-              <Mail className="h-3 w-3" /> {contact.email}
-            </span>
-            <span className="flex items-center gap-1 font-body text-[11px] text-zinc-500">
-              <Phone className="h-3 w-3" /> {contact.telefone}
-            </span>
-          </div>
-          {contact.personalidade && (
-            <p className="mt-1.5 font-body text-[11px] italic text-zinc-400">
-              &ldquo;{contact.personalidade}&rdquo;
-            </p>
-          )}
         </div>
-      </div>
-      <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-        <button
-          onClick={onEdit}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
-          aria-label="Editar contato"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-        <button
-          onClick={onDelete}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-status-danger/10 hover:text-status-danger"
-          aria-label="Remover contato"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            onClick={onEdit}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+            aria-label="Editar contato"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-status-danger/10 hover:text-status-danger"
+            aria-label="Remover contato"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1375,7 +1473,7 @@ function ExecutiveCompanyStrip({
             </div>
           </div>
 
-          {/* ─── Bloco B: Contato Principal (4 cols) ───────────────── */}
+          {/* ─── Bloco B: Decisor (4 cols) ───────────────── */}
           <div className="md:col-span-4 md:border-l md:border-zinc-200/30 md:pl-4 min-w-0">
             {primaryContact ? (
               <div className="group/contact relative">
@@ -1432,7 +1530,7 @@ function ExecutiveCompanyStrip({
                 </div>
                 <div>
                   <p className="font-body text-[10px] text-zinc-400">
-                    Sem contato principal
+                    Sem decisor definido
                   </p>
                   <button
                     type="button"
@@ -1664,6 +1762,7 @@ export default function LeadCardDrawer() {
     [contacts],
   );
   const [dealStatus, setDealStatus] = useState<DealStatus>("open");
+  const isLocked = dealStatus !== "open";
   const [source] = useState(resolvedLead.source);
 
   // Company fields — neste funil, sem CNPJ e sem Razão Social
@@ -1802,23 +1901,202 @@ export default function LeadCardDrawer() {
   });
   const [activeTab, setActiveTab] = useState("timeline");
   const [isNewVisitModalOpen, setIsNewVisitModalOpen] = useState(false);
+  const [isNewActivityModalOpen, setIsNewActivityModalOpen] = useState(false);
+  const [newActivityType, setNewActivityType] = useState<"task" | "call" | "email" | "meeting" | "whatsapp">("task");
+
+  const handleOpenActivityModal = (type: "task" | "call" | "email" | "meeting" | "whatsapp" = "task") => {
+    if (isLocked) return;
+    setNewActivityType(type);
+    setIsNewActivityModalOpen(true);
+  };
+
+  const [visitFilter, setVisitFilter] = useState<VisitStatus | "all">("all");
+  const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
 
   // State for Visits
-  const [visitRows, setVisitRows] = useState(mockVisits);
+  const [visitRows, setVisitRows] = useState<VisitRow[]>(mockVisits);
 
   const handleSaveVisit = (data: VisitFormData) => {
-    const newVisit = {
-      id: Math.random().toString(36).substr(2, 9),
-      type: data.type,
-      location: (data.type === 'presencial' ? data.location : data.platform) || "N/A",
-      status: data.status,
-      date: `${new Date(data.date).toLocaleDateString('pt-BR')} ${data.time}`,
-      responsible: "Eu (Logado)", // Mock
-      result: data.result || "",
+    if (isLocked) return;
+    const type = data.type as VisitType;
+    const isoDate = `${data.date}T${data.time || "09:00"}:00`;
+    const startAt = new Date(isoDate);
+    const location =
+      type === "presencial"
+        ? data.location || "Local a confirmar"
+        : type === "remoto"
+          ? visitPlatformLabel[data.platform ?? "outro"] ?? "Reunião remota"
+          : data.typeDescription || "Encontro comercial";
+
+    const newVisit: VisitRow = {
+      id: `visit-${Date.now()}`,
+      type,
+      location,
+      status: data.status as VisitStatus,
+      startAt:
+        Number.isNaN(startAt.getTime())
+          ? new Date().toISOString()
+          : startAt.toISOString(),
+      responsible: "Eu (Logado)",
+      objective: data.objective || undefined,
+      result: data.result || undefined,
+      durationMinutes: Number(data.duration || 60),
+      link: data.link || undefined,
+      platform: data.platform || undefined,
+      cancellationReason: data.cancellationReason || undefined,
+      accessSearch: data.accessSearch || undefined,
+      details: data.details || undefined,
+      createdAt: new Date().toISOString(),
     };
 
     setVisitRows((prev) => [newVisit, ...prev]);
+    setVisitFilter(newVisit.status);
+    setExpandedVisitId(newVisit.id);
+    setHeaderBanner({
+      message: "Visita salva com sucesso",
+      variant: "success",
+    });
   };
+
+  const visitSummary = useMemo(() => {
+    const summary = {
+      all: visitRows.length,
+      agendada: 0,
+      realizada: 0,
+      cancelada: 0,
+    };
+    for (const visit of visitRows) {
+      summary[visit.status] += 1;
+    }
+    return summary;
+  }, [visitRows]);
+
+  const visibleVisitRows = useMemo(() => {
+    const filtered =
+      visitFilter === "all"
+        ? visitRows
+        : visitRows.filter((visit) => visit.status === visitFilter);
+
+    return [...filtered].sort((a, b) => {
+      if (visitFilter === "all") {
+        if (a.status !== b.status) {
+          return visitStatusSortOrder[a.status] - visitStatusSortOrder[b.status];
+        }
+      }
+
+      const aTime = new Date(a.startAt).getTime();
+      const bTime = new Date(b.startAt).getTime();
+      if (visitFilter === "agendada") return aTime - bTime;
+      if (a.status === "agendada" && b.status === "agendada") return aTime - bTime;
+      return bTime - aTime;
+    });
+  }, [visitFilter, visitRows]);
+
+  const handleVisitStatusChange = useCallback(
+    (visitId: string, status: VisitStatus) => {
+      if (isLocked) return;
+      const target = visitRows.find((visit) => visit.id === visitId);
+      if (!target) return;
+
+      setVisitRows((prev) =>
+        prev.map((visit) =>
+          visit.id === visitId
+            ? {
+              ...visit,
+              status,
+              result:
+                status === "realizada" && !visit.result
+                  ? "Visita concluída. Próximos passos registrados."
+                  : visit.result,
+              cancellationReason:
+                status === "cancelada"
+                  ? visit.cancellationReason || "Cancelada pelo responsável"
+                  : undefined,
+            }
+            : visit
+        )
+      );
+
+      setHeaderBanner({
+        message: `Visita marcada como ${status}.`,
+        variant: status === "cancelada" ? "warning" : "success",
+      });
+    },
+    [isLocked, visitRows]
+  );
+
+  const handleDuplicateVisit = useCallback((visitId: string) => {
+    if (isLocked) return;
+    const visit = visitRows.find((item) => item.id === visitId);
+    if (!visit) return;
+
+    const originalDate = new Date(visit.startAt);
+    const nextDate = Number.isNaN(originalDate.getTime())
+      ? new Date()
+      : new Date(originalDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const duplicated: VisitRow = {
+      ...visit,
+      id: `visit-${Date.now()}`,
+      status: "agendada",
+      result: undefined,
+      cancellationReason: undefined,
+      startAt: nextDate.toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setVisitRows((prev) => [duplicated, ...prev]);
+    setVisitFilter("agendada");
+    setExpandedVisitId(duplicated.id);
+    setHeaderBanner({
+      message: "Visita duplicada e reagendada para a próxima semana",
+      variant: "success",
+    });
+  }, [isLocked, visitRows]);
+
+  const handleRescheduleVisit = useCallback((visitId: string, plusDays: number) => {
+    if (isLocked) return;
+    const visit = visitRows.find((item) => item.id === visitId);
+    if (!visit) return;
+
+    const date = new Date(visit.startAt);
+    if (Number.isNaN(date.getTime())) return;
+    date.setDate(date.getDate() + plusDays);
+
+    setVisitRows((prev) =>
+      prev.map((item) =>
+        item.id === visitId
+          ? {
+            ...item,
+            startAt: date.toISOString(),
+            status: "agendada",
+            cancellationReason: undefined,
+          }
+          : item
+      )
+    );
+    setHeaderBanner({
+      message: `Visita reagendada em ${plusDays} dia${plusDays > 1 ? "s" : ""}.`,
+      variant: "info",
+    });
+  }, [isLocked, visitRows]);
+
+  const handleDeleteVisit = useCallback((visitId: string) => {
+    if (isLocked) return;
+    setVisitRows((prev) => prev.filter((visit) => visit.id !== visitId));
+    if (expandedVisitId === visitId) {
+      setExpandedVisitId(null);
+    }
+    setHeaderBanner({
+      message: "Visita removida da agenda",
+      variant: "info",
+    });
+  }, [expandedVisitId, isLocked]);
+
+  const toggleVisitDetails = useCallback((visitId: string) => {
+    setExpandedVisitId((prev) => (prev === visitId ? null : visitId));
+  }, []);
+
   const [activityFilter, setActivityFilter] = useState<"all" | "pending" | "completed">("all");
   const [dealActivities, setDealActivities] = useState<FlowActivity[]>(() =>
     mockActivities.filter((activity) => activity.opportunityId === resolvedLead.id)
@@ -1844,8 +2122,6 @@ export default function LeadCardDrawer() {
     [resolvedLead],
   );
 
-  const isLocked = dealStatus !== "open";
-
   // Telemetry: view_opened
   useEffect(() => {
     if (isOpen) {
@@ -1859,6 +2135,9 @@ export default function LeadCardDrawer() {
   useEffect(() => {
     setActiveTab("empresa");
     setVisitRows([...mockVisits]);
+    setVisitFilter("all");
+    setExpandedVisitId(null);
+    setIsNewVisitModalOpen(false);
     setActivityFilter("all");
     setDealActivities(
       mockActivities.filter((activity) => activity.opportunityId === resolvedLead.id)
@@ -1916,7 +2195,7 @@ export default function LeadCardDrawer() {
     if (newContact.nome.trim()) {
       setContacts([
         ...contacts,
-        { id: `c${Date.now()}`, ...newContact, isPrimary: false },
+        { id: `c${Date.now()}`, ...newContact, isDecisionMaker: false },
       ]);
       setNewContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
       setShowAddContact(false);
@@ -1925,6 +2204,13 @@ export default function LeadCardDrawer() {
 
   const handleDeleteContact = (id: string) =>
     setContacts(contacts.filter((c) => c.id !== id));
+
+  const handleToggleDecisionMaker = (id: string) =>
+    setContacts(
+      contacts.map((c) =>
+        c.id === id ? { ...c, isDecisionMaker: !c.isDecisionMaker } : c
+      )
+    );
 
   const handleStartEditContact = (contact: (typeof mockContacts)[0]) => {
     setEditingContactId(contact.id);
@@ -1991,15 +2277,43 @@ export default function LeadCardDrawer() {
     ],
   );
 
+  const handleSaveActivity = useCallback((data: ActivityFormData) => {
+    const newActivity: FlowActivity = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: data.title,
+      type: data.type,
+      status: "pending",
+      dueDate: `${new Date(data.date).toLocaleDateString('pt-BR')} ${data.time}`,
+      responsibleName: "Eu (Logado)", // Mock
+      responsibleId: "u1", // Mock
+      opportunityId: resolvedLead.id,
+      createdAt: new Date().toISOString(),
+    };
+
+    setDealActivities((prev) => [newActivity, ...prev]);
+
+    setHeaderBanner({
+      message: "Atividade criada com sucesso",
+      variant: "success",
+    });
+  }, [resolvedLead.id]);
+
   const handleCreateQuickActivity = useCallback(
     (source: "menu" | "tab") => {
+      if (isLocked) return;
       setActiveTab("atividades");
-      appendActivity(
-        source === "menu" ? "Nova atividade a partir do card" : "Follow-up da oportunidade",
-        source === "menu" ? "task" : "follow-up",
-      );
+      handleOpenActivityModal("task");
     },
-    [appendActivity],
+    [isLocked],
+  );
+
+  const handleCreateVisitFollowUp = useCallback(
+    (visit: VisitRow) => {
+      const scheduleLabel = formatVisitDateLabel(visit.startAt);
+      appendActivity(`Follow-up da visita (${scheduleLabel})`, "follow-up");
+      setActiveTab("atividades");
+    },
+    [appendActivity]
   );
 
   const handleCompleteDealActivity = useCallback((activityId: string) => {
@@ -2040,24 +2354,6 @@ export default function LeadCardDrawer() {
       variant: "info",
     });
   }, [activityFilter]);
-
-  const handleAddVisit = useCallback(() => {
-    const visitDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const nextVisit = {
-      id: `visit-${Date.now()}`,
-      type: "presencial",
-      location: resolvedLead.clientName || nomeFantasia,
-      status: "agendada",
-      date: `${visitDate.toLocaleDateString("pt-BR")} 10:00`,
-      responsible: responsibleName,
-    };
-
-    setVisitRows((prev) => [nextVisit, ...prev]);
-    setHeaderBanner({
-      message: "Visita adicionada na agenda",
-      variant: "success",
-    });
-  }, [nomeFantasia, resolvedLead.clientName, responsibleName]);
 
   // --- Company Refactor Handlers ---
   const toggleType = (id: string) => {
@@ -2259,7 +2555,7 @@ export default function LeadCardDrawer() {
                 website={website}
                 instagramUrl={instagramUrl}
                 cardapioUrl={cardapioUrl}
-                primaryContact={contacts.find((c) => c.isPrimary) ?? null}
+                primaryContact={contacts.find((c) => c.isDecisionMaker) ?? contacts[0] ?? null}
                 stage={stage}
                 temperature={temperature}
                 responsibleName={responsibleName}
@@ -2950,6 +3246,7 @@ export default function LeadCardDrawer() {
                                     contact={contact}
                                     onEdit={() => handleStartEditContact(contact)}
                                     onDelete={() => handleDeleteContact(contact.id)}
+                                    onToggleDecisionMaker={() => handleToggleDecisionMaker(contact.id)}
                                   />
                                 ),
                               )}
@@ -2961,66 +3258,269 @@ export default function LeadCardDrawer() {
 
                         {/* ── Tab: Visitas ──────────────────────────────── */}
                         <TabsContent value="visitas" className="mt-0 space-y-4">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-heading text-sm font-semibold text-zinc-700">Visitas Agendadas</h3>
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h3 className="font-heading text-sm font-semibold text-zinc-700">Visitas</h3>
+                              <p className="mt-0.5 text-xs text-zinc-500">
+                                Agenda comercial, resultados e próximos passos.
+                              </p>
+                            </div>
                             <Button
                               size="sm"
                               variant="outline"
                               className="h-8 gap-1.5 rounded-full text-xs"
                               onClick={() => setIsNewVisitModalOpen(true)}
+                              disabled={isLocked}
                             >
                               <Plus className="h-3.5 w-3.5" />
                               Nova Visita
                             </Button>
                           </div>
 
-                          <div className="space-y-3">
-                            {visitRows.map((visit) => (
-                              <div key={visit.id} className="group relative flex gap-3 rounded-2xl border border-zinc-100 bg-white p-4 transition-all hover:border-zinc-200 hover:shadow-sm">
-                                <div className={cn(
-                                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border",
-                                  visit.type === 'presencial'
-                                    ? "border-purple-100 bg-purple-50 text-purple-600"
-                                    : "border-blue-100 bg-blue-50 text-blue-600"
-                                )}>
-                                  {visit.type === 'presencial' ? <MapPin className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
-                                </div>
-                                <div className="flex-1 space-y-1">
-                                  <div className="flex items-start justify-between">
-                                    <div>
-                                      <p className="font-heading text-sm font-semibold text-zinc-900">
-                                        {visit.type === 'presencial' ? 'Visita Presencial' : 'Reunião Remota'}
-                                      </p>
-                                      <p className="text-xs text-zinc-500">{visit.location}</p>
-                                    </div>
-                                    <Badge variant="secondary" className={cn(
-                                      "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                                      visit.status === 'agendada' && "bg-amber-50 text-amber-600 hover:bg-amber-100",
-                                      visit.status === 'realizada' && "bg-emerald-50 text-emerald-600 hover:bg-emerald-100",
-                                    )}>
-                                      {visit.status}
-                                    </Badge>
-                                  </div>
-
-                                  <div className="flex items-center gap-4 text-xs text-zinc-400">
-                                    <div className="flex items-center gap-1">
-                                      <Calendar className="h-3.5 w-3.5" />
-                                      {visit.date}
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <UserCircle className="h-3.5 w-3.5" />
-                                      {visit.responsible}
-                                    </div>
-                                  </div>
-
-                                  {visit.result && (
-                                    <div className="mt-2 rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
-                                      <span className="font-semibold">Resultado:</span> {visit.result}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {[
+                              { id: "all" as const, label: "Todas", count: visitSummary.all },
+                              {
+                                id: "agendada" as const,
+                                label: "Agendadas",
+                                count: visitSummary.agendada,
+                              },
+                              {
+                                id: "realizada" as const,
+                                label: "Realizadas",
+                                count: visitSummary.realizada,
+                              },
+                              {
+                                id: "cancelada" as const,
+                                label: "Canceladas",
+                                count: visitSummary.cancelada,
+                              },
+                            ].map((filter) => (
+                              <button
+                                key={filter.id}
+                                type="button"
+                                onClick={() => setVisitFilter(filter.id)}
+                                className={cn(
+                                  "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 font-body text-[11px] font-medium transition-all duration-150",
+                                  visitFilter === filter.id
+                                    ? "border-zinc-300 bg-zinc-100 text-zinc-900"
+                                    : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 hover:text-zinc-700"
+                                )}
+                              >
+                                {filter.label}
+                                <span className="rounded-full bg-zinc-200/80 px-1.5 py-0 text-[10px] font-semibold text-zinc-600">
+                                  {filter.count}
+                                </span>
+                              </button>
                             ))}
+                          </div>
+
+                          {visibleVisitRows.length === 0 && (
+                            <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 p-4">
+                              <p className="font-heading text-sm font-medium text-zinc-700">
+                                Nenhuma visita neste filtro
+                              </p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                Agende uma nova visita para manter o follow-up ativo.
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="mt-3 h-8 gap-1.5 rounded-full text-xs"
+                                onClick={() => setIsNewVisitModalOpen(true)}
+                                disabled={isLocked}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                Nova Visita
+                              </Button>
+                            </div>
+                          )}
+
+                          <div className="space-y-3">
+                            {visibleVisitRows.map((visit) => {
+                              const VisitIcon = getVisitTypeIcon(visit.type);
+                              const isExpanded = expandedVisitId === visit.id;
+                              return (
+                                <div
+                                  key={visit.id}
+                                  className="group relative rounded-2xl border border-zinc-100 bg-white p-4 transition-all hover:border-zinc-200 hover:shadow-sm"
+                                >
+                                  <div className="flex gap-3">
+                                    <div className={cn(
+                                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border",
+                                      visit.type === "presencial"
+                                        ? "border-purple-100 bg-purple-50 text-purple-600"
+                                        : visit.type === "remoto"
+                                          ? "border-blue-100 bg-blue-50 text-blue-600"
+                                          : "border-zinc-200 bg-zinc-100 text-zinc-500"
+                                    )}>
+                                      <VisitIcon className="h-5 w-5" />
+                                    </div>
+
+                                    <div className="flex-1 space-y-2">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div>
+                                          <p className="font-heading text-sm font-semibold text-zinc-900">
+                                            {visitTypeLabel[visit.type]}
+                                          </p>
+                                          <p className="text-xs text-zinc-500">{visit.location}</p>
+                                        </div>
+                                        <Badge
+                                          variant="secondary"
+                                          className={cn(
+                                            "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                                            visitStatusClassName[visit.status]
+                                          )}
+                                        >
+                                          {visitStatusLabel[visit.status]}
+                                        </Badge>
+                                      </div>
+
+                                      <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+                                        <div className="flex items-center gap-1">
+                                          <Calendar className="h-3.5 w-3.5" />
+                                          {formatVisitDateLabel(visit.startAt)}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <UserCircle className="h-3.5 w-3.5" />
+                                          {visit.responsible}
+                                        </div>
+                                        {visit.durationMinutes ? (
+                                          <div className="flex items-center gap-1">
+                                            <Clock className="h-3.5 w-3.5" />
+                                            {visit.durationMinutes} min
+                                          </div>
+                                        ) : null}
+                                      </div>
+
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        {visit.status !== "realizada" && visit.status !== "cancelada" && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 rounded-full px-2.5 text-[11px]"
+                                            onClick={() => handleVisitStatusChange(visit.id, "realizada")}
+                                            disabled={isLocked}
+                                          >
+                                            <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                                            Marcar realizada
+                                          </Button>
+                                        )}
+                                        {visit.status === "agendada" && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 rounded-full px-2.5 text-[11px]"
+                                            onClick={() => handleRescheduleVisit(visit.id, 1)}
+                                            disabled={isLocked}
+                                          >
+                                            <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                            +1 dia
+                                          </Button>
+                                        )}
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 rounded-full px-2.5 text-[11px] text-zinc-500 hover:text-zinc-700"
+                                          onClick={() => toggleVisitDetails(visit.id)}
+                                        >
+                                          {isExpanded ? "Ocultar detalhes" : "Ver detalhes"}
+                                        </Button>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 w-7 rounded-full p-0"
+                                              aria-label="Ações da visita"
+                                              disabled={isLocked}
+                                            >
+                                              <MoreHorizontal className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end" className="rounded-xl">
+                                            {visit.status !== "cancelada" && (
+                                              <DropdownMenuItem
+                                                disabled={isLocked}
+                                                onClick={() => handleVisitStatusChange(visit.id, "cancelada")}
+                                              >
+                                                <X className="mr-2 h-3.5 w-3.5" />
+                                                Marcar cancelada
+                                              </DropdownMenuItem>
+                                            )}
+                                            <DropdownMenuItem
+                                              disabled={isLocked}
+                                              onClick={() => handleDuplicateVisit(visit.id)}
+                                            >
+                                              <Copy className="mr-2 h-3.5 w-3.5" />
+                                              Duplicar visita
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              disabled={isLocked}
+                                              onClick={() => handleCreateVisitFollowUp(visit)}
+                                            >
+                                              <Plus className="mr-2 h-3.5 w-3.5" />
+                                              Criar follow-up
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                              disabled={isLocked}
+                                              className="text-status-danger focus:text-status-danger"
+                                              onClick={() => handleDeleteVisit(visit.id)}
+                                            >
+                                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                              Excluir
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <AnimatePresence initial={false}>
+                                    {isExpanded && (
+                                      <motion.div
+                                        initial={{ opacity: 0, height: 0, y: -4 }}
+                                        animate={{ opacity: 1, height: "auto", y: 0 }}
+                                        exit={{ opacity: 0, height: 0, y: -4 }}
+                                        transition={{ duration: 0.18, ease: "easeOut" }}
+                                        className="mt-3 space-y-2 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50/80 p-3"
+                                      >
+                                        {visit.objective && (
+                                          <p className="text-xs text-zinc-600">
+                                            <span className="font-semibold text-zinc-700">Objetivo:</span> {visit.objective}
+                                          </p>
+                                        )}
+                                        {visit.result && (
+                                          <p className="text-xs text-zinc-600">
+                                            <span className="font-semibold text-zinc-700">Resultado:</span> {visit.result}
+                                          </p>
+                                        )}
+                                        {visit.cancellationReason && (
+                                          <p className="text-xs text-zinc-600">
+                                            <span className="font-semibold text-zinc-700">Cancelamento:</span> {visit.cancellationReason}
+                                          </p>
+                                        )}
+                                        {visit.link && (
+                                          <a
+                                            href={visit.link}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
+                                          >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                            Abrir link da reunião
+                                          </a>
+                                        )}
+                                        {visit.details && (
+                                          <p className="text-xs text-zinc-500">{visit.details}</p>
+                                        )}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
+                              );
+                            })}
                           </div>
                         </TabsContent>
 
@@ -3320,6 +3820,20 @@ export default function LeadCardDrawer() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <NewVisitModal
+        isOpen={isNewVisitModalOpen}
+        onClose={() => setIsNewVisitModalOpen(false)}
+        onSave={handleSaveVisit}
+        dealId={resolvedLead.id}
+      />
+      <NewActivityModal
+        isOpen={isNewActivityModalOpen}
+        onClose={() => setIsNewActivityModalOpen(false)}
+        onSave={handleSaveActivity}
+        dealId={resolvedLead.id}
+        initialType={newActivityType}
+      />
     </>
   );
 }

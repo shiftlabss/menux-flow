@@ -1,14 +1,33 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import * as React from "react";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  X,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  ChevronRight,
+  Phone,
+  Mail,
+  MessageCircle,
+  Users,
+  CheckSquare,
+  AlertTriangle,
+  Info,
+  Loader2,
+  CheckCircle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { InlineFeedback } from "@/components/ui/inline-feedback";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -16,262 +35,358 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUIStore } from "@/stores/ui-store";
-import { useActivityStore } from "@/stores/activity-store";
-import {
-  newActivitySchema,
-  type NewActivityFormData,
-} from "@/lib/schemas";
+import { activitySchema, type ActivityFormData } from "@/lib/validations/activity";
 
-const responsibleNames: Record<string, string> = {
-  "1": "Maria Silva",
-  "2": "João Santos",
-};
+interface NewActivityModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: ActivityFormData) => void;
+  dealId?: string;
+  initialType?: "call" | "email" | "meeting" | "task" | "whatsapp";
+}
 
-export function NewActivityModal() {
-  const { drawerType, drawerData, closeDrawer } = useUIStore();
-  const { addActivity, updateActivity, getById } = useActivityStore();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{type: "success" | "error", message: string} | null>(null);
-  const isOpen = drawerType === "new-activity";
+const activityTypes = [
+  { id: "call", label: "Ligação", icon: Phone },
+  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { id: "email", label: "E-mail", icon: Mail },
+  { id: "meeting", label: "Reunião", icon: Users },
+  { id: "task", label: "Tarefa", icon: CheckSquare },
+];
 
-  // Check if we're in edit mode
-  const isEditMode = drawerData?.mode === "edit";
-  const activityId = drawerData?.activityId as string | undefined;
+const priorities = [
+  { id: "low", label: "Baixa", color: "text-blue-600 bg-blue-50 border-blue-200" },
+  { id: "medium", label: "Média", color: "text-amber-600 bg-amber-50 border-amber-200" },
+  { id: "high", label: "Alta", color: "text-red-600 bg-red-50 border-red-200" },
+];
+
+export function NewActivityModal({
+  isOpen,
+  onClose,
+  onSave,
+  dealId,
+  initialType = "task",
+}: NewActivityModalProps) {
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saveSuccess, setSaveSuccess] = React.useState(false);
+
+  const form = useForm<ActivityFormData>({
+    resolver: zodResolver(activitySchema),
+    defaultValues: {
+      type: initialType,
+      title: "",
+      date: format(new Date(), "yyyy-MM-dd"),
+      time: format(new Date(), "HH:mm"),
+      duration: "30",
+      description: "",
+      priority: "medium",
+      responsible: "Eu (Logado)",
+    },
+  });
 
   const {
     register,
     handleSubmit,
+    watch,
     setValue,
-    reset,
+    control,
     formState: { errors },
-  } = useForm<NewActivityFormData>({
-    resolver: zodResolver(newActivitySchema),
-  });
+    reset,
+  } = form;
 
-  // Load activity data when in edit mode
-  useEffect(() => {
-    if (isEditMode && activityId && isOpen) {
-      const activity = getById(activityId);
-      if (activity) {
-        setValue("title", activity.title);
-        setValue("type", activity.type);
-        setValue("dueDate", activity.dueDate);
-        if (activity.dueTime) setValue("dueTime", activity.dueTime);
-        setValue("responsibleId", activity.responsibleId);
-        if (activity.description) setValue("description", activity.description);
-      }
-    } else if (!isOpen) {
-      reset();
-    }
-  }, [isEditMode, activityId, isOpen, setValue, reset, getById]);
+  const type = watch("type");
+  const priority = watch("priority");
 
-  async function onSubmit(data: NewActivityFormData) {
-    setIsSubmitting(true);
-    try {
-      if (isEditMode && activityId) {
-        updateActivity(activityId, {
-          title: data.title,
-          type: data.type,
-          dueDate: data.dueDate,
-          dueTime: data.dueTime || undefined,
-          responsibleId: data.responsibleId,
-          responsibleName: responsibleNames[data.responsibleId] || "Não atribuído",
-          description: data.description || undefined,
+  // Reset form when modal closes
+  React.useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        reset({
+          type: initialType,
+          title: "",
+          date: format(new Date(), "yyyy-MM-dd"),
+          time: format(new Date(), "HH:mm"),
+          duration: "30",
+          description: "",
+          priority: "medium",
+          responsible: "Eu (Logado)",
         });
-
-        setFeedback({ type: "success", message: "Atividade atualizada com sucesso!" });
-        setTimeout(() => {
-          setFeedback(null);
-          reset();
-          closeDrawer();
-        }, 1500);
-      } else {
-        const clientId = drawerData?.clientId as string | undefined;
-        const clientName = drawerData?.clientName as string | undefined;
-        const opportunityId = drawerData?.opportunityId as string | undefined;
-        const opportunityTitle = drawerData?.opportunityTitle as string | undefined;
-
-        addActivity({
-          title: data.title,
-          type: data.type,
-          status: "pending",
-          dueDate: data.dueDate,
-          dueTime: data.dueTime || undefined,
-          responsibleId: data.responsibleId,
-          responsibleName: responsibleNames[data.responsibleId] || "Não atribuído",
-          description: data.description || undefined,
-          clientId,
-          clientName,
-          opportunityId,
-          opportunityTitle,
-        });
-
-        setFeedback({ type: "success", message: "Atividade criada com sucesso!" });
-        setTimeout(() => {
-          setFeedback(null);
-          reset();
-          closeDrawer();
-        }, 1500);
-      }
-    } catch {
-      setFeedback({ type: "error", message: "Erro ao salvar atividade. Tente novamente." });
-    } finally {
-      setIsSubmitting(false);
+        setSaveSuccess(false);
+      }, 300);
     }
+  }, [isOpen, reset, initialType]);
+
+  const onSubmit = async (data: ActivityFormData) => {
+    setIsSaving(true);
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setSaveSuccess(true);
+
+    setTimeout(() => {
+      onSave(data);
+      setIsSaving(false);
+      onClose();
+    }, 600);
+  };
+
+  const handleSmartSuggestion = () => {
+    setValue("title", "Follow-up da proposta enviada");
+    setValue("description", "Verificar se o cliente teve alguma dúvida sobre os valores apresentados.");
+    setValue("priority", "high");
+    setValue("duration", "15");
+  };
+
+  const Content = (
+    <div className="flex h-full flex-col bg-white">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <form id="activity-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+          {/* SECTION A: Activity Type */}
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Tipo de Atividade
+            </Label>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {activityTypes.map((t) => {
+                const Icon = t.icon;
+                const isSelected = type === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setValue("type", t.id as any)}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-2 rounded-xl border p-2 transition-all hover:bg-zinc-50",
+                      isSelected
+                        ? "border-brand bg-brand/5 text-brand ring-1 ring-brand"
+                        : "border-zinc-200 bg-white text-zinc-600"
+                    )}
+                  >
+                    <Icon className={cn("h-5 w-5", isSelected ? "text-brand" : "text-zinc-400")} />
+                    <span className="text-[10px] font-medium">{t.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SECTION B: Title & Priority */}
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Título
+              </Label>
+              <div className="relative">
+                <Input
+                  {...register("title")}
+                  placeholder="Ex: Ligar para confirmar recebimento..."
+                  className={cn("font-medium", errors.title && "border-red-300 ring-red-100")}
+                />
+                <button
+                  type="button"
+                  onClick={handleSmartSuggestion}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-brand hover:bg-brand/10 transition-colors"
+                  title="Sugestão Menux AI"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </button>
+              </div>
+              {errors.title && (
+                <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Prioridade
+              </Label>
+              <div className="flex gap-2">
+                {priorities.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setValue("priority", p.id as any)}
+                    className={cn(
+                      "flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all",
+                      priority === p.id
+                        ? p.color
+                        : "border-zinc-200 text-zinc-500 bg-white hover:bg-zinc-50"
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION C: Date & Time */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Data
+              </Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  type="date"
+                  {...register("date")}
+                  className={cn("pl-9", errors.date && "border-red-300 ring-red-100")}
+                />
+              </div>
+              {errors.date && (
+                <p className="mt-1 text-xs text-red-500">{errors.date.message}</p>
+              )}
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Hora
+              </Label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  type="time"
+                  {...register("time")}
+                  className={cn("pl-9", errors.time && "border-red-300 ring-red-100")}
+                />
+              </div>
+              {errors.time && (
+                <p className="mt-1 text-xs text-red-500">{errors.time.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* SECTION D: Duration */}
+          <div>
+            <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Duração (minutos)
+            </Label>
+            <Controller
+              name="duration"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15">15 min</SelectItem>
+                    <SelectItem value="30">30 min</SelectItem>
+                    <SelectItem value="45">45 min</SelectItem>
+                    <SelectItem value="60">1 hora</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.duration && (
+              <p className="mt-1 text-xs text-red-500">{errors.duration.message}</p>
+            )}
+          </div>
+
+          {/* SECTION E: Description */}
+          <div>
+            <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              Descrição (Opcional)
+            </Label>
+            <Textarea
+              {...register("description")}
+              placeholder="Detalhes adicionais sobre a atividade..."
+              className="resize-none min-h-[100px]"
+            />
+          </div>
+
+          {/* Menux Intelligence Banner */}
+          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
+            <div className="flex items-start gap-2">
+              <Sparkles className="mt-0.5 h-4 w-4 text-indigo-500" />
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-indigo-900">Sugestão Menux</p>
+                <p className="text-[11px] text-indigo-700 leading-relaxed">
+                  Baseado no histórico, o melhor horário para ligar para este cliente é entre <strong>14:00 e 16:00</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-zinc-100 bg-zinc-50/50 p-4 md:px-6 md:py-4 mt-auto">
+        <div className="flex items-center justify-end gap-3">
+          <Button variant="ghost" onClick={onClose} disabled={isSaving}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="activity-form"
+            className="bg-brand text-white hover:bg-brand/90 min-w-[140px]"
+            disabled={isSaving || saveSuccess}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : saveSuccess ? (
+              <>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Salvo!
+              </>
+            ) : (
+              "Criar Atividade"
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (isDesktop) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md gap-0 p-0 sm:max-w-xl border-0 shadow-2xl overflow-hidden">
+          <DialogHeader className="border-b border-zinc-100 px-6 py-4 bg-white">
+            <DialogTitle className="font-heading text-lg font-semibold text-zinc-900 flex items-center gap-2">
+              Nova Atividade
+            </DialogTitle>
+          </DialogHeader>
+          {Content}
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={() => {
-        setFeedback(null);
-        reset();
-        closeDrawer();
-      }}
-    >
-      <DialogContent className="max-w-[480px] rounded-[20px] p-8">
-        <DialogHeader>
-          <DialogTitle className="font-heading text-xl font-semibold text-black">
-            {isEditMode ? "Editar Atividade" : "Nova Atividade"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <Label className="font-body text-sm text-zinc-600">Título</Label>
-            <Input
-              placeholder="Ex: Ligação com João"
-              className="h-10 rounded-[15px] font-body text-sm"
-              {...register("title")}
-            />
-            {errors.title && (
-              <p className="text-xs text-status-danger">
-                {errors.title.message}
-              </p>
-            )}
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent side="bottom" className="h-[90vh] gap-0 p-0 rounded-t-[20px] overflow-hidden">
+        <SheetHeader className="border-b border-zinc-100 px-4 py-3 text-left bg-white">
+          <div className="flex items-center justify-between">
+            <SheetTitle className="font-heading text-lg font-semibold text-zinc-900">
+              Nova Atividade
+            </SheetTitle>
+            <button onClick={onClose} className="rounded-full p-2 hover:bg-zinc-100">
+              <X className="h-5 w-5 text-zinc-500" />
+            </button>
           </div>
-
-          <div className="space-y-2">
-            <Label className="font-body text-sm text-zinc-600">Tipo</Label>
-            <Select onValueChange={(v) => setValue("type", v as NewActivityFormData["type"])}>
-              <SelectTrigger className="h-10 rounded-[15px] font-body text-sm">
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent className="rounded-[15px]">
-                <SelectItem value="call">Ligação</SelectItem>
-                <SelectItem value="email">E-mail</SelectItem>
-                <SelectItem value="meeting">Reunião</SelectItem>
-                <SelectItem value="visit">Visita</SelectItem>
-                <SelectItem value="task">Tarefa</SelectItem>
-                <SelectItem value="follow-up">Follow-up</SelectItem>
-                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.type && (
-              <p className="text-xs text-status-danger">
-                {errors.type.message}
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="font-body text-sm text-zinc-600">Data</Label>
-              <Input
-                type="date"
-                className="h-10 rounded-[15px] font-body text-sm"
-                {...register("dueDate")}
-              />
-              {errors.dueDate && (
-                <p className="text-xs text-status-danger">
-                  {errors.dueDate.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label className="font-body text-sm text-zinc-600">
-                Horário <span className="text-zinc-400">(opcional)</span>
-              </Label>
-              <Input
-                type="time"
-                className="h-10 rounded-[15px] font-body text-sm"
-                {...register("dueTime")}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="font-body text-sm text-zinc-600">
-              Responsável
-            </Label>
-            <Select onValueChange={(v) => setValue("responsibleId", v)}>
-              <SelectTrigger className="h-10 rounded-[15px] font-body text-sm">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent className="rounded-[15px]">
-                <SelectItem value="1">Maria Silva</SelectItem>
-                <SelectItem value="2">João Santos</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.responsibleId && (
-              <p className="text-xs text-status-danger">
-                {errors.responsibleId.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="font-body text-sm text-zinc-600">
-              Descrição <span className="text-zinc-400">(opcional)</span>
-            </Label>
-            <Textarea
-              placeholder="Detalhes da atividade..."
-              className="rounded-[15px] font-body text-sm"
-              rows={3}
-              {...register("description")}
-            />
-          </div>
-
-          {feedback && (
-            <InlineFeedback
-              type={feedback.type}
-              message={feedback.message}
-              onClose={() => setFeedback(null)}
-            />
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                reset();
-                closeDrawer();
-              }}
-              className="rounded-full font-heading text-sm"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800"
-            >
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              {isEditMode ? "Salvar alterações" : "Criar atividade"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </SheetHeader>
+        {Content}
+      </SheetContent>
+    </Sheet>
   );
 }

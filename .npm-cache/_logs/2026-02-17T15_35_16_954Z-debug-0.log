@@ -7,8 +7,8 @@
 6 silly config load:file:/usr/local/etc/npmrc
 7 verbose title npm exec tsc --noEmit
 8 verbose argv "exec" "--" "tsc" "--noEmit"
-9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T14_22_01_251Z-
-10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T14_22_01_251Z-debug-0.log
+9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T15_35_16_954Z-
+10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T15_35_16_954Z-debug-0.log
 11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd /Users/fernandocalado/Documents/Flow

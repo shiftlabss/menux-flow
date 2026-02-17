@@ -5,10 +5,10 @@
 4 silly config load:file:/Users/fernandocalado/Documents/Flow/.npmrc
 5 silly config load:file:/Users/fernandocalado/.npmrc
 6 silly config load:file:/usr/local/etc/npmrc
-7 verbose title npm run lint src/components/drawers/lead-card-drawer.tsx
-8 verbose argv "run" "lint" "--" "src/components/drawers/lead-card-drawer.tsx"
-9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T14_39_35_423Z-
-10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T14_39_35_423Z-debug-0.log
+7 verbose title npm run lint src/app/(auth)/pipes/hooks/use-pipeline-board.ts src/app/(auth)/pipes/page.tsx
+8 verbose argv "run" "lint" "--" "src/app/(auth)/pipes/hooks/use-pipeline-board.ts" "src/app/(auth)/pipes/page.tsx"
+9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T15_30_01_568Z-
+10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T15_30_01_568Z-debug-0.log
 11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd /Users/fernandocalado/Documents/Flow
