@@ -711,7 +711,11 @@ function PipesPageContent() {
                   </div>
 
                   {/* Column Cards */}
-                  <div className="flex-1 overflow-y-auto px-3 pb-3">
+                  <div
+                    className="flex-1 overflow-y-auto px-3 pb-3"
+                    onDragOver={(e) => handleDragOver(e, stageDef.id)}
+                    onDrop={(e) => handleDrop(e, stageDef.id)}
+                  >
                     {cards.length > 0 || isDropTarget ? (
                       <div className="space-y-2">
                         {(() => {

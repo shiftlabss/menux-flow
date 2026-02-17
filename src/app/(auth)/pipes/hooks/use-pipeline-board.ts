@@ -83,7 +83,9 @@ export function usePipelineBoard({
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     const related = e.relatedTarget as Node | null;
-    if (!e.currentTarget.contains(related)) {
+    // relatedTarget can be null in Chrome during drag — only clear if we
+    // truly left the column (related exists and is outside currentTarget)
+    if (related && !e.currentTarget.contains(related)) {
       setDragOverStage(null);
       setDropIndicator(null);
     }
