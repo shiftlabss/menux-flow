@@ -39,6 +39,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -58,16 +65,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useUIStore } from "@/stores/ui-store";
 import type { HealthScore, ClientStage } from "@/types";
-import { calculateHealthScore } from "@/lib/business-rules";
+import { calculateHealthScore, RESTAURANT_POSITIONS } from "@/lib/business-rules";
 import { useClientStore } from "@/stores/client-store";
 
 // ── Health config ───────────────────────────────────────────────────────────
@@ -135,7 +135,8 @@ const mockContacts = [
     nome: "Ana Costa",
     email: "ana@panoramico.com",
     telefone: "(11) 99999-0001",
-    cargo: "Diretora Geral",
+    cargo: "diretor-geral",
+    personalidade: "Visionária e estratégica, gosta de entender o impacto no negócio como um todo.",
     isPrimary: true,
   },
   {
@@ -143,10 +144,15 @@ const mockContacts = [
     nome: "Bruno Oliveira",
     email: "bruno@panoramico.com",
     telefone: "(11) 99999-0002",
-    cargo: "Gerente de Operacoes",
+    cargo: "gerente-operacoes",
+    personalidade: "Prático e focado em eficiência operacional. Valoriza facilidade de uso.",
     isPrimary: false,
   },
 ];
+
+function getCargoLabel(value: string): string {
+  return RESTAURANT_POSITIONS.find((p) => p.value === value)?.label ?? value;
+}
 
 const mockTeamMembers = [
   { id: "u1", name: "Maria Silva", avatar: "" },
@@ -463,7 +469,7 @@ function ContactCard({
               </Badge>
             )}
           </div>
-          <p className="font-body text-xs text-zinc-500">{contact.cargo}</p>
+          <p className="font-body text-xs text-zinc-500">{getCargoLabel(contact.cargo)}</p>
           <div className="mt-1.5 flex items-center gap-3">
             <span className="flex items-center gap-1 font-body text-xs text-zinc-500">
               <Mail className="h-3 w-3" />
@@ -474,6 +480,11 @@ function ContactCard({
               {contact.telefone}
             </span>
           </div>
+          {contact.personalidade && (
+            <p className="mt-1.5 font-body text-xs italic text-zinc-400">
+              &ldquo;{contact.personalidade}&rdquo;
+            </p>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-1">
@@ -722,10 +733,11 @@ export function ClientCardDrawer() {
     email: "",
     telefone: "",
     cargo: "",
+    personalidade: "",
   });
 
   // Inline feedback
-  const [inlineFeedback, setInlineFeedback] = useState<{ type: "success" | "error" | "warning"; message: string } | null>(null);
+  const [inlineFeedback, setInlineFeedback] = useState<{ type: "success" | "error" | "warning" | "info"; message: string } | null>(null);
 
   // Contact edit
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
@@ -734,6 +746,7 @@ export function ClientCardDrawer() {
     email: "",
     telefone: "",
     cargo: "",
+    personalidade: "",
   });
 
   function handleAddTag() {
@@ -757,7 +770,7 @@ export function ClientCardDrawer() {
           isPrimary: false,
         },
       ]);
-      setNewContact({ nome: "", email: "", telefone: "", cargo: "" });
+      setNewContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
       setShowAddContact(false);
     }
   }
@@ -773,6 +786,7 @@ export function ClientCardDrawer() {
       email: contact.email,
       telefone: contact.telefone,
       cargo: contact.cargo,
+      personalidade: contact.personalidade,
     });
   }
 
@@ -784,7 +798,7 @@ export function ClientCardDrawer() {
         )
       );
       setEditingContactId(null);
-      setEditContact({ nome: "", email: "", telefone: "", cargo: "" });
+      setEditContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
     }
   }
 
@@ -1068,14 +1082,23 @@ export function ClientCardDrawer() {
                       </div>
                       <div>
                         <Label className="font-body text-xs text-zinc-500">Cargo</Label>
-                        <Input
+                        <Select
                           value={newContact.cargo}
-                          onChange={(e) =>
-                            setNewContact({ ...newContact, cargo: e.target.value })
+                          onValueChange={(value) =>
+                            setNewContact({ ...newContact, cargo: value })
                           }
-                          className="mt-1 h-9 rounded-[15px] font-body text-sm"
-                          placeholder="Cargo"
-                        />
+                        >
+                          <SelectTrigger className="mt-1 h-9 w-full rounded-[15px] border-zinc-200 font-body text-sm">
+                            <SelectValue placeholder="Selecione o cargo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RESTAURANT_POSITIONS.map((pos) => (
+                              <SelectItem key={pos.value} value={pos.value}>
+                                {pos.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label className="font-body text-xs text-zinc-500">E-mail</Label>
@@ -1099,6 +1122,17 @@ export function ClientCardDrawer() {
                           className="mt-1 h-9 rounded-[15px] font-body text-sm"
                         />
                       </div>
+                    </div>
+                    <div>
+                      <Label className="font-body text-xs text-zinc-500">Personalidade</Label>
+                      <Textarea
+                        value={newContact.personalidade}
+                        onChange={(e) =>
+                          setNewContact({ ...newContact, personalidade: e.target.value })
+                        }
+                        className="mt-1 min-h-[60px] rounded-[15px] font-body text-sm"
+                        placeholder="Ex: Direto e objetivo, prefere reuniões curtas..."
+                      />
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button
@@ -1140,13 +1174,23 @@ export function ClientCardDrawer() {
                           </div>
                           <div>
                             <Label className="font-body text-xs text-zinc-500">Cargo</Label>
-                            <Input
+                            <Select
                               value={editContact.cargo}
-                              onChange={(e) =>
-                                setEditContact({ ...editContact, cargo: e.target.value })
+                              onValueChange={(value) =>
+                                setEditContact({ ...editContact, cargo: value })
                               }
-                              className="mt-1 h-9 rounded-[15px] font-body text-sm"
-                            />
+                            >
+                              <SelectTrigger className="mt-1 h-9 w-full rounded-[15px] border-zinc-200 font-body text-sm">
+                                <SelectValue placeholder="Selecione o cargo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {RESTAURANT_POSITIONS.map((pos) => (
+                                  <SelectItem key={pos.value} value={pos.value}>
+                                    {pos.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div>
                             <Label className="font-body text-xs text-zinc-500">E-mail</Label>
@@ -1170,6 +1214,17 @@ export function ClientCardDrawer() {
                             />
                           </div>
                         </div>
+                        <div>
+                          <Label className="font-body text-xs text-zinc-500">Personalidade</Label>
+                          <Textarea
+                            value={editContact.personalidade}
+                            onChange={(e) =>
+                              setEditContact({ ...editContact, personalidade: e.target.value })
+                            }
+                            className="mt-1 min-h-[60px] rounded-[15px] font-body text-sm"
+                            placeholder="Ex: Direto e objetivo, prefere reuniões curtas..."
+                          />
+                        </div>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
@@ -1177,7 +1232,7 @@ export function ClientCardDrawer() {
                             className="rounded-full font-heading text-sm"
                             onClick={() => {
                               setEditingContactId(null);
-                              setEditContact({ nome: "", email: "", telefone: "", cargo: "" });
+                              setEditContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
                             }}
                           >
                             Cancelar

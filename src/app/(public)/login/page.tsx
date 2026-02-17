@@ -24,8 +24,6 @@ import {
   Loader2,
   AlertTriangle,
   Bot,
-  ShieldAlert,
-  Lock,
   Timer,
   Zap,
   Brain,
@@ -134,10 +132,22 @@ function clearPersistedLockoutState() {
 // Branding bullets
 // ---------------------------------------------------------------------------
 const brandingBullets = [
-  { icon: Zap, text: "Raio X do funil em tempo real" },
-  { icon: Brain, text: "Menux Intelligence aplicada ao comercial" },
-  { icon: Target, text: "Atividades e SLAs com foco no que importa" },
+  { icon: Zap, text: "Funil em tempo real, sem planilha" },
+  { icon: Brain, text: "Próximas ações e SLAs do seu dia" },
+  {
+    icon: Target,
+    text: "Insights da Menux Intelligence para acelerar negociações",
+  },
 ];
+
+const loginErrorMessages = {
+  credentials: "E-mail ou senha incorretos. Tente novamente.",
+  noPermission:
+    "Seu acesso não está habilitado para o Flow. Fale com o seu líder ou com o suporte.",
+  temporaryLockout: "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+  network:
+    "Sem conexão com o servidor. Verifique sua internet e tente novamente.",
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -170,14 +180,18 @@ export default function LoginPage() {
     setLockoutEnd(persisted.lockoutEnd);
 
     const persistedTier = getLockoutTier(persisted.errorCount);
+    if (persistedTier === "blocked" && persisted.lockoutEnd === null) {
+      setLockoutEnd(Date.now() + LOCKOUT_1H_MS);
+    }
+
     if (persistedTier === "blocked") {
-      setLoginError("Conta bloqueada. Entre em contato com o administrador.");
+      setLoginError(loginErrorMessages.temporaryLockout);
     } else if (persistedTier === "lockout1h") {
-      setLoginError("Conta temporariamente bloqueada. Tente novamente em");
+      setLoginError(loginErrorMessages.temporaryLockout);
     } else if (persistedTier === "lockout15") {
-      setLoginError("Muitas tentativas. Tente novamente em 15 minutos.");
+      setLoginError(loginErrorMessages.temporaryLockout);
     } else if (persistedTier === "captcha") {
-      setLoginError("Credenciais inválidas. Resolva o CAPTCHA para continuar.");
+      setLoginError(loginErrorMessages.credentials);
     }
   }, []);
 
@@ -270,29 +284,22 @@ export default function LoginPage() {
 
     switch (newTier) {
       case "blocked":
-        setLoginError(
-          "Conta bloqueada. Entre em contato com o administrador."
-        );
+        setLoginError(loginErrorMessages.temporaryLockout);
+        startLockout(LOCKOUT_1H_MS);
         break;
       case "lockout1h":
-        setLoginError(
-          "Conta temporariamente bloqueada. Tente novamente em"
-        );
+        setLoginError(loginErrorMessages.temporaryLockout);
         startLockout(LOCKOUT_1H_MS);
         break;
       case "lockout15":
-        setLoginError("Muitas tentativas. Tente novamente em 15 minutos.");
+        setLoginError(loginErrorMessages.temporaryLockout);
         startLockout(LOCKOUT_15MIN_MS);
         break;
       case "captcha":
-        setLoginError(
-          "Credenciais inválidas. Resolva o CAPTCHA para continuar."
-        );
+        setLoginError(loginErrorMessages.credentials);
         break;
       default:
-        setLoginError(
-          "E-mail ou senha incorretos. Verifique e tente novamente."
-        );
+        setLoginError(loginErrorMessages.credentials);
         break;
     }
   }
@@ -307,8 +314,25 @@ export default function LoginPage() {
     setLoginError(null);
 
     try {
-      if (data.email === "fail@test.com") {
+      const normalizedEmail = data.email.trim().toLowerCase();
+
+      if (normalizedEmail === "fail@test.com") {
         handleLoginFailure();
+        return;
+      }
+
+      if (normalizedEmail === "sem-permissao@menux.co") {
+        setLoginError(loginErrorMessages.noPermission);
+        return;
+      }
+
+      if (!normalizedEmail.endsWith("@menux.co")) {
+        setLoginError(loginErrorMessages.noPermission);
+        return;
+      }
+
+      if (normalizedEmail === "sem-rede@menux.co") {
+        setLoginError(loginErrorMessages.network);
         return;
       }
 
@@ -319,10 +343,20 @@ export default function LoginPage() {
         },
         credentials: "include",
         body: JSON.stringify({
-          email: data.email,
+          email: normalizedEmail,
           rememberMe,
         }),
       });
+
+      if (response.status === 403) {
+        setLoginError(loginErrorMessages.noPermission);
+        return;
+      }
+
+      if (response.status === 429) {
+        setLoginError(loginErrorMessages.temporaryLockout);
+        return;
+      }
 
       if (!response.ok) {
         handleLoginFailure();
@@ -346,7 +380,7 @@ export default function LoginPage() {
       setLoginError(null);
       router.push(redirectPath);
     } catch {
-      handleLoginFailure();
+      setLoginError(loginErrorMessages.network);
     } finally {
       setIsSubmitting(false);
     }
@@ -358,53 +392,10 @@ export default function LoginPage() {
   function renderAlert() {
     if (!loginError) return null;
 
-    if (tier === "blocked") {
-      return (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.12 }}
-          className="flex flex-col gap-2 rounded-[10px] bg-status-danger-light px-4 py-3"
-        >
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 shrink-0 text-status-danger" />
-            <p className="font-body text-sm font-medium text-status-danger">
-              {loginError}
-            </p>
-          </div>
-          <Link
-            href="/support"
-            className="font-body text-sm font-semibold text-status-danger underline"
-          >
-            Fale com o suporte
-          </Link>
-        </motion.div>
-      );
-    }
-
-    if (tier === "lockout1h" && isTimerActive) {
-      return (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.12 }}
-          className="flex flex-col gap-1 rounded-[10px] bg-status-danger-light px-4 py-3"
-        >
-          <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 shrink-0 text-status-danger" />
-            <p className="font-body text-sm font-medium text-status-danger">
-              Conta temporariamente bloqueada. Tente novamente em{" "}
-              <span className="font-semibold">
-                {formatCountdown(remainingMs)}
-              </span>
-              .
-            </p>
-          </div>
-        </motion.div>
-      );
-    }
-
-    if (tier === "lockout15" && isTimerActive) {
+    if (
+      (tier === "blocked" || tier === "lockout1h" || tier === "lockout15") &&
+      isTimerActive
+    ) {
       return (
         <motion.div
           initial={{ opacity: 0, y: -4 }}
@@ -415,7 +406,7 @@ export default function LoginPage() {
           <div className="flex items-center gap-2">
             <Timer className="h-4 w-4 shrink-0 text-status-warning" />
             <p className="font-body text-sm font-medium text-status-warning">
-              Muitas tentativas. Tente novamente em{" "}
+              {loginError} Tempo restante:{" "}
               <span className="font-semibold">
                 {formatCountdown(remainingMs)}
               </span>
@@ -437,12 +428,6 @@ export default function LoginPage() {
           <AlertTriangle className="h-4 w-4 shrink-0 text-status-danger" />
           <p className="font-body text-sm text-status-danger">{loginError}</p>
         </div>
-        <Link
-          href="/forgot-password"
-          className="font-body text-xs font-medium text-status-danger hover:underline"
-        >
-          Esqueci minha senha
-        </Link>
       </motion.div>
     );
   }
@@ -513,14 +498,14 @@ export default function LoginPage() {
 
               <div className="relative z-10 mt-12 max-w-[520px]">
                 <p className="inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1 font-body text-xs font-medium tracking-wide text-cyan-100">
-                  FLOW PLATFORM
+                  FLOW • PLATAFORMA INTERNA
                 </p>
                 <h1 className="mt-4 font-heading text-4xl font-semibold leading-[1.08] text-white">
-                  Operação comercial elegante, previsível e sem ruído.
+                  Sua central de execução comercial.
                 </h1>
                 <p className="mt-4 max-w-[480px] font-body text-[15px] leading-relaxed text-slate-200/90">
-                  Centralize pipeline, Menux Intelligence e execução em uma experiência
-                  única, com clareza para decidir e velocidade para agir.
+                  Pipeline, atividades e Menux Intelligence em um só lugar, para
+                  você priorizar o que fecha e agir rápido.
                 </p>
               </div>
 
@@ -549,19 +534,13 @@ export default function LoginPage() {
 
               <div className="relative z-10 mt-auto grid gap-3 pt-10 sm:grid-cols-2">
                 <div className="rounded-[14px] border border-white/15 bg-white/10 px-4 py-3">
-                  <p className="font-heading text-2xl font-semibold text-white">
-                    +12k
-                  </p>
-                  <p className="mt-1 font-body text-xs text-slate-200/90">
-                    oportunidades movimentadas por semana
+                  <p className="font-body text-sm text-slate-100/95">
+                    Visão do funil e metas em tempo real
                   </p>
                 </div>
                 <div className="rounded-[14px] border border-white/15 bg-white/10 px-4 py-3">
-                  <p className="font-heading text-2xl font-semibold text-white">
-                    99.9%
-                  </p>
-                  <p className="mt-1 font-body text-xs text-slate-200/90">
-                    consistência operacional na rotina comercial
+                  <p className="font-body text-sm text-slate-100/95">
+                    Rotina guiada por SLAs e prioridades
                   </p>
                 </div>
               </div>
@@ -580,17 +559,15 @@ export default function LoginPage() {
                 </div>
                 <div className="mb-4 rounded-[14px] border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 lg:hidden">
                   <p className="font-body text-xs text-zinc-600">
-                    Raio X do funil, Menux Intelligence e execução em um único fluxo.
+                    Pipeline, atividades e Menux Intelligence em um só lugar para
+                    priorizar o que fecha.
                   </p>
                 </div>
-                <p className="mb-2 font-body text-xs font-medium uppercase tracking-[0.14em] text-zinc-500">
-                  Acesso seguro
-                </p>
                 <h2 className="font-heading text-3xl font-semibold leading-tight text-zinc-900">
-                  Entrar no Flow
+                  Acesso seguro
                 </h2>
                 <p className="mt-1.5 font-body text-sm text-zinc-500">
-                  Use sua conta corporativa para continuar.
+                  Entre com sua conta corporativa do Menux.
                 </p>
               </div>
 
@@ -604,12 +581,12 @@ export default function LoginPage() {
                     htmlFor="email"
                     className="font-body text-[13px] font-medium text-zinc-700"
                   >
-                    E-mail
+                    E-mail corporativo
                   </Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="seu@email.com"
+                    placeholder="nome@menux.co"
                     autoComplete="email"
                     disabled={isDisabledByLockout}
                     className="h-12 rounded-[14px] border-zinc-200 bg-white font-body text-sm transition-[border-color,box-shadow] duration-[140ms] ease-out focus:border-brand/45 focus:shadow-[0_0_0_3px_rgba(29,78,216,0.08)]"
@@ -684,7 +661,7 @@ export default function LoginPage() {
                       htmlFor="rememberMe"
                       className="cursor-pointer font-body text-sm text-zinc-600"
                     >
-                      Lembrar-me
+                      Manter conectado neste dispositivo
                     </label>
                   </div>
                   <Link
@@ -707,30 +684,28 @@ export default function LoginPage() {
                     {isSubmitting ? (
                       <span className="flex items-center gap-2">
                         <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Entrando…</span>
+                        <span>Entrando no Flow…</span>
                       </span>
                     ) : (
-                      "Entrar"
+                      "Entrar no Flow"
                     )}
                   </Button>
                 </div>
-              </form>
 
-              <div className="mt-6 border-t border-zinc-200/70 pt-4 text-center">
-                <p className="font-body text-xs text-zinc-400">
-                  Precisa de ajuda?{" "}
+                <div className="pt-2 text-center">
                   <Link
                     href="/support"
-                    className="font-medium text-zinc-500 hover:text-brand hover:underline"
+                    className="font-body text-sm text-zinc-500 transition-colors duration-[120ms] hover:text-zinc-700 hover:underline"
                   >
-                    Falar com suporte
+                    Precisa de ajuda? Falar com suporte
                   </Link>
+                </div>
+
+                <p className="pb-1 text-center font-body text-xs text-zinc-400">
+                  Uso interno Menux. Acesso restrito.
                 </p>
-                <p className="mt-2 font-body text-xs text-zinc-400">
-                  Desenvolvido por{" "}
-                  <span className="font-medium text-zinc-500">@menux</span>
-                </p>
-              </div>
+              </form>
+
             </section>
           </div>
         </div>

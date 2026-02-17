@@ -9,7 +9,6 @@ import {
   Trash2,
   Edit,
   AlertTriangle,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
@@ -33,7 +32,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePipelineStore, type Pipeline } from "@/stores/pipeline-store";
 import { PipelineFormModal } from "@/components/pipeline/pipeline-form-modal";
 import { StageManager } from "@/components/pipeline/stage-manager";
@@ -47,7 +45,6 @@ export default function PipelineSettingsPage() {
   const [deletingPipeline, setDeletingPipeline] = useState<Pipeline | null>(null);
   const [expandedPipeline, setExpandedPipeline] = useState<string | null>(null);
   const [pipelineFeedback, setPipelineFeedback] = useState<{type: "success" | "error"; message: string} | null>(null);
-  const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
 
   const handleDelete = () => {
     if (!deletingPipeline) return;
@@ -122,64 +119,6 @@ export default function PipelineSettingsPage() {
                 Novo Funil
               </Button>
 
-              <Popover open={isIntelligenceOpen} onOpenChange={setIsIntelligenceOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
-                  >
-                    <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
-                    Menux Intelligence
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="end"
-                  className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3"
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                    Menux Intelligence
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-700">
-                    {pipelines.length > 0
-                      ? `Você possui ${pipelines.length} funis ativos e ${totalStages} etapas configuradas.`
-                      : "Nenhum funil configurado. Recomendo criar um funil padrão para iniciar."}
-                  </p>
-                  <div className="mt-3 grid gap-2">
-                    <Button
-                      size="sm"
-                      className="justify-start rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
-                      onClick={() => {
-                        setIsCreateModalOpen(true);
-                        setIsIntelligenceOpen(false);
-                      }}
-                    >
-                      Criar novo funil
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="justify-start rounded-full"
-                      onClick={() => {
-                        setExpandedPipeline(pipelines[0]?.id ?? null);
-                        setIsIntelligenceOpen(false);
-                      }}
-                    >
-                      Revisar etapas atuais
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="justify-start rounded-full"
-                      onClick={() => {
-                        router.push("/pipes");
-                        setIsIntelligenceOpen(false);
-                      }}
-                    >
-                      Abrir pipeline comercial
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
             </div>
           }
         >

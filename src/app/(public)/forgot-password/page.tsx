@@ -243,20 +243,6 @@ export default function ForgotPasswordPage() {
                 </form>
               )}
 
-              <div className="mt-6 border-t border-zinc-200/70 pt-4 text-center">
-                <p className="font-body text-xs text-zinc-400">
-                  Precisa de ajuda?{" "}
-                  <Link
-                    href="/support"
-                    className="font-medium text-zinc-500 hover:text-brand hover:underline"
-                  >
-                    Falar com suporte
-                  </Link>
-                </p>
-                <p className="mt-2 font-body text-xs text-zinc-400">
-                  Desenvolvido por <span className="font-medium text-zinc-500">@menux</span>
-                </p>
-              </div>
             </section>
           </div>
         </div>

@@ -23,7 +23,6 @@ import {
   Copy,
   Check,
   Filter,
-  ChevronLeft,
   ChevronRight,
   Download,
   MessageSquare,
@@ -894,19 +893,6 @@ function ClientsPageContent() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button
-                  size="sm"
-                  onClick={() => setIsIntelligenceOpen((prev) => !prev)}
-                  className="h-9 rounded-full border border-slate-700/70 bg-[linear-gradient(130deg,#0b1220_0%,#0a1a37_56%,#132d56_100%)] px-3 text-cyan-100 shadow-[0_14px_26px_-18px_rgba(15,23,42,0.78)] hover:brightness-110"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Menux Intelligence
-                  {isIntelligenceOpen ? (
-                    <ChevronRight className="h-3.5 w-3.5 opacity-80" />
-                  ) : (
-                    <ChevronLeft className="h-3.5 w-3.5 opacity-80" />
-                  )}
-                </Button>
               </div>
             }
           >

@@ -34,7 +34,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Loader2,
-  Shield,
   ChevronDown,
   Activity,
   Filter,
@@ -54,7 +53,6 @@ import {
   Clock3,
   Globe2,
   LayoutList,
-  Target,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -96,11 +94,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useUIStore } from "@/stores/ui-store";
 import type { Activity as FlowActivity, Temperature, PipelineStage } from "@/types";
-import { calculateLeadScore, calculateTemperature } from "@/lib/business-rules";
+import { calculateLeadScore, calculateTemperature, RESTAURANT_POSITIONS } from "@/lib/business-rules";
 import { mockActivities } from "@/lib/mock-data";
 import { stageFieldsConfig } from "@/lib/mock-stage-fields";
 import { NegotiationTab } from "./lead-negotiation-tab";
 import { useOpportunityStore } from "@/stores/opportunity-store";
+import { NewVisitModal } from "@/components/modals/new-visit-modal";
+import type { VisitFormData } from "@/lib/validations/visit";
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -122,8 +122,6 @@ interface InlineBanner {
   action?: { label: string; onClick: () => void };
 }
 
-const referenceSetup = 15000;
-const referenceMRR = 1200;
 const NOTES_AUTOSAVE_MS = 800;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -290,7 +288,8 @@ const mockContacts = [
     nome: "Joao Silva",
     email: "joao@belavista.com",
     telefone: "(11) 99999-1234",
-    cargo: "Gerente Geral",
+    cargo: "gerente-geral",
+    personalidade: "Direto e objetivo, gosta de números e resultados. Prefere reuniões curtas.",
     isPrimary: true,
   },
   {
@@ -298,7 +297,8 @@ const mockContacts = [
     nome: "Ana Costa",
     email: "ana@belavista.com",
     telefone: "(11) 99999-5678",
-    cargo: "Diretora Financeira",
+    cargo: "diretor-financeiro",
+    personalidade: "Analítica e detalhista, precisa de dados concretos para tomar decisões.",
     isPrimary: false,
   },
   {
@@ -306,10 +306,15 @@ const mockContacts = [
     nome: "Carlos Mendes",
     email: "carlos@belavista.com",
     telefone: "(11) 99999-9012",
-    cargo: "Coordenador de TI",
+    cargo: "coordenador-ti",
+    personalidade: "Técnico, curioso sobre integrações e APIs. Receptivo a demos.",
     isPrimary: false,
   },
 ];
+
+function getCargoLabel(value: string): string {
+  return RESTAURANT_POSITIONS.find((p) => p.value === value)?.label ?? value;
+}
 
 const mockTeamMembers = [
   { id: "u1", name: "Maria Silva", avatar: "" },
@@ -418,14 +423,6 @@ const lostReasons = [
 // ═══════════════════════════════════════════════════════════════════
 // Utility Functions
 // ═══════════════════════════════════════════════════════════════════
-
-function formatCurrency(value: number, currency = "BRL") {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(value);
-}
 
 function getScoreColor(score: number) {
   if (score >= 70)
@@ -684,13 +681,12 @@ function StageRail({
               <DropdownMenuItem
                 key={stage.id}
                 onClick={() => onStageChange(stage.id)}
-                className={`flex items-center gap-2 font-body text-sm ${
-                  isActive
-                    ? "font-semibold text-brand"
-                    : isPast
-                      ? "text-brand/70"
-                      : "text-zinc-500"
-                }`}
+                className={`flex items-center gap-2 font-body text-sm ${isActive
+                  ? "font-semibold text-brand"
+                  : isPast
+                    ? "text-brand/70"
+                    : "text-zinc-500"
+                  }`}
               >
                 {isPast && <Check className="h-3.5 w-3.5 text-brand" />}
                 {isActive && (
@@ -883,10 +879,10 @@ function TimelinePremium({ events }: { events: typeof mockTimeline }) {
             key={opt.value}
             onClick={() => setFilter(opt.value)}
             className={cn(
-                "rounded-full px-2.5 py-1 font-body text-[11px] font-medium transition-all",
-                filter === opt.value
-                  ? "bg-brand/10 text-brand"
-                  : "bg-zinc-50 text-zinc-400 hover:bg-zinc-100"
+              "rounded-full px-2.5 py-1 font-body text-[11px] font-medium transition-all",
+              filter === opt.value
+                ? "bg-brand/10 text-brand"
+                : "bg-zinc-50 text-zinc-400 hover:bg-zinc-100"
             )}
           >
             {opt.label}
@@ -919,29 +915,29 @@ function TimelinePremium({ events }: { events: typeof mockTimeline }) {
               )}
               <div
                 className={cn(
-                    "relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all ring-4 ring-white",
-                    getTimelineIconColor(event.type)
+                  "relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-all ring-4 ring-white",
+                  getTimelineIconColor(event.type)
                 )}
               >
                 {getTimelineIcon(event.type, event.icon)}
               </div>
               <div className="min-w-0 flex-1 pt-0.5">
                 <div className="flex flex-col">
-                    <span className="font-heading text-xs font-semibold text-zinc-900">
-                        {event.title || "Evento"}
-                    </span>
-                    <p className="font-body text-sm text-zinc-600">
-                        {event.description || event.message}
-                    </p>
+                  <span className="font-heading text-xs font-semibold text-zinc-900">
+                    {event.title || "Evento"}
+                  </span>
+                  <p className="font-body text-sm text-zinc-600">
+                    {event.description || event.message}
+                  </p>
                 </div>
                 <div className="mt-1 flex items-center gap-1.5">
-                    {/* Tiny avatar placeholder or name */}
-                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[9px] font-bold text-zinc-500">
-                        {(event.author || event.user || "?").charAt(0)}
-                    </div>
-                    <p className="font-body text-[10px] text-zinc-400">
+                  {/* Tiny avatar placeholder or name */}
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[9px] font-bold text-zinc-500">
+                    {(event.author || event.user || "?").charAt(0)}
+                  </div>
+                  <p className="font-body text-[10px] text-zinc-400">
                     {event.author || event.user} &middot; {event.date}
-                    </p>
+                  </p>
                 </div>
               </div>
             </div>
@@ -982,7 +978,7 @@ function ContactCard({
               </Badge>
             )}
           </div>
-          <p className="font-body text-[11px] text-zinc-400">{contact.cargo}</p>
+          <p className="font-body text-[11px] text-zinc-400">{getCargoLabel(contact.cargo)}</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1 font-body text-[11px] text-zinc-500">
               <Mail className="h-3 w-3" /> {contact.email}
@@ -991,6 +987,11 @@ function ContactCard({
               <Phone className="h-3 w-3" /> {contact.telefone}
             </span>
           </div>
+          {contact.personalidade && (
+            <p className="mt-1.5 font-body text-[11px] italic text-zinc-400">
+              &ldquo;{contact.personalidade}&rdquo;
+            </p>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -1009,129 +1010,6 @@ function ContactCard({
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// EditableField (for tab content)
-// ═══════════════════════════════════════════════════════════════════
-
-function EditableField({
-  icon,
-  label,
-  value,
-  onSave,
-  type = "text",
-  readOnly = false,
-  placeholder,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  onSave: (val: string) => void;
-  type?: string;
-  readOnly?: boolean;
-  placeholder?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editing]);
-
-  function handleSave() {
-    setEditing(false);
-    if (draft !== value) onSave(draft);
-  }
-
-  return (
-    <div className="flex items-center gap-3 rounded-[14px] border border-zinc-100 p-3 transition-colors hover:border-zinc-200">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-50 text-zinc-400">
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="font-body text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-          {label}
-        </p>
-        {editing && !readOnly ? (
-          <div className="mt-0.5 flex items-center gap-1">
-            <Input
-              ref={inputRef}
-              type={type}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSave();
-                if (e.key === "Escape") {
-                  setDraft(value);
-                  setEditing(false);
-                }
-              }}
-              placeholder={placeholder}
-              className="h-7 rounded-[8px] border-zinc-200 font-body text-sm"
-            />
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={handleSave}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-status-success hover:bg-status-success/10"
-            >
-              <Check className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setDraft(value);
-                setEditing(false);
-              }}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : (
-          <p
-            onClick={() => {
-              if (!readOnly) {
-                setDraft(value);
-                setEditing(true);
-              }
-            }}
-            className={`mt-0.5 truncate font-body text-sm font-medium text-black ${!readOnly ? "cursor-pointer rounded-md px-1 py-0.5 transition-colors hover:bg-zinc-50" : ""}`}
-            title={readOnly ? undefined : "Clique para editar"}
-          >
-            {value || (
-              <span className="text-zinc-300">{placeholder || "--"}</span>
-            )}
-          </p>
-        )}
-      </div>
-      {!editing && !readOnly && (
-        <button
-          onClick={() => {
-            setDraft(value);
-            setEditing(true);
-          }}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-500"
-          aria-label={`Editar ${label}`}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-      )}
-      {readOnly && (
-        <div
-          className="flex items-center gap-1 text-zinc-300"
-          title="Somente leitura"
-        >
-          <Shield className="h-3.5 w-3.5" />
-        </div>
-      )}
     </div>
   );
 }
@@ -1241,11 +1119,10 @@ function LostReasonPanel({
           <button
             key={r}
             onClick={() => setReason(r)}
-            className={`rounded-full border px-3 py-1.5 font-body text-xs transition-all ${
-              reason === r
-                ? "border-status-danger bg-status-danger text-white"
-                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
-            }`}
+            className={`rounded-full border px-3 py-1.5 font-body text-xs transition-all ${reason === r
+              ? "border-status-danger bg-status-danger text-white"
+              : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
+              }`}
           >
             {r}
           </button>
@@ -1738,33 +1615,31 @@ export default function LeadCardDrawer() {
     () =>
       selectedLead
         ? {
-            ...mockLead,
-            id: selectedLead.id,
-            title: selectedLead.title,
-            clientName: selectedLead.clientName,
-            nomeFantasia: selectedLead.clientName || selectedLead.title,
-            value: selectedLead.value,
-            monthlyValue: selectedLead.monthlyValue,
-            stage: selectedLead.stage,
-            temperature: selectedLead.temperature,
-            responsibleId: selectedLead.responsibleId,
-            responsibleName: selectedLead.responsibleName,
-            tags: selectedLead.tags,
-            source: selectedLead.source ?? mockLead.source,
-            expectedCloseDate:
-              selectedLead.expectedCloseDate ?? mockLead.expectedCloseDate,
-            createdAt: selectedLead.createdAt,
-            updatedAt: selectedLead.updatedAt,
-            notes: selectedLead.notes ?? mockLead.notes,
-          }
+          ...mockLead,
+          id: selectedLead.id,
+          title: selectedLead.title,
+          clientName: selectedLead.clientName,
+          nomeFantasia: selectedLead.clientName || selectedLead.title,
+          value: selectedLead.value,
+          monthlyValue: selectedLead.monthlyValue,
+          stage: selectedLead.stage,
+          temperature: selectedLead.temperature,
+          responsibleId: selectedLead.responsibleId,
+          responsibleName: selectedLead.responsibleName,
+          tags: selectedLead.tags,
+          source: selectedLead.source ?? mockLead.source,
+          expectedCloseDate:
+            selectedLead.expectedCloseDate ?? mockLead.expectedCloseDate,
+          createdAt: selectedLead.createdAt,
+          updatedAt: selectedLead.updatedAt,
+          notes: selectedLead.notes ?? mockLead.notes,
+        }
         : mockLead,
     [selectedLead]
   );
 
   // ── Deal state ───────────────────────────────────────────────
   const [title, setTitle] = useState(resolvedLead.title);
-  const [value, setValue] = useState(resolvedLead.value);
-  const [monthlyValue, setMonthlyValue] = useState(resolvedLead.monthlyValue);
   const [stage, setStage] = useState<PipelineStage>(resolvedLead.stage);
   const [viewStage, setViewStage] = useState<PipelineStage>(resolvedLead.stage);
 
@@ -1779,13 +1654,8 @@ export default function LeadCardDrawer() {
   const [responsibleName, setResponsibleName] = useState(
     resolvedLead.responsibleName,
   );
-  const [tags, setTags] = useState(() => [...resolvedLead.tags]);
-  const [newTag, setNewTag] = useState("");
   const [contacts, setContacts] = useState(mockContacts);
   const [dealStatus, setDealStatus] = useState<DealStatus>("open");
-  const [expectedCloseDate, setExpectedCloseDate] = useState(
-    resolvedLead.expectedCloseDate,
-  );
   const [source] = useState(resolvedLead.source);
 
   // Company fields — neste funil, sem CNPJ e sem Razão Social
@@ -1829,7 +1699,7 @@ export default function LeadCardDrawer() {
       {},
     ),
   );
-  const [sectionSuccess, setSectionSuccess] = useState<
+  const [sectionSuccess] = useState<
     Record<string, string | null>
   >({
     localizacao: null,
@@ -1912,6 +1782,7 @@ export default function LeadCardDrawer() {
     email: "",
     telefone: "",
     cargo: "",
+    personalidade: "",
   });
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [editContact, setEditContact] = useState({
@@ -1919,9 +1790,27 @@ export default function LeadCardDrawer() {
     email: "",
     telefone: "",
     cargo: "",
+    personalidade: "",
   });
-  const [activeTab, setActiveTab] = useState("empresa");
-  const [visitRows, setVisitRows] = useState(() => [...mockVisits]);
+  const [activeTab, setActiveTab] = useState("timeline");
+  const [isNewVisitModalOpen, setIsNewVisitModalOpen] = useState(false);
+
+  // State for Visits
+  const [visitRows, setVisitRows] = useState(mockVisits);
+
+  const handleSaveVisit = (data: VisitFormData) => {
+    const newVisit = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: data.type,
+      location: (data.type === 'presencial' ? data.location : data.platform) || "N/A",
+      status: data.status,
+      date: `${new Date(data.date).toLocaleDateString('pt-BR')} ${data.time}`,
+      responsible: "Eu (Logado)", // Mock
+      result: data.result || "",
+    };
+
+    setVisitRows((prev) => [newVisit, ...prev]);
+  };
   const [activityFilter, setActivityFilter] = useState<"all" | "pending" | "completed">("all");
   const [dealActivities, setDealActivities] = useState<FlowActivity[]>(() =>
     mockActivities.filter((activity) => activity.opportunityId === resolvedLead.id)
@@ -2015,23 +1904,13 @@ export default function LeadCardDrawer() {
     }, 600);
   }, [resolvedLead.id]);
 
-  const handleAddTag = () => {
-    if (newTag.trim() && !tags.includes(newTag.trim().toLowerCase())) {
-      setTags([...tags, newTag.trim().toLowerCase()]);
-      setNewTag("");
-    }
-  };
-
-  const handleRemoveTag = (tag: string) =>
-    setTags(tags.filter((t) => t !== tag));
-
   const handleAddContact = () => {
     if (newContact.nome.trim()) {
       setContacts([
         ...contacts,
         { id: `c${Date.now()}`, ...newContact, isPrimary: false },
       ]);
-      setNewContact({ nome: "", email: "", telefone: "", cargo: "" });
+      setNewContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
       setShowAddContact(false);
     }
   };
@@ -2046,6 +1925,7 @@ export default function LeadCardDrawer() {
       email: contact.email,
       telefone: contact.telefone,
       cargo: contact.cargo,
+      personalidade: contact.personalidade,
     });
   };
 
@@ -2057,7 +1937,7 @@ export default function LeadCardDrawer() {
         ),
       );
       setEditingContactId(null);
-      setEditContact({ nome: "", email: "", telefone: "", cargo: "" });
+      setEditContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
     }
   };
 
@@ -2119,10 +1999,10 @@ export default function LeadCardDrawer() {
       prev.map((activity) =>
         activity.id === activityId
           ? {
-              ...activity,
-              status: "completed",
-              completedAt: new Date().toISOString(),
-            }
+            ...activity,
+            status: "completed",
+            completedAt: new Date().toISOString(),
+          }
           : activity,
       ),
     );
@@ -2177,13 +2057,6 @@ export default function LeadCardDrawer() {
     setSelectedTypes((prev) =>
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
     );
-  };
-
-  const notifySuccess = (section: string) => {
-    setSectionSuccess((prev) => ({ ...prev, [section]: "Salvo" }));
-    setTimeout(() => {
-      setSectionSuccess((prev) => ({ ...prev, [section]: null }));
-    }, 1200);
   };
 
   const handleUpdateDailyHour = (
@@ -2411,1016 +2284,924 @@ export default function LeadCardDrawer() {
             <div className="min-h-0 flex-1">
               <ScrollArea className="h-full">
                 <div className="p-5 md:px-8 lg:px-10">
-                    <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="inline-flex h-9 items-center justify-start rounded-full bg-zinc-100/80 p-1">
-                      {[
-                        { value: "empresa", label: "Empresa" },
-                        { value: "contatos", label: "Contatos" },
-                        { value: "visitas", label: "Visitas" },
-                        { value: "atividades", label: "Atividades" },
-                        { value: "negociacao", label: "Negociação" },
-                        { value: "anotacoes", label: "Anotações" },
-                        { value: "linha-do-tempo", label: "Linha do Tempo" },
-                      ].map((tab) => (
-                        <TabsTrigger
-                          key={tab.value}
-                          value={tab.value}
-                          className="flex-none rounded-full px-4 py-1.5 font-heading text-[11px] font-semibold uppercase tracking-wide text-zinc-500 transition-all duration-200 hover:text-zinc-700 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
-                        >
-                          {tab.label}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
+                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                    <div className="sticky top-0 z-20 -mx-5 border-b border-zinc-100/80 bg-white/96 px-5 py-3 backdrop-blur-md md:-mx-8 md:px-8 lg:-mx-10 lg:px-10">
+                      <div className="overflow-x-auto">
+                        <TabsList className="inline-flex h-9 items-center justify-start rounded-full bg-zinc-100/80 p-1">
+                          {[
+                            { value: "empresa", label: "Empresa" },
+                            { value: "contatos", label: "Contatos" },
+                            { value: "visitas", label: "Visitas" },
+                            { value: "atividades", label: "Atividades" },
+                            { value: "negociacao", label: "Negociação" },
+                            { value: "anotacoes", label: "Anotações" },
+                            { value: "linha-do-tempo", label: "Linha do Tempo" },
+                          ].map((tab) => (
+                            <TabsTrigger
+                              key={tab.value}
+                              value={tab.value}
+                              className="flex-none rounded-full px-4 py-1.5 font-heading text-[11px] font-semibold uppercase tracking-wide text-zinc-500 transition-all duration-200 hover:text-zinc-700 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
+                            >
+                              {tab.label}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                      </div>
+                    </div>
 
 
 
                     <div className="mt-5 grid grid-cols-1 md:grid-cols-12 gap-6 pb-10">
-                        {/* ── Left Column: Tab Content (Span 7) ── */}
-                        <div className="md:col-span-12 lg:col-span-7 space-y-4">
-                        
+                      {/* ── Left Column: Tab Content (Span 7) ── */}
+                      <div className="md:col-span-12 lg:col-span-7 space-y-4">
+
                         {/* ── Tab: Empresa ──────────────────────────────── */}
                         <TabsContent value="empresa" className="mt-0 space-y-4">
 
 
-                            <PremiumCard
-                              title="Localização"
-                              description=""
-                              icon={MapPin}
-                              delay={0}
-                              successMessage={sectionSuccess.localizacao}
-                            >
+                          <PremiumCard
+                            title="Localização"
+                            description=""
+                            icon={MapPin}
+                            delay={0}
+                            successMessage={sectionSuccess.localizacao}
+                          >
                             <div className="space-y-4">
-                                {/* Row 1: CEP | Endereço | Número */}
-                                <div className="flex gap-2">
-                                  <div className="w-[140px] flex-none">
-                                    <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                      CEP
-                                    </Label>
-                                    <div className="relative">
-                                      <Input
-                                        value={cep}
-                                        onChange={(e) => handleCepChange(e.target.value)}
-                                        placeholder="00000-000"
-                                        className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs transition-all focus:border-brand focus:ring-2 focus:ring-brand/10"
-                                        readOnly={isLocked}
-                                        maxLength={9}
-                                      />
-                                      {cepLoading && (
-                                        <Loader2 className="absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-brand" />
-                                      )}
-                                    </div>
-                                    {cepError && (
-                                      <p className="mt-1 font-body text-[10px] text-status-danger">{cepError}</p>
+                              {/* Row 1: CEP | Endereço | Número */}
+                              <div className="flex gap-2">
+                                <div className="w-[140px] flex-none">
+                                  <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                    CEP
+                                  </Label>
+                                  <div className="relative">
+                                    <Input
+                                      value={cep}
+                                      onChange={(e) => handleCepChange(e.target.value)}
+                                      placeholder="00000-000"
+                                      className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs transition-all focus:border-brand focus:ring-2 focus:ring-brand/10"
+                                      readOnly={isLocked}
+                                      maxLength={9}
+                                    />
+                                    {cepLoading && (
+                                      <Loader2 className="absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin text-brand" />
                                     )}
                                   </div>
-                                  <div className="flex-1 min-w-0">
-                                    <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                      Endereço
-                                    </Label>
-                                    <Input
-                                      value={logradouro}
-                                      onChange={(e) => setLogradouro(e.target.value)}
-                                      placeholder="Logradouro"
-                                      className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
-                                      readOnly={isLocked}
-                                    />
-                                  </div>
-                                  <div className="w-[70px] flex-none">
-                                    <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                      Nº
-                                    </Label>
-                                    <Input
-                                      value={numero}
-                                      onChange={(e) =>
-                                        setNumero(e.target.value.replace(/\D/g, ""))
-                                      }
-                                      placeholder="123"
-                                      className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
-                                      readOnly={isLocked}
-                                    />
-                                  </div>
+                                  {cepError && (
+                                    <p className="mt-1 font-body text-[10px] text-status-danger">{cepError}</p>
+                                  )}
                                 </div>
-
-                                {/* Row 2: Bairro | Cidade | UF */}
-                                <div className="flex gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                      Bairro
-                                    </Label>
-                                    <Input
-                                      value={bairro}
-                                      onChange={(e) => setBairro(e.target.value)}
-                                      placeholder="Bairro"
-                                      className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
-                                      readOnly={isLocked}
-                                    />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                      Cidade
-                                    </Label>
-                                    <Input
-                                      value={cidade}
-                                      onChange={(e) => setCidade(e.target.value)}
-                                      placeholder="Cidade"
-                                      className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
-                                      readOnly={isLocked}
-                                    />
-                                  </div>
-                                  <div className="w-[70px] flex-none">
-                                    <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                      UF
-                                    </Label>
-                                    <Select
-                                      value={estado}
-                                      onValueChange={setEstado}
-                                      disabled={isLocked}
-                                    >
-                                      <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white px-2 font-body text-xs font-medium focus:ring-brand/10">
-                                        <SelectValue placeholder="UF" />
-                                      </SelectTrigger>
-                                      <SelectContent className="max-h-[220px]">
-                                        {UF_LIST.map((uf) => (
-                                          <SelectItem
-                                            key={uf}
-                                            value={uf}
-                                            className="font-body text-xs"
-                                          >
-                                            {uf}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
+                                <div className="flex-1 min-w-0">
+                                  <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                    Endereço
+                                  </Label>
+                                  <Input
+                                    value={logradouro}
+                                    onChange={(e) => setLogradouro(e.target.value)}
+                                    placeholder="Logradouro"
+                                    className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
+                                    readOnly={isLocked}
+                                  />
                                 </div>
-                          </div>
-                        </PremiumCard>
+                                <div className="w-[70px] flex-none">
+                                  <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                    Nº
+                                  </Label>
+                                  <Input
+                                    value={numero}
+                                    onChange={(e) =>
+                                      setNumero(e.target.value.replace(/\D/g, ""))
+                                    }
+                                    placeholder="123"
+                                    className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
+                                    readOnly={isLocked}
+                                  />
+                                </div>
+                              </div>
 
-                        {/* ── Section 2: Tipo ── */}
-                        <PremiumCard
-                          title="Tipo"
-                          description=""
-                          icon={Tag}
-                          delay={0.06}
-                          successMessage={sectionSuccess.tipo}
-                        >
-                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                            {COMPANY_TYPES.map((type) => (
-                              <button
-                                key={type.id}
-                                disabled={isLocked}
-                                onClick={() => toggleType(type.id)}
-                                className={cn(
-                                  "group flex flex-col items-center gap-1.5 rounded-[12px] p-2.5 text-center transition-all duration-200",
-                                  selectedTypes.includes(type.id)
-                                    ? "bg-brand/5 border border-brand/20 text-brand shadow-sm"
-                                    : "bg-zinc-50/50 border border-transparent text-zinc-400 hover:bg-zinc-100/80 hover:text-zinc-500",
-                                  !isLocked && "active:scale-[0.96] hover:scale-[1.02]",
-                                )}
-                              >
-                                <div
+                              {/* Row 2: Bairro | Cidade | UF */}
+                              <div className="flex gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                    Bairro
+                                  </Label>
+                                  <Input
+                                    value={bairro}
+                                    onChange={(e) => setBairro(e.target.value)}
+                                    placeholder="Bairro"
+                                    className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
+                                    readOnly={isLocked}
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                    Cidade
+                                  </Label>
+                                  <Input
+                                    value={cidade}
+                                    onChange={(e) => setCidade(e.target.value)}
+                                    placeholder="Cidade"
+                                    className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
+                                    readOnly={isLocked}
+                                  />
+                                </div>
+                                <div className="w-[70px] flex-none">
+                                  <Label className="mb-1.5 block font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                    UF
+                                  </Label>
+                                  <Select
+                                    value={estado}
+                                    onValueChange={setEstado}
+                                    disabled={isLocked}
+                                  >
+                                    <SelectTrigger className="h-9 rounded-lg border-zinc-200 bg-white px-2 font-body text-xs font-medium focus:ring-brand/10">
+                                      <SelectValue placeholder="UF" />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[220px]">
+                                      {UF_LIST.map((uf) => (
+                                        <SelectItem
+                                          key={uf}
+                                          value={uf}
+                                          className="font-body text-xs"
+                                        >
+                                          {uf}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            </div>
+                          </PremiumCard>
+
+                          {/* ── Section 2: Tipo ── */}
+                          <PremiumCard
+                            title="Tipo"
+                            description=""
+                            icon={Tag}
+                            delay={0.06}
+                            successMessage={sectionSuccess.tipo}
+                          >
+                            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                              {COMPANY_TYPES.map((type) => (
+                                <button
+                                  key={type.id}
+                                  disabled={isLocked}
+                                  onClick={() => toggleType(type.id)}
                                   className={cn(
-                                    "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
+                                    "group flex flex-col items-center gap-1.5 rounded-[12px] p-2.5 text-center transition-all duration-200",
                                     selectedTypes.includes(type.id)
-                                      ? "bg-brand/10 text-brand"
-                                      : "bg-white text-zinc-300 group-hover:text-zinc-400 shadow-sm",
+                                      ? "bg-brand/5 border border-brand/20 text-brand shadow-sm"
+                                      : "bg-zinc-50/50 border border-transparent text-zinc-400 hover:bg-zinc-100/80 hover:text-zinc-500",
+                                    !isLocked && "active:scale-[0.96] hover:scale-[1.02]",
                                   )}
                                 >
-                                  <type.icon className="h-4 w-4" />
-                                </div>
-                                <span className="font-heading text-[9px] font-bold tracking-tight uppercase line-clamp-2">
-                                  {type.label}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        </PremiumCard>
+                                  <div
+                                    className={cn(
+                                      "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200",
+                                      selectedTypes.includes(type.id)
+                                        ? "bg-brand/10 text-brand"
+                                        : "bg-white text-zinc-300 group-hover:text-zinc-400 shadow-sm",
+                                    )}
+                                  >
+                                    <type.icon className="h-4 w-4" />
+                                  </div>
+                                  <span className="font-heading text-[9px] font-bold tracking-tight uppercase line-clamp-2">
+                                    {type.label}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </PremiumCard>
 
-                        {/* ── Section 3: Horário de Funcionamento ── */}
-                        <PremiumCard
-                          title="Horário"
-                          description=""
-                          icon={Clock3}
-                          delay={0.12}
-                          successMessage={sectionSuccess.horario}
-                        >
-                          <div className="mb-4 flex items-center justify-between">
-                            <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                              Configuração
-                            </Label>
-                             <div className="flex items-center gap-2">
+                          {/* ── Section 3: Horário de Funcionamento ── */}
+                          <PremiumCard
+                            title="Horário"
+                            description=""
+                            icon={Clock3}
+                            delay={0.12}
+                            successMessage={sectionSuccess.horario}
+                          >
+                            <div className="mb-4 flex items-center justify-between">
+                              <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                Configuração
+                              </Label>
+                              <div className="flex items-center gap-2">
                                 <span className={cn("font-heading text-[10px] font-bold transition-colors", hoursMode === 'standard' ? "text-brand" : "text-zinc-300")}>PADRÃO</span>
-                                <Switch 
-                                  checked={hoursMode === 'daily'} 
-                                  onCheckedChange={(v) => setHoursMode(v ? 'daily' : 'standard')} 
+                                <Switch
+                                  checked={hoursMode === 'daily'}
+                                  onCheckedChange={(v) => setHoursMode(v ? 'daily' : 'standard')}
                                   className="scale-75 data-[state=checked]:bg-brand"
                                   disabled={isLocked}
                                 />
                                 <span className={cn("font-heading text-[10px] font-bold transition-colors", hoursMode === 'daily' ? "text-brand" : "text-zinc-300")}>DIÁRIO</span>
-                             </div>
-                          </div>
+                              </div>
+                            </div>
 
-                           {hoursMode === "standard" ? (
+                            {hoursMode === "standard" ? (
                               <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                     <Label className="mb-1.5 block font-heading text-[9px] font-bold uppercase text-zinc-400">Abertura</Label>
-                                     <Input 
-                                        type="time" 
-                                        value={standardHours.open} 
-                                        onChange={(e) => setStandardHours(prev => ({...prev, open: e.target.value}))}
-                                        className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs" 
-                                        disabled={isLocked}
-                                     />
-                                  </div>
-                                  <div>
-                                     <Label className="mb-1.5 block font-heading text-[9px] font-bold uppercase text-zinc-400">Fechamento</Label>
-                                     <Input 
-                                        type="time" 
-                                        value={standardHours.close} 
-                                        onChange={(e) => setStandardHours(prev => ({...prev, close: e.target.value}))}
-                                        className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs" 
-                                        disabled={isLocked}
-                                     />
-                                  </div>
-                              </div>
-                           ) : (
-                              <div className="space-y-1">
-                                {DAYS_OF_WEEK.map(day => (
-                                   <div key={day.id} className="flex items-center justify-between py-1">
-                                      <div className="flex items-center gap-2">
-                                         <Switch 
-                                            checked={dailyHours[day.id].active} 
-                                            onCheckedChange={(v) => handleUpdateDailyHour(day.id, "active", v)}
-                                            className="scale-75 data-[state=checked]:bg-brand"
-                                            disabled={isLocked} 
-                                          />
-                                         <span className="w-8 font-heading text-[10px] font-bold text-zinc-500 uppercase">{day.label.slice(0, 3)}</span>
-                                      </div>
-                                      {dailyHours[day.id].active ? (
-                                         <div className="flex items-center gap-1.5">
-                                            <Input 
-                                                type="time" 
-                                                value={dailyHours[day.id].open} 
-                                                onChange={(e) => handleUpdateDailyHour(day.id, "open", e.target.value)}
-                                                className="h-7 w-[60px] rounded-md border-zinc-200 p-1 text-center font-body text-[10px]" 
-                                                disabled={isLocked}
-                                            />
-                                            <span className="text-zinc-300">-</span>
-                                            <Input 
-                                                type="time" 
-                                                value={dailyHours[day.id].close}
-                                                onChange={(e) => handleUpdateDailyHour(day.id, "close", e.target.value)}
-                                                className="h-7 w-[60px] rounded-md border-zinc-200 p-1 text-center font-body text-[10px]"
-                                                disabled={isLocked}
-                                            />
-                                         </div>
-                                      ) : <span className="font-heading text-[9px] font-bold uppercase text-zinc-300">Fechado</span>}
-                                   </div>
-                                ))}
-                              </div>
-                           )}
-                        </PremiumCard>
-
-                        {/* ── Section 4: Presença Online ── */}
-                        <PremiumCard
-                          title="Online"
-                          description=""
-                          icon={Globe2}
-                          delay={0.18}
-                          successMessage={sectionSuccess.online}
-                        >
-                          <div className="space-y-3">
-                            {[
-                              {
-                                id: "site",
-                                label: "Site",
-                                icon: Globe,
-                                value: website,
-                                setter: setWebsite,
-                              },
-                              {
-                                id: "ig",
-                                label: "Instagram",
-                                icon: Instagram,
-                                value: instagramUrl,
-                                setter: setInstagramUrl,
-                              },
-                              {
-                                id: "menu",
-                                label: "Cardápio",
-                                icon: UtensilsCrossed,
-                                value: cardapioUrl,
-                                setter: setCardapioUrl,
-                              },
-                            ].map((channel) => (
-                              <div key={channel.id} className="group/field relative">
-                                <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                  {channel.label}
-                                </Label>
-                                <div className="relative mt-1.5 flex items-center">
-                                  <div className="absolute left-3 flex items-center gap-1.5 text-zinc-300">
-                                    <channel.icon className="h-3.5 w-3.5" />
-                                  </div>
+                                <div>
+                                  <Label className="mb-1.5 block font-heading text-[9px] font-bold uppercase text-zinc-400">Abertura</Label>
                                   <Input
-                                    value={channel.value}
-                                    onChange={(e) => channel.setter(e.target.value)}
-                                    placeholder={channel.id === "menu" ? "URL" : "URL"}
-                                    className="h-9 rounded-lg border-zinc-200 pl-9 pr-8 font-body text-xs transition-all focus:border-brand focus:ring-2 focus:ring-brand/10"
+                                    type="time"
+                                    value={standardHours.open}
+                                    onChange={(e) => setStandardHours(prev => ({ ...prev, open: e.target.value }))}
+                                    className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
                                     disabled={isLocked}
                                   />
-                                  <AnimatePresence>
-                                    {channel.value && (
-                                      <motion.button
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.9 }}
-                                        onClick={() =>
-                                          window.open(
-                                            channel.value.startsWith("http")
-                                              ? channel.value
-                                              : `https://${channel.value}`,
-                                            "_blank",
-                                          )
-                                        }
-                                        className="absolute right-2 h-6 rounded-md bg-zinc-900 px-2 font-heading text-[9px] font-bold text-white shadow-sm transition-all hover:bg-black active:scale-[0.97]"
-                                      >
-                                        Visitar
-                                      </motion.button>
-                                    )}
-                                  </AnimatePresence>
+                                </div>
+                                <div>
+                                  <Label className="mb-1.5 block font-heading text-[9px] font-bold uppercase text-zinc-400">Fechamento</Label>
+                                  <Input
+                                    type="time"
+                                    value={standardHours.close}
+                                    onChange={(e) => setStandardHours(prev => ({ ...prev, close: e.target.value }))}
+                                    className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
+                                    disabled={isLocked}
+                                  />
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        </PremiumCard>
-
-                        {/* ── Section: Classificação & Resumo ── */}
-                        <PremiumCard
-                          title="Classificação & Resumo"
-                          description="Dados principais do negócio"
-                          icon={Target}
-                          delay={0.24}
-                        >
-                            <div className="space-y-6">
-                                {/* Row 1: Tags input & list */}
-                                <div className="space-y-3">
-                                    <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                        Tags
-                                    </Label>
-                                    {!isLocked && (
-                                      <div className="flex items-center gap-2">
+                            ) : (
+                              <div className="space-y-1">
+                                {DAYS_OF_WEEK.map(day => (
+                                  <div key={day.id} className="flex items-center justify-between py-1">
+                                    <div className="flex items-center gap-2">
+                                      <Switch
+                                        checked={dailyHours[day.id].active}
+                                        onCheckedChange={(v) => handleUpdateDailyHour(day.id, "active", v)}
+                                        className="scale-75 data-[state=checked]:bg-brand"
+                                        disabled={isLocked}
+                                      />
+                                      <span className="w-8 font-heading text-[10px] font-bold text-zinc-500 uppercase">{day.label.slice(0, 3)}</span>
+                                    </div>
+                                    {dailyHours[day.id].active ? (
+                                      <div className="flex items-center gap-1.5">
                                         <Input
-                                          value={newTag}
-                                          onChange={(e) => setNewTag(e.target.value)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                              e.preventDefault();
-                                              handleAddTag();
-                                            }
-                                          }}
-                                          placeholder="Nova tag..."
-                                          className="h-8 flex-1 rounded-[10px] font-body text-xs"
+                                          type="time"
+                                          value={dailyHours[day.id].open}
+                                          onChange={(e) => handleUpdateDailyHour(day.id, "open", e.target.value)}
+                                          className="h-7 w-[60px] rounded-md border-zinc-200 p-1 text-center font-body text-[10px]"
+                                          disabled={isLocked}
                                         />
-                                        <Button
-                                          onClick={handleAddTag}
-                                          className="h-8 w-8 rounded-full bg-brand p-0 text-white hover:bg-brand/90"
-                                          size="icon"
-                                        >
-                                          <Plus className="h-4 w-4" />
-                                        </Button>
+                                        <span className="text-zinc-300">-</span>
+                                        <Input
+                                          type="time"
+                                          value={dailyHours[day.id].close}
+                                          onChange={(e) => handleUpdateDailyHour(day.id, "close", e.target.value)}
+                                          className="h-7 w-[60px] rounded-md border-zinc-200 p-1 text-center font-body text-[10px]"
+                                          disabled={isLocked}
+                                        />
                                       </div>
-                                    )}
-                                    <div className="flex flex-wrap gap-2">
-                                      {tags.length > 0 ? tags.map((tag) => (
-                                        <Badge
-                                          key={tag}
-                                          variant="outline"
-                                          className="gap-1.5 rounded-[6px] border-zinc-200 bg-zinc-50 py-1 pl-2 pr-1.5 font-body text-[10px] font-medium text-zinc-600"
+                                    ) : <span className="font-heading text-[9px] font-bold uppercase text-zinc-300">Fechado</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </PremiumCard>
+
+                          {/* ── Section 4: Presença Online ── */}
+                          <PremiumCard
+                            title="Online"
+                            description=""
+                            icon={Globe2}
+                            delay={0.18}
+                            successMessage={sectionSuccess.online}
+                          >
+                            <div className="space-y-3">
+                              {[
+                                {
+                                  id: "site",
+                                  label: "Site",
+                                  icon: Globe,
+                                  value: website,
+                                  setter: setWebsite,
+                                },
+                                {
+                                  id: "ig",
+                                  label: "Instagram",
+                                  icon: Instagram,
+                                  value: instagramUrl,
+                                  setter: setInstagramUrl,
+                                },
+                                {
+                                  id: "menu",
+                                  label: "Cardápio",
+                                  icon: UtensilsCrossed,
+                                  value: cardapioUrl,
+                                  setter: setCardapioUrl,
+                                },
+                              ].map((channel) => (
+                                <div key={channel.id} className="group/field relative">
+                                  <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                    {channel.label}
+                                  </Label>
+                                  <div className="relative mt-1.5 flex items-center">
+                                    <div className="absolute left-3 flex items-center gap-1.5 text-zinc-300">
+                                      <channel.icon className="h-3.5 w-3.5" />
+                                    </div>
+                                    <Input
+                                      value={channel.value}
+                                      onChange={(e) => channel.setter(e.target.value)}
+                                      placeholder={channel.id === "menu" ? "URL" : "URL"}
+                                      className="h-9 rounded-lg border-zinc-200 pl-9 pr-8 font-body text-xs transition-all focus:border-brand focus:ring-2 focus:ring-brand/10"
+                                      disabled={isLocked}
+                                    />
+                                    <AnimatePresence>
+                                      {channel.value && (
+                                        <motion.button
+                                          initial={{ opacity: 0, scale: 0.9 }}
+                                          animate={{ opacity: 1, scale: 1 }}
+                                          exit={{ opacity: 0, scale: 0.9 }}
+                                          onClick={() =>
+                                            window.open(
+                                              channel.value.startsWith("http")
+                                                ? channel.value
+                                                : `https://${channel.value}`,
+                                              "_blank",
+                                            )
+                                          }
+                                          className="absolute right-2 h-6 rounded-md bg-zinc-900 px-2 font-heading text-[9px] font-bold text-white shadow-sm transition-all hover:bg-black active:scale-[0.97]"
                                         >
-                                          {tag}
-                                          {!isLocked && (
-                                            <button
-                                              onClick={() => handleRemoveTag(tag)}
-                                              className="rounded-full p-0.5 transition-colors hover:bg-zinc-200"
-                                            >
-                                              <X className="h-3 w-3 text-zinc-400" />
-                                            </button>
-                                          )}
-                                        </Badge>
-                                      )) : (
-                                        <p className="font-body text-xs text-zinc-400 italic">Nenhuma tag</p>
+                                          Visitar
+                                        </motion.button>
                                       )}
-                                    </div>
+                                    </AnimatePresence>
+                                  </div>
                                 </div>
-
-                                <div className="h-px bg-zinc-100" />
-
-                                {/* Row 2: Valores & Previsão */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <EditableField
-                                      icon={<DollarSign className="h-3.5 w-3.5" />}
-                                      label="Valor Total"
-                                      value={formatCurrency(value)}
-                                      onSave={(v) => {
-                                        const num = Number(v.replace(/\D/g, ""));
-                                        if (!isNaN(num)) setValue(num);
-                                      }}
-                                      readOnly={isLocked}
-                                    />
-                                    <EditableField
-                                      icon={<DollarSign className="h-3.5 w-3.5" />}
-                                      label="Valor Mensal"
-                                      value={formatCurrency(monthlyValue)}
-                                      onSave={(v) => {
-                                        const num = Number(v.replace(/\D/g, ""));
-                                        if (!isNaN(num)) setMonthlyValue(num);
-                                      }}
-                                      readOnly={isLocked}
-                                    />
-                                    <EditableField
-                                      icon={<Calendar className="h-3.5 w-3.5" />}
-                                      label="Previsão"
-                                      value={expectedCloseDate}
-                                      onSave={setExpectedCloseDate}
-                                      type="date"
-                                      readOnly={isLocked}
-                                    />
-                                    <EditableField
-                                      icon={<Globe className="h-3.5 w-3.5" />}
-                                      label="Fonte"
-                                      value={source}
-                                      onSave={() => {}}
-                                      readOnly
-                                    />
-                                </div>
-                                
-                                {/* Discount detection block */}
-                                {dealStatus === "open" &&
-                                  (value < referenceSetup * 0.8 ||
-                                    monthlyValue < referenceMRR * 0.9) && (
-                                    <div className="flex items-start gap-3 rounded-[10px] border border-status-warning/20 bg-status-warning/5 p-3">
-                                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-status-warning" />
-                                      <div className="flex-1">
-                                        <p className="font-heading text-xs font-semibold text-status-warning">
-                                          Desconto detectado
-                                        </p>
-                                        <div className="mt-1 space-y-0.5">
-                                          {value < referenceSetup * 0.8 && (
-                                            <p className="font-body text-[10px] text-status-warning">
-                                              Setup ({formatCurrency(value)}) &lt; Ref ({formatCurrency(referenceSetup)})
-                                            </p>
-                                          )}
-                                          {monthlyValue < referenceMRR * 0.9 && (
-                                            <p className="font-body text-[10px] text-status-warning">
-                                              MRR ({formatCurrency(monthlyValue)}) &lt; Ref ({formatCurrency(referenceMRR)})
-                                            </p>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
+                              ))}
                             </div>
-                        </PremiumCard>
-
-                        <div className="flex justify-end pt-2">
-                            <Button
-                                onClick={() => {
-                                notifySuccess("localizacao");
-                                notifySuccess("tipo");
-                                notifySuccess("horario");
-                                notifySuccess("online");
-                                }}
-                                className="h-10 rounded-full bg-black px-6 font-heading text-xs font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl"
-                            >
-                                Salvar Alterações
-                            </Button>
-                        </div>
+                          </PremiumCard>
 
                         </TabsContent>
 
                         {/* ── Tab: Contatos ─────────────────────────────── */}
                         <TabsContent value="contatos" className="mt-0">
-                      <div className="mb-4 flex items-center justify-between">
-                        <h3 className="font-heading text-sm font-semibold text-black">
-                          Contatos ({contacts.length})
-                        </h3>
-                        {!isLocked && (
-                          <Button
-                            onClick={() => setShowAddContact(true)}
-                            className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
-                            size="sm"
-                          >
-                            <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar
-                          </Button>
-                        )}
-                      </div>
-
-                      {showAddContact && (
-                        <div className="mb-4 space-y-3 rounded-[14px] border border-zinc-200 p-4">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                Nome
-                              </Label>
-                              <Input
-                                value={newContact.nome}
-                                onChange={(e) =>
-                                  setNewContact({
-                                    ...newContact,
-                                    nome: e.target.value,
-                                  })
-                                }
-                                className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                placeholder="Nome"
-                              />
-                            </div>
-                            <div>
-                              <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                Cargo
-                              </Label>
-                              <Input
-                                value={newContact.cargo}
-                                onChange={(e) =>
-                                  setNewContact({
-                                    ...newContact,
-                                    cargo: e.target.value,
-                                  })
-                                }
-                                className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                placeholder="Cargo"
-                              />
-                            </div>
-                            <div>
-                              <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                E-mail
-                              </Label>
-                              <Input
-                                type="email"
-                                value={newContact.email}
-                                onChange={(e) =>
-                                  setNewContact({
-                                    ...newContact,
-                                    email: e.target.value,
-                                  })
-                                }
-                                className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                placeholder="email@empresa.com"
-                              />
-                            </div>
-                            <div>
-                              <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                Telefone
-                              </Label>
-                              <PhoneInput
-                                value={newContact.telefone}
-                                onValueChange={(raw) =>
-                                  setNewContact({
-                                    ...newContact,
-                                    telefone: raw,
-                                  })
-                                }
-                                className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                              />
-                            </div>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="rounded-full font-heading text-xs"
-                              onClick={() => setShowAddContact(false)}
-                            >
-                              Cancelar
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
-                              onClick={handleAddContact}
-                            >
-                              Salvar
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {contacts.length === 0 ? (
-                        <div className="flex flex-col items-center py-8 text-center">
-                          <User className="h-8 w-8 text-zinc-200" />
-                          <p className="mt-2 font-body text-sm text-zinc-400">
-                            Sem contatos vinculados
-                          </p>
-                          {!isLocked && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="mt-2 rounded-full font-body text-xs text-brand"
-                              onClick={() => setShowAddContact(true)}
-                            >
-                              <Plus className="mr-1 h-3.5 w-3.5" /> Vincular
-                              contato
-                            </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {contacts.map((contact) =>
-                            editingContactId === contact.id ? (
-                              <div
-                                key={contact.id}
-                                className="space-y-3 rounded-[14px] border border-brand/20 bg-brand/5 p-4"
+                          <div className="mb-4 flex items-center justify-between">
+                            <h3 className="font-heading text-sm font-semibold text-black">
+                              Contatos ({contacts.length})
+                            </h3>
+                            {!isLocked && (
+                              <Button
+                                onClick={() => setShowAddContact(true)}
+                                className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
+                                size="sm"
                               >
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                      Nome
-                                    </Label>
-                                    <Input
-                                      value={editContact.nome}
-                                      onChange={(e) =>
-                                        setEditContact({
-                                          ...editContact,
-                                          nome: e.target.value,
-                                        })
-                                      }
-                                      className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                      Cargo
-                                    </Label>
-                                    <Input
-                                      value={editContact.cargo}
-                                      onChange={(e) =>
-                                        setEditContact({
-                                          ...editContact,
-                                          cargo: e.target.value,
-                                        })
-                                      }
-                                      className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                      E-mail
-                                    </Label>
-                                    <Input
-                                      type="email"
-                                      value={editContact.email}
-                                      onChange={(e) =>
-                                        setEditContact({
-                                          ...editContact,
-                                          email: e.target.value,
-                                        })
-                                      }
-                                      className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                      Telefone
-                                    </Label>
-                                    <PhoneInput
-                                      value={editContact.telefone}
-                                      onValueChange={(raw) =>
-                                        setEditContact({
-                                          ...editContact,
-                                          telefone: raw,
-                                        })
-                                      }
-                                      className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                    />
-                                  </div>
+                                <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar
+                              </Button>
+                            )}
+                          </div>
+
+                          {showAddContact && (
+                            <div className="mb-4 space-y-3 rounded-[14px] border border-zinc-200 p-4">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                    Nome
+                                  </Label>
+                                  <Input
+                                    value={newContact.nome}
+                                    onChange={(e) =>
+                                      setNewContact({
+                                        ...newContact,
+                                        nome: e.target.value,
+                                      })
+                                    }
+                                    className="mt-1 h-8 rounded-[10px] font-body text-sm"
+                                    placeholder="Nome"
+                                  />
                                 </div>
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="rounded-full font-heading text-xs"
-                                    onClick={() => {
-                                      setEditingContactId(null);
-                                      setEditContact({
-                                        nome: "",
-                                        email: "",
-                                        telefone: "",
-                                        cargo: "",
-                                      });
-                                    }}
+                                <div>
+                                  <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                    Cargo
+                                  </Label>
+                                  <Select
+                                    value={newContact.cargo}
+                                    onValueChange={(value) =>
+                                      setNewContact({
+                                        ...newContact,
+                                        cargo: value,
+                                      })
+                                    }
                                   >
-                                    Cancelar
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
-                                    onClick={handleSaveEditContact}
-                                  >
-                                    Salvar
-                                  </Button>
+                                    <SelectTrigger className="mt-1 h-8 w-full rounded-[10px] border-zinc-200 font-body text-sm">
+                                      <SelectValue placeholder="Selecione o cargo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {RESTAURANT_POSITIONS.map((pos) => (
+                                        <SelectItem key={pos.value} value={pos.value}>
+                                          {pos.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                    E-mail
+                                  </Label>
+                                  <Input
+                                    type="email"
+                                    value={newContact.email}
+                                    onChange={(e) =>
+                                      setNewContact({
+                                        ...newContact,
+                                        email: e.target.value,
+                                      })
+                                    }
+                                    className="mt-1 h-8 rounded-[10px] font-body text-sm"
+                                    placeholder="email@empresa.com"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                    Telefone
+                                  </Label>
+                                  <PhoneInput
+                                    value={newContact.telefone}
+                                    onValueChange={(raw) =>
+                                      setNewContact({
+                                        ...newContact,
+                                        telefone: raw,
+                                      })
+                                    }
+                                    className="mt-1 h-8 rounded-[10px] font-body text-sm"
+                                  />
                                 </div>
                               </div>
-                            ) : (
-                              <ContactCard
-                                key={contact.id}
-                                contact={contact}
-                                onEdit={() => handleStartEditContact(contact)}
-                                onDelete={() => handleDeleteContact(contact.id)}
-                              />
-                            ),
+                              <div>
+                                <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                  Personalidade
+                                </Label>
+                                <Textarea
+                                  value={newContact.personalidade}
+                                  onChange={(e) =>
+                                    setNewContact({
+                                      ...newContact,
+                                      personalidade: e.target.value,
+                                    })
+                                  }
+                                  className="mt-1 min-h-[60px] rounded-[10px] font-body text-sm"
+                                  placeholder="Ex: Direto e objetivo, prefere reuniões curtas..."
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="rounded-full font-heading text-xs"
+                                  onClick={() => setShowAddContact(false)}
+                                >
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
+                                  onClick={handleAddContact}
+                                >
+                                  Salvar
+                                </Button>
+                              </div>
+                            </div>
                           )}
-                        </div>
-                      )}
+
+                          {contacts.length === 0 ? (
+                            <div className="flex flex-col items-center py-8 text-center">
+                              <User className="h-8 w-8 text-zinc-200" />
+                              <p className="mt-2 font-body text-sm text-zinc-400">
+                                Sem contatos vinculados
+                              </p>
+                              {!isLocked && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="mt-2 rounded-full font-body text-xs text-brand"
+                                  onClick={() => setShowAddContact(true)}
+                                >
+                                  <Plus className="mr-1 h-3.5 w-3.5" /> Vincular
+                                  contato
+                                </Button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {contacts.map((contact) =>
+                                editingContactId === contact.id ? (
+                                  <div
+                                    key={contact.id}
+                                    className="space-y-3 rounded-[14px] border border-brand/20 bg-brand/5 p-4"
+                                  >
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                          Nome
+                                        </Label>
+                                        <Input
+                                          value={editContact.nome}
+                                          onChange={(e) =>
+                                            setEditContact({
+                                              ...editContact,
+                                              nome: e.target.value,
+                                            })
+                                          }
+                                          className="mt-1 h-8 rounded-[10px] font-body text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                          Cargo
+                                        </Label>
+                                        <Select
+                                          value={editContact.cargo}
+                                          onValueChange={(value) =>
+                                            setEditContact({
+                                              ...editContact,
+                                              cargo: value,
+                                            })
+                                          }
+                                        >
+                                          <SelectTrigger className="mt-1 h-8 w-full rounded-[10px] border-zinc-200 font-body text-sm">
+                                            <SelectValue placeholder="Selecione o cargo" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {RESTAURANT_POSITIONS.map((pos) => (
+                                              <SelectItem key={pos.value} value={pos.value}>
+                                                {pos.label}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div>
+                                        <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                          E-mail
+                                        </Label>
+                                        <Input
+                                          type="email"
+                                          value={editContact.email}
+                                          onChange={(e) =>
+                                            setEditContact({
+                                              ...editContact,
+                                              email: e.target.value,
+                                            })
+                                          }
+                                          className="mt-1 h-8 rounded-[10px] font-body text-sm"
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                          Telefone
+                                        </Label>
+                                        <PhoneInput
+                                          value={editContact.telefone}
+                                          onValueChange={(raw) =>
+                                            setEditContact({
+                                              ...editContact,
+                                              telefone: raw,
+                                            })
+                                          }
+                                          className="mt-1 h-8 rounded-[10px] font-body text-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                                        Personalidade
+                                      </Label>
+                                      <Textarea
+                                        value={editContact.personalidade}
+                                        onChange={(e) =>
+                                          setEditContact({
+                                            ...editContact,
+                                            personalidade: e.target.value,
+                                          })
+                                        }
+                                        className="mt-1 min-h-[60px] rounded-[10px] font-body text-sm"
+                                        placeholder="Ex: Direto e objetivo, prefere reuniões curtas..."
+                                      />
+                                    </div>
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="rounded-full font-heading text-xs"
+                                        onClick={() => {
+                                          setEditingContactId(null);
+                                          setEditContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
+                                        }}
+                                      >
+                                        Cancelar
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
+                                        onClick={handleSaveEditContact}
+                                      >
+                                        Salvar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <ContactCard
+                                    key={contact.id}
+                                    contact={contact}
+                                    onEdit={() => handleStartEditContact(contact)}
+                                    onDelete={() => handleDeleteContact(contact.id)}
+                                  />
+                                ),
+                              )}
+                            </div>
+                          )}
                         </TabsContent>
 
 
 
                         {/* ── Tab: Visitas ──────────────────────────────── */}
                         <TabsContent value="visitas" className="mt-0 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-heading text-sm font-semibold text-zinc-700">Visitas Agendadas</h3>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 gap-1.5 rounded-full text-xs"
-                                  onClick={handleAddVisit}
-                                >
-                                    <Plus className="h-3.5 w-3.5" />
-                                    Nova Visita
-                                </Button>
-                            </div>
-                            
-                            <div className="space-y-3">
-                                {visitRows.map((visit) => (
-                                    <div key={visit.id} className="group relative flex gap-3 rounded-2xl border border-zinc-100 bg-white p-4 transition-all hover:border-zinc-200 hover:shadow-sm">
-                                        <div className={cn(
-                                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border",
-                                            visit.type === 'presencial' 
-                                                ? "border-purple-100 bg-purple-50 text-purple-600" 
-                                                : "border-blue-100 bg-blue-50 text-blue-600"
-                                        )}>
-                                            {visit.type === 'presencial' ? <MapPin className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
-                                        </div>
-                                        <div className="flex-1 space-y-1">
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <p className="font-heading text-sm font-semibold text-zinc-900">
-                                                        {visit.type === 'presencial' ? 'Visita Presencial' : 'Reunião Remota'}
-                                                    </p>
-                                                    <p className="text-xs text-zinc-500">{visit.location}</p>
-                                                </div>
-                                                <Badge variant="secondary" className={cn(
-                                                    "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
-                                                    visit.status === 'agendada' && "bg-amber-50 text-amber-600 hover:bg-amber-100",
-                                                    visit.status === 'realizada' && "bg-emerald-50 text-emerald-600 hover:bg-emerald-100",
-                                                )}>
-                                                    {visit.status}
-                                                </Badge>
-                                            </div>
-                                            
-                                            <div className="flex items-center gap-4 text-xs text-zinc-400">
-                                                <div className="flex items-center gap-1">
-                                                    <Calendar className="h-3.5 w-3.5" />
-                                                    {visit.date}
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <UserCircle className="h-3.5 w-3.5" />
-                                                    {visit.responsible}
-                                                </div>
-                                            </div>
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-heading text-sm font-semibold text-zinc-700">Visitas Agendadas</h3>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5 rounded-full text-xs"
+                              onClick={() => setIsNewVisitModalOpen(true)}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Nova Visita
+                            </Button>
+                          </div>
 
-                                            {visit.result && (
-                                                <div className="mt-2 rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
-                                                    <span className="font-semibold">Resultado:</span> {visit.result}
-                                                </div>
-                                            )}
-                                        </div>
+                          <div className="space-y-3">
+                            {visitRows.map((visit) => (
+                              <div key={visit.id} className="group relative flex gap-3 rounded-2xl border border-zinc-100 bg-white p-4 transition-all hover:border-zinc-200 hover:shadow-sm">
+                                <div className={cn(
+                                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border",
+                                  visit.type === 'presencial'
+                                    ? "border-purple-100 bg-purple-50 text-purple-600"
+                                    : "border-blue-100 bg-blue-50 text-blue-600"
+                                )}>
+                                  {visit.type === 'presencial' ? <MapPin className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
+                                </div>
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <p className="font-heading text-sm font-semibold text-zinc-900">
+                                        {visit.type === 'presencial' ? 'Visita Presencial' : 'Reunião Remota'}
+                                      </p>
+                                      <p className="text-xs text-zinc-500">{visit.location}</p>
                                     </div>
-                                ))}
-                            </div>
+                                    <Badge variant="secondary" className={cn(
+                                      "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+                                      visit.status === 'agendada' && "bg-amber-50 text-amber-600 hover:bg-amber-100",
+                                      visit.status === 'realizada' && "bg-emerald-50 text-emerald-600 hover:bg-emerald-100",
+                                    )}>
+                                      {visit.status}
+                                    </Badge>
+                                  </div>
+
+                                  <div className="flex items-center gap-4 text-xs text-zinc-400">
+                                    <div className="flex items-center gap-1">
+                                      <Calendar className="h-3.5 w-3.5" />
+                                      {visit.date}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <UserCircle className="h-3.5 w-3.5" />
+                                      {visit.responsible}
+                                    </div>
+                                  </div>
+
+                                  {visit.result && (
+                                    <div className="mt-2 rounded-lg bg-zinc-50 p-2 text-xs text-zinc-600">
+                                      <span className="font-semibold">Resultado:</span> {visit.result}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </TabsContent>
 
                         {/* ── Tab: Atividades ───────────────────────────── */}
                         <TabsContent value="atividades" className="mt-0 space-y-4">
-                             <div className="flex items-center justify-between">
-                                <h3 className="font-heading text-sm font-semibold text-zinc-700">Atividades</h3>
-                                <div className="flex gap-2">
-                                     <Button
-                                       size="sm"
-                                       variant="outline"
-                                       className="h-8 w-8 rounded-full p-0"
-                                       onClick={handleToggleActivityFilter}
-                                       title="Alternar filtro de atividades"
-                                     >
-                                        <Filter className="h-3.5 w-3.5" />
-                                     </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-8 gap-1.5 rounded-full text-xs"
-                                      onClick={() => handleCreateQuickActivity("tab")}
-                                    >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        Nova
-                                    </Button>
-                                </div>
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-heading text-sm font-semibold text-zinc-700">Atividades</h3>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 w-8 rounded-full p-0"
+                                onClick={handleToggleActivityFilter}
+                                title="Alternar filtro de atividades"
+                              >
+                                <Filter className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1.5 rounded-full text-xs"
+                                onClick={() => handleCreateQuickActivity("tab")}
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                                Nova
+                              </Button>
                             </div>
+                          </div>
 
-                            <div className="space-y-3">
-                                {visibleDealActivities.map((activity) => (
-                                    <div key={activity.id} className="flex items-start gap-3 rounded-2xl border border-zinc-100 bg-white p-3 transition-all hover:border-zinc-200">
-                                        <div className={cn(
-                                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
-                                            activity.status === 'completed' ? "border-zinc-100 bg-zinc-50 text-zinc-400" : "border-brand/10 bg-brand/5 text-brand"
-                                        )}>
-                                           {(() => {
-                                                const Icon = getActivityIcon(activity.type);
-                                                return <Icon className="h-4 w-4" />;
-                                            })()}
-                                        </div>
-                                        <div className="flex-1 space-y-1">
-                                            <div className="flex items-start justify-between">
-                                                <p className={cn("font-heading text-sm font-medium", activity.status === 'completed' ? "text-zinc-500 line-through" : "text-zinc-900")}>
-                                                    {activity.title}
-                                                </p>
-                                                <div className="flex gap-1">
-                                                     <button
-                                                       type="button"
-                                                       onClick={() => handleCompleteDealActivity(activity.id)}
-                                                       disabled={activity.status === "completed"}
-                                                       className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
-                                                       aria-label="Concluir atividade"
-                                                     >
-                                                        <CheckCircle className="h-4 w-4" />
-                                                     </button>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-3 text-xs text-zinc-400">
-                                                <span className={cn(
-                                                    "flex items-center gap-1",
-                                                    activity.status === 'overdue' && "text-red-500 font-medium"
-                                                )}>
-                                                    <Clock className="h-3 w-3" />
-                                                    {activity.dueDate}
-                                                </span>
-                                                <span className="flex items-center gap-1">
-                                                    <UserCircle className="h-3 w-3" />
-                                                    {activity.responsibleName}
-                                                </span>
-                                            </div>
-                                        </div>
+                          <div className="space-y-3">
+                            {visibleDealActivities.map((activity) => (
+                              <div key={activity.id} className="flex items-start gap-3 rounded-2xl border border-zinc-100 bg-white p-3 transition-all hover:border-zinc-200">
+                                <div className={cn(
+                                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
+                                  activity.status === 'completed' ? "border-zinc-100 bg-zinc-50 text-zinc-400" : "border-brand/10 bg-brand/5 text-brand"
+                                )}>
+                                  {(() => {
+                                    const Icon = getActivityIcon(activity.type);
+                                    return <Icon className="h-4 w-4" />;
+                                  })()}
+                                </div>
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-start justify-between">
+                                    <p className={cn("font-heading text-sm font-medium", activity.status === 'completed' ? "text-zinc-500 line-through" : "text-zinc-900")}>
+                                      {activity.title}
+                                    </p>
+                                    <div className="flex gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCompleteDealActivity(activity.id)}
+                                        disabled={activity.status === "completed"}
+                                        className="flex h-6 w-6 items-center justify-center rounded-full text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                        aria-label="Concluir atividade"
+                                      >
+                                        <CheckCircle className="h-4 w-4" />
+                                      </button>
                                     </div>
-                                ))}
-                                {visibleDealActivities.length === 0 && (
-                                  <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500">
-                                    Nenhuma atividade para o filtro atual.
                                   </div>
-                                )}
-                            </div>
+                                  <div className="flex items-center gap-3 text-xs text-zinc-400">
+                                    <span className={cn(
+                                      "flex items-center gap-1",
+                                      activity.status === 'overdue' && "text-red-500 font-medium"
+                                    )}>
+                                      <Clock className="h-3 w-3" />
+                                      {activity.dueDate}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <UserCircle className="h-3 w-3" />
+                                      {activity.responsibleName}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            {visibleDealActivities.length === 0 && (
+                              <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500">
+                                Nenhuma atividade para o filtro atual.
+                              </div>
+                            )}
+                          </div>
                         </TabsContent>
 
                         {/* ── Tab: Negociação ───────────────────────────── */}
                         <TabsContent value="negociacao" className="mt-0 space-y-4">
-                            <NegotiationTab dealId={resolvedLead.id} dealTitle={title} />
+                          <NegotiationTab dealId={resolvedLead.id} dealTitle={title} />
                         </TabsContent>
 
                         {/* ── Tab: Anotações ────────────────────────────── */}
                         <TabsContent value="anotacoes" className="mt-0 space-y-6">
-                            {/* Editor Principal */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Nova Nota</label>
-                                <NotesCard 
-                                    initialNotes={notes}
-                                    onNotesChange={setNotes}
-                                />
-                            </div>
+                          {/* Editor Principal */}
+                          <div className="space-y-2">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Nova Nota</label>
+                            <NotesCard
+                              initialNotes={notes}
+                              onNotesChange={setNotes}
+                            />
+                          </div>
 
-                            <Separator />
+                          <Separator />
 
-                            {/* Feed de Histórico */}
-                            <div className="space-y-4">
-                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Histórico</label>
-                                <div className="space-y-4 pl-2">
-                                    {mockNoteHistory.map((note) => (
-                                        <div key={note.id} className="relative border-l border-zinc-100 pl-6 pb-2 last:pb-0">
-                                            <div className="absolute -left-1.5 top-0 h-3 w-3 rounded-full border border-zinc-100 bg-zinc-50" />
-                                            <div className="space-y-1.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-heading text-xs font-semibold text-zinc-700">{note.author}</span>
-                                                    <span className="text-[10px] text-zinc-400">{note.date}</span>
-                                                </div>
-                                                <p className="font-body text-sm text-zinc-600 leading-relaxed">
-                                                    {note.content}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
+                          {/* Feed de Histórico */}
+                          <div className="space-y-4">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Histórico</label>
+                            <div className="space-y-4 pl-2">
+                              {mockNoteHistory.map((note) => (
+                                <div key={note.id} className="relative border-l border-zinc-100 pl-6 pb-2 last:pb-0">
+                                  <div className="absolute -left-1.5 top-0 h-3 w-3 rounded-full border border-zinc-100 bg-zinc-50" />
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-heading text-xs font-semibold text-zinc-700">{note.author}</span>
+                                      <span className="text-[10px] text-zinc-400">{note.date}</span>
+                                    </div>
+                                    <p className="font-body text-sm text-zinc-600 leading-relaxed">
+                                      {note.content}
+                                    </p>
+                                  </div>
                                 </div>
+                              ))}
                             </div>
+                          </div>
                         </TabsContent>
 
                         {/* ── Tab: Linha do Tempo (NEW - replaced Historico) ── */}
                         <TabsContent value="linha-do-tempo" className="mt-0 space-y-4">
-                            <TimelinePremium events={mockTimeline} />
+                          <TimelinePremium events={mockTimeline} />
                         </TabsContent>
-                        </div>
+                      </div>
 
-                        {/* ── Right Column: Persistent Sidebar (Span 5) ── */}
-                        <div className="md:col-span-12 lg:col-span-5 space-y-4">
-                            <div className="sticky top-4">
-                                <PremiumCard
-                                    title="Campos da Etapa"
-                                    description="Campos específicos desta etapa"
-                                    icon={LayoutList}
-                                    delay={0.2}
-                                    headerAction={
-                                        <div className="w-[180px]">
-                                            <Select
-                                                value={viewStage || "lead-in"}
-                                                onValueChange={(val) => setViewStage(val as PipelineStage)}
-                                                disabled={isLocked}
-                                            >
-                                                <SelectTrigger className="h-8 w-full rounded-lg border-zinc-200 bg-white font-body text-xs font-medium focus:ring-brand/10">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent align="end">
-                                                    <SelectItem value="lead-in">Lead In</SelectItem>
-                                                    <SelectItem value="contato-feito">Contato Feito</SelectItem>
-                                                    <SelectItem value="reuniao-agendada">Reunião Agendada</SelectItem>
-                                                    <SelectItem value="proposta-enviada">Proposta Enviada</SelectItem>
-                                                    <SelectItem value="negociacao">Negociação</SelectItem>
-                                                    <SelectItem value="fechamento">Fechamento</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    }
+                      {/* ── Right Column: Persistent Sidebar (Span 5) ── */}
+                      <div className="md:col-span-12 lg:col-span-5 space-y-4">
+                        <div className="sticky top-4">
+                          <PremiumCard
+                            title="Campos da Etapa"
+                            description="Campos específicos desta etapa"
+                            icon={LayoutList}
+                            delay={0.2}
+                            headerAction={
+                              <div className="w-[180px]">
+                                <Select
+                                  value={viewStage || "lead-in"}
+                                  onValueChange={(val) => setViewStage(val as PipelineStage)}
+                                  disabled={isLocked}
                                 >
-                                    <div className="space-y-4">
+                                  <SelectTrigger className="h-8 w-full rounded-lg border-zinc-200 bg-white font-body text-xs font-medium focus:ring-brand/10">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent align="end">
+                                    <SelectItem value="lead-in">Lead In</SelectItem>
+                                    <SelectItem value="contato-feito">Contato Feito</SelectItem>
+                                    <SelectItem value="reuniao-agendada">Reunião Agendada</SelectItem>
+                                    <SelectItem value="proposta-enviada">Proposta Enviada</SelectItem>
+                                    <SelectItem value="negociacao">Negociação</SelectItem>
+                                    <SelectItem value="fechamento">Fechamento</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            }
+                          >
+                            <div className="space-y-4">
 
-                                        <div className="h-px bg-zinc-100" />
+                              <div className="h-px bg-zinc-100" />
 
-                                        {/* Dynamic Fields */}
-                                        <div className="space-y-4">
-                                            {(stageFieldsConfig[viewStage] || stageFieldsConfig["lead-in"]).map((field) => (
-                                                <div key={field.id}>
-                                                    <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                                        {field.label} {field.required && <span className="text-red-500">*</span>}
-                                                    </Label>
-                                                    <div className="mt-1.5">
-                                                        {field.type === "select" ? (
-                                                            <Select
-                                                                value={String(stageValues[field.id] || "")}
-                                                                onValueChange={(val) => handleUpdateStageField(field.id, val)}
-                                                                disabled={isLocked}
-                                                            >
-                                                                <SelectTrigger className="h-9 w-full rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10">
-                                                                    <SelectValue placeholder="Selecione..." />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {field.options?.map((opt) => (
-                                                                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                                                            {opt.label}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        ) : field.type === "textarea" ? (
-                                                            <Textarea 
-                                                                value={String(stageValues[field.id] || "")}
-                                                                onChange={(e) => handleUpdateStageField(field.id, e.target.value)}
-                                                                className="flex min-h-[80px] w-full rounded-lg border border-zinc-200 bg-transparent px-3 py-2 text-xs shadow-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-                                                                placeholder={field.placeholder}
-                                                                disabled={isLocked}
-                                                            />
-                                                        ) : (
-                                                            <Input 
-                                                                type={field.type === "number" || field.type === "currency" ? "text" : field.type}
-                                                                value={String(stageValues[field.id] || "")}
-                                                                onChange={(e) => handleUpdateStageField(field.id, e.target.value)}
-                                                                placeholder={field.placeholder}
-                                                                className="h-9 rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10"
-                                                                disabled={isLocked}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                    {field.helperText && (
-                                                        <p className="mt-1 text-[9px] text-zinc-400">{field.helperText}</p>
-                                                    )}
-                                                </div>
+                              {/* Dynamic Fields */}
+                              <div className="space-y-4">
+                                {(stageFieldsConfig[viewStage] || stageFieldsConfig["lead-in"]).map((field) => (
+                                  <div key={field.id}>
+                                    <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                      {field.label} {field.required && <span className="text-red-500">*</span>}
+                                    </Label>
+                                    <div className="mt-1.5">
+                                      {field.type === "select" ? (
+                                        <Select
+                                          value={String(stageValues[field.id] || "")}
+                                          onValueChange={(val) => handleUpdateStageField(field.id, val)}
+                                          disabled={isLocked}
+                                        >
+                                          <SelectTrigger className="h-9 w-full rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10">
+                                            <SelectValue placeholder="Selecione..." />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {field.options?.map((opt) => (
+                                              <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                                {opt.label}
+                                              </SelectItem>
                                             ))}
-                                        </div>
-                                        
-                                        {/* Empty State / Message */}
-                                        {(!stageFieldsConfig[viewStage] || stageFieldsConfig[viewStage].length === 0) && (
-                                            <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
-                                                <LayoutList className="h-8 w-8 text-zinc-200 mb-2" />
-                                                <p className="font-heading text-xs font-medium text-zinc-400">Nenhum campo específico</p>
-                                            </div>
-                                        )}
+                                          </SelectContent>
+                                        </Select>
+                                      ) : field.type === "textarea" ? (
+                                        <Textarea
+                                          value={String(stageValues[field.id] || "")}
+                                          onChange={(e) => handleUpdateStageField(field.id, e.target.value)}
+                                          className="flex min-h-[80px] w-full rounded-lg border border-zinc-200 bg-transparent px-3 py-2 text-xs shadow-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                                          placeholder={field.placeholder}
+                                          disabled={isLocked}
+                                        />
+                                      ) : (
+                                        <Input
+                                          type={field.type === "number" || field.type === "currency" ? "text" : field.type}
+                                          value={String(stageValues[field.id] || "")}
+                                          onChange={(e) => handleUpdateStageField(field.id, e.target.value)}
+                                          placeholder={field.placeholder}
+                                          className="h-9 rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10"
+                                          disabled={isLocked}
+                                        />
+                                      )}
                                     </div>
-                                </PremiumCard>
+                                    {field.helperText && (
+                                      <p className="mt-1 text-[9px] text-zinc-400">{field.helperText}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
 
-
+                              {/* Empty State / Message */}
+                              {(!stageFieldsConfig[viewStage] || stageFieldsConfig[viewStage].length === 0) && (
+                                <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
+                                  <LayoutList className="h-8 w-8 text-zinc-200 mb-2" />
+                                  <p className="font-heading text-xs font-medium text-zinc-400">Nenhum campo específico</p>
+                                </div>
+                              )}
                             </div>
+                          </PremiumCard>
+
+
                         </div>
+                      </div>
                     </div>
                   </Tabs>
                 </div>

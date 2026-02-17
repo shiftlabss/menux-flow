@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   Filter,
   Calendar,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,11 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -482,7 +476,6 @@ export default function AuditPage() {
   const [dateTo, setDateTo] = useState("");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
 
   // Filter events
   const filteredEvents = useMemo(() => {
@@ -540,11 +533,6 @@ export default function AuditPage() {
 
   const applyMovedFilter = useCallback(() => {
     setActionFilter("moved");
-    setCurrentPage(1);
-  }, []);
-
-  const applySettingsRiskFilter = useCallback(() => {
-    setEntityFilter("settings");
     setCurrentPage(1);
   }, []);
 
@@ -607,61 +595,6 @@ export default function AuditPage() {
                 </span>
               </div>
 
-              <Popover open={isIntelligenceOpen} onOpenChange={setIsIntelligenceOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
-                  >
-                    <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
-                    Menux Intelligence
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                    Menux Intelligence
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-700">
-                    {deletedEventsCount > 0
-                      ? `Foram detectadas ${deletedEventsCount} exclusões no período filtrado.`
-                      : "Sem exclusões críticas no período atual."}
-                  </p>
-                  <div className="mt-2 grid gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="justify-start rounded-full"
-                      onClick={() => {
-                        applyDeletedFilter();
-                        setIsIntelligenceOpen(false);
-                      }}
-                    >
-                      Filtrar exclusões
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="justify-start rounded-full"
-                      onClick={() => {
-                        applyMovedFilter();
-                        setIsIntelligenceOpen(false);
-                      }}
-                    >
-                      Filtrar movimentações
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="justify-start rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
-                      onClick={() => {
-                        applySettingsRiskFilter();
-                        setIsIntelligenceOpen(false);
-                      }}
-                    >
-                      Ver alterações de configuração
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
             </div>
           }
         />

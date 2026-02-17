@@ -8,7 +8,6 @@ import {
   ChevronDown,
   LayoutGrid,
   ShieldAlert,
-  Sparkles,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -133,10 +132,6 @@ export function DashboardHeader() {
 
   const compactDateText = `${toPtBrCompactDate(REFERENCE_DATE)} · Olá, ${firstName}`;
 
-  const handleIntelligenceOpen = () => {
-    router.push("/intelligence");
-  };
-
   const handleIndicatorClick = (id: IndicatorId) => {
     if (id === "overdue") {
       router.push("/activities?status=overdue");
@@ -222,16 +217,6 @@ export function DashboardHeader() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button
-        onClick={handleIntelligenceOpen}
-        className={cn(
-          "menux-intelligence-btn premium-shine h-8 gap-1.5 rounded-full px-3.5 text-sm",
-          "transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
-        )}
-      >
-        <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
-        Menux Intelligence
-      </Button>
     </div>
   );
 

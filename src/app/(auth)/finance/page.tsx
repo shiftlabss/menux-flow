@@ -1001,14 +1001,6 @@ export default function FinancePage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button
-                  size="sm"
-                  onClick={() => setIsIntelligenceOpen((prev) => !prev)}
-                  className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
-                  Menux Intelligence
-                </Button>
               </div>
             }
           >

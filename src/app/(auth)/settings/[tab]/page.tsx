@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useCallback, useMemo, type ReactNode } from "react";
+import { use, useState, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,6 @@ import {
   AlertTriangle,
   ChevronUp,
   ChevronDown,
-  Sparkles,
 } from "lucide-react";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
@@ -45,11 +44,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 // ===== Main Page =====
 
@@ -61,7 +55,6 @@ export default function SettingsTabPage({
   const { tab } = use(params);
   const router = useRouter();
   const [isDirty, setIsDirty] = useState(false);
-  const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const markDirty = useCallback(() => {
@@ -76,37 +69,6 @@ export default function SettingsTabPage({
 
   const handleDiscard = () => {
     setIsDirty(false);
-  };
-
-  const intelligenceSummary = useMemo(() => {
-    if (isDirty) {
-      return "Você tem alterações pendentes. O próximo passo recomendado é salvar para garantir consistência da operação.";
-    }
-
-    switch (tab) {
-      case "pipeline":
-        return "Revise SLAs e etapas críticas para reduzir gargalos no funil.";
-      case "funnels":
-        return "Priorize um funil padrão e mantenha nomenclatura consistente entre etapas.";
-      case "integrations":
-        return "Valide integrações ativas para evitar gaps de dados no comercial.";
-      default:
-        return "Configuração estável. Recomendação: revisar parâmetros do pipeline antes do fechamento semanal.";
-    }
-  }, [isDirty, tab]);
-
-  const handlePrimaryIntelligenceAction = () => {
-    if (isDirty) {
-      handleSave();
-    } else {
-      router.push("/settings/pipeline");
-    }
-    setIsIntelligenceOpen(false);
-  };
-
-  const handleSecondaryIntelligenceAction = () => {
-    router.push("/activities?status=overdue");
-    setIsIntelligenceOpen(false);
   };
 
   const activeTabLabel = settingsSecondaryNavItems.find((item) => item.key === tab)?.label ?? tab;
@@ -158,42 +120,6 @@ export default function SettingsTabPage({
         <ModuleCommandHeader
           title={settingsTitleMap[tab] || tab}
           description="Personalize o comportamento do Flow."
-          actions={
-            <Popover open={isIntelligenceOpen} onOpenChange={setIsIntelligenceOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  size="sm"
-                  className="menux-intelligence-btn premium-shine h-9 rounded-full px-3.5 text-sm transition-transform duration-120 ease-out hover:-translate-y-px active:scale-[0.99]"
-                >
-                  <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
-                  Menux Intelligence
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                  Menux Intelligence
-                </p>
-                <p className="mt-1 text-sm text-zinc-700">{intelligenceSummary}</p>
-                <div className="mt-3 grid gap-2">
-                  <Button
-                    size="sm"
-                    className="justify-start rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
-                    onClick={handlePrimaryIntelligenceAction}
-                  >
-                    {isDirty ? "Salvar alterações pendentes" : "Revisar pipeline"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="justify-start rounded-full"
-                    onClick={handleSecondaryIntelligenceAction}
-                  >
-                    Abrir atividades atrasadas
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          }
           meta={`Seção ativa: ${activeTabLabel}`}
           chips={[
             {
