@@ -7,9 +7,9 @@
 6 silly config load:file:/usr/local/etc/npmrc
 7 verbose title npm run build
 8 verbose argv "run" "build"
-9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T15_45_17_691Z-
-10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T15_45_17_691Z-debug-0.log
-11 silly logfile start cleaning logs, removing 1 files
+9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T19_39_15_131Z-
+10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T19_39_15_131Z-debug-0.log
+11 silly logfile start cleaning logs, removing 2 files
 12 silly logfile done cleaning log files
 13 verbose cwd /Users/fernandocalado/Documents/Flow
 14 verbose os Darwin 25.3.0

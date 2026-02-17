@@ -125,7 +125,87 @@ interface InlineBanner {
   action?: { label: string; onClick: () => void };
 }
 
-const NOTES_AUTOSAVE_MS = 800;
+type NoteIntent =
+  | "general"
+  | "pedido_cliente"
+  | "objecao"
+  | "decisao"
+  | "proximo_passo"
+  | "system";
+type NoteVisibility = "team" | "internal";
+type NotesFilter = "all" | "cliente" | "decisao" | "proximo_passo";
+type StageFieldSaveState = "idle" | "saving" | "saved" | "error";
+
+interface OpportunityNote {
+  id: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  intent: NoteIntent;
+  visibility: NoteVisibility;
+  isSystem?: boolean;
+}
+
+interface NextStepDraft {
+  action: string;
+  dueDate: string;
+  channel: "call" | "whatsapp" | "email" | "meeting" | "visit";
+  ownerId: string;
+}
+
+const NOTE_EDIT_WINDOW_MS = 15 * 60 * 1000;
+const NOTE_MIN_LENGTH = 10;
+const NOTE_MAX_LENGTH = 2000;
+const EXECUTION_SIGNAL_WINDOW_DAYS = 7;
+const LOGGED_USER = {
+  id: "u1",
+  name: "Maria Silva",
+};
+
+const noteIntentOptions: Array<{ id: Exclude<NoteIntent, "system">; label: string }> = [
+  { id: "pedido_cliente", label: "Pedido do cliente" },
+  { id: "objecao", label: "Objeção" },
+  { id: "decisao", label: "Decisão" },
+  { id: "proximo_passo", label: "Próximo passo" },
+];
+
+const noteFilterOptions: Array<{ id: NotesFilter; label: string }> = [
+  { id: "all", label: "Todos" },
+  { id: "cliente", label: "Cliente" },
+  { id: "decisao", label: "Decisões" },
+  { id: "proximo_passo", label: "Próximo passo" },
+];
+
+const noteIntentMeta: Record<
+  NoteIntent,
+  { label: string; chipClass: string }
+> = {
+  general: {
+    label: "Registro",
+    chipClass: "border-zinc-200 bg-zinc-100 text-zinc-700",
+  },
+  pedido_cliente: {
+    label: "Pedido do cliente",
+    chipClass: "border-sky-200 bg-sky-50 text-sky-700",
+  },
+  objecao: {
+    label: "Objeção",
+    chipClass: "border-amber-200 bg-amber-50 text-amber-700",
+  },
+  decisao: {
+    label: "Decisão",
+    chipClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  },
+  proximo_passo: {
+    label: "Próximo passo",
+    chipClass: "border-brand/20 bg-brand/10 text-brand",
+  },
+  system: {
+    label: "Sistema",
+    chipClass: "border-zinc-200 bg-zinc-100 text-zinc-500",
+  },
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // Telemetria — Frontend event tracking stub
@@ -388,6 +468,7 @@ interface VisitRow {
   responsible: string;
   objective?: string;
   result?: string;
+  outcome?: "realizada" | "no-show" | "remarcada";
   durationMinutes?: number;
   link?: string;
   platform?: string;
@@ -397,29 +478,17 @@ interface VisitRow {
   createdAt: string;
 }
 
-const visitStatusLabel: Record<VisitStatus, string> = {
-  agendada: "AGENDADA",
-  realizada: "REALIZADA",
-  cancelada: "CANCELADA",
-};
-
-const visitStatusClassName: Record<VisitStatus, string> = {
-  agendada: "bg-amber-50 text-amber-600 hover:bg-amber-100",
-  realizada: "bg-emerald-50 text-emerald-600 hover:bg-emerald-100",
-  cancelada: "bg-zinc-100 text-zinc-500 hover:bg-zinc-200",
-};
-
-const visitTypeLabel: Record<VisitType, string> = {
-  presencial: "Visita Presencial",
-  remoto: "Reunião Remota",
-  outro: "Encontro Comercial",
-};
-
 const visitPlatformLabel: Record<string, string> = {
   "google-meet": "Google Meet",
   zoom: "Zoom",
   whatsapp: "WhatsApp",
   outro: "Outra plataforma",
+};
+
+const visitOutcomeLabel: Record<"realizada" | "no-show" | "remarcada", string> = {
+  realizada: "Realizada",
+  "no-show": "No-show",
+  remarcada: "Remarcada",
 };
 
 const visitStatusSortOrder: Record<VisitStatus, number> = {
@@ -438,12 +507,6 @@ function formatVisitDateLabel(isoString: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function getVisitTypeIcon(type: VisitType) {
-  if (type === "presencial") return MapPin;
-  if (type === "remoto") return Globe;
-  return Calendar;
 }
 
 const mockVisits: VisitRow[] = [
@@ -474,24 +537,34 @@ const mockVisits: VisitRow[] = [
   },
 ];
 
-const mockNoteHistory = [
+const mockNotesSeed: OpportunityNote[] = [
   {
     id: "n1",
-    author: "Maria Silva",
-    date: "14/02/2026 09:30",
-    content: "Cliente solicitou nova proposta com desconto de 5% para fechar ainda este mês.",
+    authorId: "u1",
+    authorName: "Maria Silva",
+    createdAt: "2026-02-14T09:30:00.000Z",
+    body: "Cliente solicitou nova proposta com desconto de 5% para fechar ainda este mês.",
+    intent: "pedido_cliente",
+    visibility: "team",
   },
   {
     id: "n2",
-    author: "Pedro Santos",
-    date: "10/02/2026 16:15",
-    content: "Reunião de alinhamento realizada. O cliente gostou bastante da demonstração do painel financeiro.",
+    authorId: "u2",
+    authorName: "Pedro Santos",
+    createdAt: "2026-02-10T16:15:00.000Z",
+    body: "Reunião de alinhamento realizada. O cliente gostou bastante da demonstração do painel financeiro.",
+    intent: "decisao",
+    visibility: "team",
   },
   {
     id: "n3",
-    author: "Sistema",
-    date: "05/02/2026 10:00",
-    content: "Oportunidade movida para a etapa de Negociação.",
+    authorId: "system",
+    authorName: "Sistema",
+    createdAt: "2026-02-05T10:00:00.000Z",
+    body: "Oportunidade movida para a etapa de Negociação.",
+    intent: "system",
+    visibility: "team",
+    isSystem: true,
   },
 ];
 
@@ -530,6 +603,33 @@ function getInitials(name: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function isFieldValueEmpty(value: string | number | boolean | null | undefined) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "boolean") return false;
+  if (typeof value === "number") return Number.isNaN(value) || value === 0;
+  return value.toString().trim().length === 0;
+}
+
+function formatNoteDateTime(dateIso: string) {
+  const date = new Date(dateIso);
+  return date.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatNoteDayLabel(dateIso: string) {
+  const date = new Date(dateIso);
+  return date.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -791,110 +891,6 @@ function StageRail({
       {statusBanner && (
         <InlineStatusBanner banner={statusBanner} onDismiss={onBannerDismiss} />
       )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// NotesCard with autosave
-// ═══════════════════════════════════════════════════════════════════
-
-function NotesCard({
-  initialNotes,
-  onNotesChange,
-}: {
-  initialNotes: string;
-  onNotesChange: (notes: string) => void;
-}) {
-  const [notes, setNotes] = useState(initialNotes);
-  const [saveState, setSaveState] = useState<
-    "idle" | "saving" | "saved" | "error"
-  >("idle");
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [lastSaved, setLastSaved] = useState(initialNotes);
-
-  const handleChange = useCallback(
-    (val: string) => {
-      setNotes(val);
-      if (timerRef.current) clearTimeout(timerRef.current);
-
-      timerRef.current = setTimeout(() => {
-        setSaveState("saving");
-        // Simulate async save
-        setTimeout(() => {
-          onNotesChange(val);
-          setLastSaved(val);
-          setSaveState("saved");
-          trackEvent("notes_saved_succeeded");
-          setTimeout(() => setSaveState("idle"), 2000);
-        }, 300);
-      }, NOTES_AUTOSAVE_MS);
-    },
-    [onNotesChange],
-  );
-
-  const handleManualSave = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setSaveState("saving");
-    setTimeout(() => {
-      onNotesChange(notes);
-      setLastSaved(notes);
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 2000);
-    }, 300);
-  };
-
-  const hasUnsaved = notes !== lastSaved;
-
-  return (
-    <div className="rounded-[14px] border border-zinc-100 p-3.5 transition-all hover:border-zinc-200">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-50 text-zinc-400">
-            <FileText className="h-3.5 w-3.5" />
-          </div>
-          <span className="font-body text-[11px] font-medium uppercase tracking-wider text-zinc-400">
-            Anotacoes
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {saveState === "saving" && (
-            <span className="flex items-center gap-1 font-body text-[10px] text-zinc-400">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Salvando...
-            </span>
-          )}
-          {saveState === "saved" && (
-            <span
-              className="flex items-center gap-1 font-body text-[10px] text-status-success"
-              role="status"
-            >
-              <Check className="h-3 w-3" />
-              Salvo
-            </span>
-          )}
-          {saveState === "error" && (
-            <button
-              onClick={handleManualSave}
-              className="flex items-center gap-1 font-body text-[10px] text-status-danger hover:underline"
-            >
-              <RefreshCw className="h-3 w-3" />
-              Salvar agora
-            </button>
-          )}
-          {hasUnsaved && saveState === "idle" && (
-            <span className="font-body text-[10px] text-zinc-300">
-              Nao salvo
-            </span>
-          )}
-        </div>
-      </div>
-      <Textarea
-        value={notes}
-        onChange={(e) => handleChange(e.target.value)}
-        className="mt-2 min-h-[80px] resize-none rounded-[10px] border-zinc-100 font-body text-sm focus:border-brand/30"
-        placeholder="Contexto rapido do que ja foi conversado..."
-      />
     </div>
   );
 }
@@ -1740,16 +1736,30 @@ export default function LeadCardDrawer() {
         : mockLead,
     [selectedLead]
   );
+  const initialStageValuesForLead = useMemo(
+    () =>
+      (resolvedLead.metadata?.stageValues as Record<
+        string,
+        string | number | boolean | null | undefined
+      >) || {},
+    [resolvedLead.metadata?.stageValues],
+  );
+  const initialLeadNote = useMemo(
+    () => resolvedLead.notes?.trim() || "",
+    [resolvedLead.notes],
+  );
+  const initialLeadOwnerId = useMemo(
+    () => resolvedLead.responsibleId ?? LOGGED_USER.id,
+    [resolvedLead.responsibleId],
+  );
+  const initialLeadStage = useMemo(
+    () => resolvedLead.stage,
+    [resolvedLead.stage],
+  );
 
   // ── Deal state ───────────────────────────────────────────────
   const [title, setTitle] = useState(resolvedLead.title);
-  const [stage, setStage] = useState<PipelineStage>(resolvedLead.stage);
-  const [viewStage, setViewStage] = useState<PipelineStage>(resolvedLead.stage);
-
-  // Sync viewStage when actual stage changes
-  useEffect(() => {
-    setViewStage(stage);
-  }, [stage]);
+  const [stage, setStage] = useState<PipelineStage>(initialLeadStage);
   const [temperature, setTemperature] = useState<Temperature>(
     resolvedLead.temperature,
   );
@@ -1818,14 +1828,72 @@ export default function LeadCardDrawer() {
 
   // --- Stage Fields State ---
   const [stageValues, setStageValues] = useState<Record<string, string | number | boolean | null | undefined>>(
-    resolvedLead.metadata?.stageValues || {}
+    initialStageValuesForLead
   );
-  const [notes, setNotes] = useState(resolvedLead.notes || "");
+  const [stageFieldSaveState, setStageFieldSaveState] = useState<Record<string, StageFieldSaveState>>({});
+  const [stageFieldErrors, setStageFieldErrors] = useState<Record<string, string>>({});
+  const [stageFieldsBanner, setStageFieldsBanner] = useState<InlineBanner | null>(null);
+  const [isSavingStageFields, setIsSavingStageFields] = useState(false);
+  const stageSaveTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  const handleUpdateStageField = (fieldId: string, val: string | number | boolean | null | undefined) => {
-    setStageValues((prev) => ({ ...prev, [fieldId]: val }));
-    // In a real app, debounce save or mutation here
-  };
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteIntent, setNoteIntent] = useState<Exclude<NoteIntent, "system">>("general");
+  const [noteVisibility, setNoteVisibility] = useState<NoteVisibility>("team");
+  const [noteSaveState, setNoteSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [notesFilter, setNotesFilter] = useState<NotesFilter>("all");
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteDraft, setEditingNoteDraft] = useState("");
+  const [editingNoteSaveState, setEditingNoteSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [editingNoteError, setEditingNoteError] = useState<string | null>(null);
+  const [nextStepDraft, setNextStepDraft] = useState<NextStepDraft>({
+    action: "",
+    dueDate: "",
+    channel: "call",
+    ownerId: initialLeadOwnerId,
+  });
+  const [nextStepState, setNextStepState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [nextStepError, setNextStepError] = useState<string | null>(null);
+  const [notesHistory, setNotesHistory] = useState<OpportunityNote[]>(() => {
+    const seed = [...mockNotesSeed];
+    if (initialLeadNote) {
+      seed.unshift({
+        id: `n-init-${resolvedLead.id}`,
+        authorId: LOGGED_USER.id,
+        authorName: LOGGED_USER.name,
+        createdAt: new Date().toISOString(),
+        body: initialLeadNote,
+        intent: "general",
+        visibility: "team",
+      });
+    }
+    return seed;
+  });
+
+  const handleUpdateStageField = useCallback(
+    (fieldId: string, val: string | number | boolean | null | undefined) => {
+      if (isLocked) return;
+      setStageValues((prev) => ({ ...prev, [fieldId]: val }));
+      setStageFieldErrors((prev) => {
+        if (!prev[fieldId]) return prev;
+        const next = { ...prev };
+        delete next[fieldId];
+        return next;
+      });
+      setStageFieldsBanner(null);
+      setStageFieldSaveState((prev) => ({ ...prev, [fieldId]: "saving" }));
+      if (stageSaveTimerRef.current[fieldId]) {
+        clearTimeout(stageSaveTimerRef.current[fieldId]);
+      }
+      stageSaveTimerRef.current[fieldId] = setTimeout(() => {
+        setStageFieldSaveState((prev) => ({ ...prev, [fieldId]: "saved" }));
+        setTimeout(() => {
+          setStageFieldSaveState((prev) => ({ ...prev, [fieldId]: "idle" }));
+        }, 1400);
+      }, 280);
+    },
+    [isLocked],
+  );
 
   // --- Company Refactor State ---
 
@@ -1905,11 +1973,14 @@ export default function LeadCardDrawer() {
   const [isNewActivityModalOpen, setIsNewActivityModalOpen] = useState(false);
   const [newActivityType, setNewActivityType] = useState<"task" | "call" | "email" | "meeting" | "whatsapp">("task");
 
-  const handleOpenActivityModal = (type: "task" | "call" | "email" | "meeting" | "whatsapp" = "task") => {
-    if (isLocked) return;
-    setNewActivityType(type);
-    setIsNewActivityModalOpen(true);
-  };
+  const handleOpenActivityModal = useCallback(
+    (type: "task" | "call" | "email" | "meeting" | "whatsapp" = "task") => {
+      if (isLocked) return;
+      setNewActivityType(type);
+      setIsNewActivityModalOpen(true);
+    },
+    [isLocked],
+  );
 
   const [visitFilter, setVisitFilter] = useState<VisitStatus | "all">("all");
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
@@ -1920,14 +1991,30 @@ export default function LeadCardDrawer() {
   const handleSaveVisit = (data: VisitFormData) => {
     if (isLocked) return;
     const type = data.type as VisitType;
-    const isoDate = `${data.date}T${data.time || "09:00"}:00`;
-    const startAt = new Date(isoDate);
+    const hasDateTime = Boolean(data.date && data.time);
+    const startAt = hasDateTime
+      ? new Date(`${data.date}T${data.time}:00`)
+      : new Date();
     const location =
       type === "presencial"
         ? data.location || "Local a confirmar"
         : type === "remoto"
           ? visitPlatformLabel[data.platform ?? "outro"] ?? "Reunião remota"
           : data.typeDescription || "Encontro comercial";
+
+    const responsibleLabel =
+      data.responsibleId === "u1"
+        ? "Eu (Logado)"
+        : data.responsibleId === "u2"
+          ? "Ana Costa"
+          : data.responsibleId === "u3"
+            ? "Carlos Mendes"
+            : "Responsável do time";
+
+    const resultWithOutcome =
+      data.status === "realizada" && data.result
+        ? `${data.outcome ? `${visitOutcomeLabel[data.outcome]}: ` : ""}${data.result}`
+        : data.result || undefined;
 
     const newVisit: VisitRow = {
       id: `visit-${Date.now()}`,
@@ -1938,9 +2025,10 @@ export default function LeadCardDrawer() {
         Number.isNaN(startAt.getTime())
           ? new Date().toISOString()
           : startAt.toISOString(),
-      responsible: "Eu (Logado)",
+      responsible: responsibleLabel,
       objective: data.objective || undefined,
-      result: data.result || undefined,
+      result: resultWithOutcome,
+      outcome: data.outcome || undefined,
       durationMinutes: Number(data.duration || 60),
       link: data.link || undefined,
       platform: data.platform || undefined,
@@ -2104,6 +2192,38 @@ export default function LeadCardDrawer() {
   );
 
   // Computed
+  const currentStageIndex = useMemo(
+    () => stageConfig.findIndex((item) => item.id === stage),
+    [stage],
+  );
+  const nextStage = useMemo(
+    () => stageConfig[currentStageIndex + 1] ?? null,
+    [currentStageIndex],
+  );
+  const currentStageFields = useMemo(
+    () => stageFieldsConfig[stage] || [],
+    [stage],
+  );
+  const requiredCurrentStageFields = useMemo(
+    () => currentStageFields.filter((field) => field.required),
+    [currentStageFields],
+  );
+  const missingCurrentStageFields = useMemo(
+    () =>
+      requiredCurrentStageFields.filter((field) =>
+        isFieldValueEmpty(stageValues[field.id]),
+      ),
+    [requiredCurrentStageFields, stageValues],
+  );
+  const stageChecklistProgress = useMemo(
+    () => ({
+      total: requiredCurrentStageFields.length,
+      completed:
+        requiredCurrentStageFields.length - missingCurrentStageFields.length,
+      missing: missingCurrentStageFields.length,
+    }),
+    [requiredCurrentStageFields.length, missingCurrentStageFields.length],
+  );
   const relatedActivities = useMemo(() => dealActivities, [dealActivities]);
   const visibleDealActivities = useMemo(() => {
     if (activityFilter === "pending") {
@@ -2122,6 +2242,65 @@ export default function LeadCardDrawer() {
     () => calculateTemperature(resolvedLead),
     [resolvedLead],
   );
+  const filteredNotes = useMemo(() => {
+    if (notesFilter === "all") return notesHistory;
+    if (notesFilter === "cliente") {
+      return notesHistory.filter((note) => note.intent === "pedido_cliente");
+    }
+    if (notesFilter === "decisao") {
+      return notesHistory.filter((note) => note.intent === "decisao");
+    }
+    return notesHistory.filter((note) => note.intent === "proximo_passo");
+  }, [notesFilter, notesHistory]);
+  const groupedNotes = useMemo(() => {
+    const map = new Map<string, { dayLabel: string; items: OpportunityNote[] }>();
+    const sorted = [...filteredNotes].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    sorted.forEach((note) => {
+      const dayKey = note.createdAt.slice(0, 10);
+      if (!map.has(dayKey)) {
+        map.set(dayKey, {
+          dayLabel: formatNoteDayLabel(note.createdAt),
+          items: [],
+        });
+      }
+      map.get(dayKey)?.items.push(note);
+    });
+    return Array.from(map.values());
+  }, [filteredNotes]);
+  const hasRecentExecutionSignal = useMemo(() => {
+    const cutoff = Date.now() - EXECUTION_SIGNAL_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    const hasRecentNote = notesHistory.some((note) => {
+      if (note.isSystem) return false;
+      const ts = new Date(note.createdAt).getTime();
+      return !Number.isNaN(ts) && ts >= cutoff;
+    });
+    const hasRecentActivity = dealActivities.some((activity) => {
+      const ts = new Date(activity.createdAt).getTime();
+      return !Number.isNaN(ts) && ts >= cutoff;
+    });
+    return hasRecentNote || hasRecentActivity;
+  }, [dealActivities, notesHistory]);
+
+  const validateRequiredFieldsForStage = useCallback(
+    (stageToValidate: PipelineStage) => {
+      const fields = (stageFieldsConfig[stageToValidate] || []).filter(
+        (field) => field.required,
+      );
+      const nextErrors: Record<string, string> = {};
+      const missingFields = fields.filter((field) => {
+        const isMissing = isFieldValueEmpty(stageValues[field.id]);
+        if (isMissing) {
+          nextErrors[field.id] = "Preencha este campo para avançar etapa.";
+        }
+        return isMissing;
+      });
+      setStageFieldErrors((prev) => ({ ...prev, ...nextErrors }));
+      return missingFields;
+    },
+    [stageValues],
+  );
 
   // Telemetry: view_opened
   useEffect(() => {
@@ -2134,6 +2313,15 @@ export default function LeadCardDrawer() {
   }, [isOpen, resolvedLead.id]);
 
   useEffect(() => {
+    const timers = stageSaveTimerRef.current;
+    return () => {
+      Object.values(timers).forEach((timer) =>
+        clearTimeout(timer),
+      );
+    };
+  }, []);
+
+  useEffect(() => {
     setActiveTab("empresa");
     setVisitRows([...mockVisits]);
     setVisitFilter("all");
@@ -2143,14 +2331,76 @@ export default function LeadCardDrawer() {
     setDealActivities(
       mockActivities.filter((activity) => activity.opportunityId === resolvedLead.id)
     );
-  }, [resolvedLead.id]);
+    setStage(initialLeadStage);
+    setStageValues(initialStageValuesForLead);
+    setStageFieldErrors({});
+    setStageFieldSaveState({});
+    setStageFieldsBanner(null);
+    setIsSavingStageFields(false);
+    setNoteDraft("");
+    setNoteIntent("general");
+    setNoteVisibility("team");
+    setNoteSaveState("idle");
+    setNoteError(null);
+    setNotesFilter("all");
+    setEditingNoteId(null);
+    setEditingNoteDraft("");
+    setEditingNoteSaveState("idle");
+    setEditingNoteError(null);
+    setNextStepDraft({
+      action: "",
+      dueDate: "",
+      channel: "call",
+      ownerId: initialLeadOwnerId,
+    });
+    setNextStepState("idle");
+    setNextStepError(null);
+    const seed = [...mockNotesSeed];
+    if (initialLeadNote) {
+      seed.unshift({
+        id: `n-init-${resolvedLead.id}`,
+        authorId: LOGGED_USER.id,
+        authorName: LOGGED_USER.name,
+        createdAt: new Date().toISOString(),
+        body: initialLeadNote,
+        intent: "general",
+        visibility: "team",
+      });
+    }
+    setNotesHistory(seed);
+  }, [initialLeadNote, initialLeadOwnerId, initialLeadStage, initialStageValuesForLead, resolvedLead.id]);
 
   // ── Handlers ─────────────────────────────────────────────────
 
   const handleStageChange = useCallback(
     (newStage: PipelineStage) => {
       if (isLocked) return;
+      if (newStage === stage) return;
       const prevStage = stage;
+      const prevIndex = stageConfig.findIndex((stageItem) => stageItem.id === prevStage);
+      const nextIndex = stageConfig.findIndex((stageItem) => stageItem.id === newStage);
+      const isForwardTransition = nextIndex > prevIndex;
+      if (isForwardTransition) {
+        const missingRequired = validateRequiredFieldsForStage(prevStage);
+        if (missingRequired.length > 0) {
+          const missingLabels = missingRequired.map((field) => field.label).join(", ");
+          setStageBanner({
+            message: `Etapa bloqueada. Preencha: ${missingLabels}`,
+            variant: "warning",
+          });
+          setStageFieldsBanner({
+            message: `${missingRequired.length} campo(s) obrigatório(s) pendente(s) para avançar.`,
+            variant: "warning",
+          });
+          trackEvent("stage_change_blocked_missing_required", {
+            from_stage_id: prevStage,
+            to_stage_id: newStage,
+            missing_count: missingRequired.length,
+            entity_id: resolvedLead.id,
+          });
+          return;
+        }
+      }
       trackEvent("stage_changed", {
         from_stage_id: prevStage,
         to_stage_id: newStage,
@@ -2158,11 +2408,46 @@ export default function LeadCardDrawer() {
       });
       setStage(newStage);
       setStageBanner({ message: "Etapa atualizada", variant: "success" });
+      setStageFieldsBanner({
+        message: `Checklist atualizado para ${stageConfig.find((stageItem) => stageItem.id === newStage)?.label ?? "nova etapa"}.`,
+        variant: "info",
+      });
     },
-    [stage, isLocked, resolvedLead.id],
+    [isLocked, resolvedLead.id, stage, validateRequiredFieldsForStage],
   );
 
   const handleMarkWon = useCallback(() => {
+    if (stage !== "fechamento") {
+      setShowWinConfirm(false);
+      setHeaderBanner({
+        message: "Para marcar como ganho, mova a oportunidade para a etapa Fechamento.",
+        variant: "warning",
+      });
+      return;
+    }
+    const missingRequired = validateRequiredFieldsForStage(stage);
+    if (missingRequired.length > 0) {
+      setShowWinConfirm(false);
+      setActiveTab("anotacoes");
+      setStageFieldsBanner({
+        message: "Checklist incompleto. Preencha os campos obrigatórios antes de fechar.",
+        variant: "warning",
+      });
+      setHeaderBanner({
+        message: "Fechamento bloqueado por pendências nos campos da etapa.",
+        variant: "warning",
+      });
+      return;
+    }
+    if (!hasRecentExecutionSignal) {
+      setShowWinConfirm(false);
+      setActiveTab("anotacoes");
+      setHeaderBanner({
+        message: "Registre ao menos uma nota ou atividade recente antes de encerrar como ganho.",
+        variant: "warning",
+      });
+      return;
+    }
     trackEvent("mark_won_clicked", { entity_id: resolvedLead.id });
     setIsWinLoading(true);
     setTimeout(() => {
@@ -2175,9 +2460,33 @@ export default function LeadCardDrawer() {
       });
       trackEvent("mark_won_succeeded", { entity_id: resolvedLead.id });
     }, 600);
-  }, [resolvedLead.id]);
+  }, [hasRecentExecutionSignal, resolvedLead.id, stage, validateRequiredFieldsForStage]);
 
   const handleMarkLost = useCallback((reason: string) => {
+    if (stage !== "fechamento") {
+      setShowLostPanel(false);
+      setHeaderBanner({
+        message: "Para marcar como perdido, mova a oportunidade para a etapa Fechamento.",
+        variant: "warning",
+      });
+      return;
+    }
+    if (!reason?.trim()) {
+      setHeaderBanner({
+        message: "Selecione um motivo de perda para continuar.",
+        variant: "warning",
+      });
+      return;
+    }
+    if (!hasRecentExecutionSignal) {
+      setShowLostPanel(false);
+      setActiveTab("anotacoes");
+      setHeaderBanner({
+        message: "Adicione uma nota de contexto antes de encerrar como perdido.",
+        variant: "warning",
+      });
+      return;
+    }
     trackEvent("mark_lost_clicked", { entity_id: resolvedLead.id, reason });
     setIsLostLoading(true);
     setTimeout(() => {
@@ -2190,7 +2499,7 @@ export default function LeadCardDrawer() {
       });
       trackEvent("mark_lost_succeeded", { entity_id: resolvedLead.id, reason });
     }, 600);
-  }, [resolvedLead.id]);
+  }, [hasRecentExecutionSignal, resolvedLead.id, stage]);
 
   const handleAddContact = () => {
     if (newContact.nome.trim()) {
@@ -2278,6 +2587,201 @@ export default function LeadCardDrawer() {
     ],
   );
 
+  const canEditNote = useCallback((note: OpportunityNote) => {
+    if (note.isSystem) return false;
+    if (note.authorId !== LOGGED_USER.id) return false;
+    const elapsed = Date.now() - new Date(note.createdAt).getTime();
+    return elapsed <= NOTE_EDIT_WINDOW_MS;
+  }, []);
+
+  const handleSaveNote = useCallback(() => {
+    if (isLocked) return;
+    const body = noteDraft.trim();
+    if (body.length < NOTE_MIN_LENGTH) {
+      setNoteError(`A nota precisa ter pelo menos ${NOTE_MIN_LENGTH} caracteres.`);
+      setNoteSaveState("error");
+      trackEvent("validation_failed", { field: "noteDraft" });
+      return;
+    }
+    if (body.length > NOTE_MAX_LENGTH) {
+      setNoteError(`A nota excedeu o limite de ${NOTE_MAX_LENGTH} caracteres.`);
+      setNoteSaveState("error");
+      trackEvent("validation_failed", { field: "noteDraft_max" });
+      return;
+    }
+    setNoteError(null);
+    setNoteSaveState("saving");
+    setTimeout(() => {
+      const newNote: OpportunityNote = {
+        id: `note-${Date.now()}`,
+        body,
+        authorId: LOGGED_USER.id,
+        authorName: LOGGED_USER.name,
+        createdAt: new Date().toISOString(),
+        intent: noteIntent,
+        visibility: noteVisibility,
+      };
+      setNotesHistory((prev) => [newNote, ...prev]);
+      setNoteDraft("");
+      setNoteIntent("general");
+      setNoteVisibility("team");
+      setNoteSaveState("saved");
+      setHeaderBanner({
+        message: "Nota salva e adicionada ao histórico.",
+        variant: "success",
+      });
+      trackEvent("note_created", {
+        entity_id: resolvedLead.id,
+      });
+      setTimeout(() => setNoteSaveState("idle"), 1600);
+    }, 320);
+  }, [isLocked, noteDraft, noteIntent, noteVisibility, resolvedLead.id]);
+
+  const handleCreateNextStep = useCallback(() => {
+    if (isLocked) return;
+    const action = nextStepDraft.action.trim() || noteDraft.trim();
+    if (action.length < 3) {
+      setNextStepError("Defina uma ação para criar o próximo passo.");
+      setNextStepState("error");
+      return;
+    }
+    if (noteIntent === "proximo_passo" && !nextStepDraft.dueDate) {
+      setNextStepError("Defina a data do próximo passo.");
+      setNextStepState("error");
+      return;
+    }
+
+    setNextStepError(null);
+    setNextStepState("saving");
+    const typeMap: Record<NextStepDraft["channel"], FlowActivity["type"]> = {
+      call: "call",
+      whatsapp: "whatsapp",
+      email: "email",
+      meeting: "meeting",
+      visit: "visit",
+    };
+    setTimeout(() => {
+      const ownerName =
+        mockTeamMembers.find((member) => member.id === nextStepDraft.ownerId)
+          ?.name ?? responsibleName;
+      const dueLabel = nextStepDraft.dueDate
+        ? ` até ${new Date(nextStepDraft.dueDate).toLocaleDateString("pt-BR")}`
+        : "";
+      appendActivity(`${action}${dueLabel} • ${ownerName}`, typeMap[nextStepDraft.channel]);
+      setNextStepState("saved");
+      setHeaderBanner({
+        message: "Próximo passo criado na aba Atividades.",
+        variant: "success",
+      });
+      setTimeout(() => setNextStepState("idle"), 1600);
+    }, 280);
+  }, [appendActivity, isLocked, nextStepDraft, noteDraft, noteIntent, responsibleName]);
+
+  const handleStartEditNote = useCallback(
+    (note: OpportunityNote) => {
+      if (!canEditNote(note)) return;
+      setEditingNoteId(note.id);
+      setEditingNoteDraft(note.body);
+      setEditingNoteError(null);
+      setEditingNoteSaveState("idle");
+    },
+    [canEditNote],
+  );
+
+  const handleSaveEditedNote = useCallback(() => {
+    if (!editingNoteId) return;
+    const body = editingNoteDraft.trim();
+    if (body.length < NOTE_MIN_LENGTH) {
+      setEditingNoteError(`A nota precisa ter pelo menos ${NOTE_MIN_LENGTH} caracteres.`);
+      setEditingNoteSaveState("error");
+      return;
+    }
+    setEditingNoteError(null);
+    setEditingNoteSaveState("saving");
+    setTimeout(() => {
+      setNotesHistory((prev) =>
+        prev.map((note) =>
+          note.id === editingNoteId ? { ...note, body } : note,
+        ),
+      );
+      setEditingNoteSaveState("saved");
+      setEditingNoteId(null);
+      setEditingNoteDraft("");
+      setHeaderBanner({
+        message: "Nota atualizada.",
+        variant: "success",
+      });
+      setTimeout(() => setEditingNoteSaveState("idle"), 1400);
+      trackEvent("note_edited", { entity_id: resolvedLead.id });
+    }, 280);
+  }, [editingNoteDraft, editingNoteId, resolvedLead.id]);
+
+  const handleDuplicateNote = useCallback((note: OpportunityNote) => {
+    if (note.isSystem) return;
+    setNoteDraft(note.body);
+    setNoteIntent(note.intent === "system" ? "general" : note.intent);
+    setNotesFilter("all");
+    setHeaderBanner({
+      message: "Conteúdo duplicado no registro rápido.",
+      variant: "info",
+    });
+  }, []);
+
+  const handleSaveStageFields = useCallback(() => {
+    if (isLocked) return;
+    setIsSavingStageFields(true);
+    const missingRequired = validateRequiredFieldsForStage(stage);
+    if (missingRequired.length > 0) {
+      setIsSavingStageFields(false);
+      setStageFieldsBanner({
+        message: `Faltam ${missingRequired.length} campo(s) obrigatório(s) para salvar e avançar.`,
+        variant: "warning",
+      });
+      return;
+    }
+    const savingMap: Record<string, StageFieldSaveState> = {};
+    currentStageFields.forEach((field) => {
+      savingMap[field.id] = "saving";
+    });
+    setStageFieldSaveState((prev) => ({ ...prev, ...savingMap }));
+    setTimeout(() => {
+      const savedMap: Record<string, StageFieldSaveState> = {};
+      currentStageFields.forEach((field) => {
+        savedMap[field.id] = "saved";
+      });
+      setStageFieldSaveState((prev) => ({ ...prev, ...savedMap }));
+      setStageFieldsBanner({
+        message: "Campos da etapa salvos com sucesso.",
+        variant: "success",
+      });
+      setIsSavingStageFields(false);
+      trackEvent("stage_fields_saved", {
+        entity_id: resolvedLead.id,
+        stage,
+      });
+      setTimeout(() => {
+        const idleMap: Record<string, StageFieldSaveState> = {};
+        currentStageFields.forEach((field) => {
+          idleMap[field.id] = "idle";
+        });
+        setStageFieldSaveState((prev) => ({ ...prev, ...idleMap }));
+      }, 1400);
+    }, 380);
+  }, [currentStageFields, isLocked, resolvedLead.id, stage, validateRequiredFieldsForStage]);
+
+  const handleAdvanceStage = useCallback(() => {
+    if (isLocked || !nextStage) return;
+    const missingRequired = validateRequiredFieldsForStage(stage);
+    if (missingRequired.length > 0) {
+      setStageFieldsBanner({
+        message: "Preencha os campos obrigatórios para avançar etapa.",
+        variant: "warning",
+      });
+      return;
+    }
+    handleStageChange(nextStage.id);
+  }, [handleStageChange, isLocked, nextStage, stage, validateRequiredFieldsForStage]);
+
   const handleSaveActivity = useCallback((data: ActivityFormData) => {
     const newActivity: FlowActivity = {
       id: Math.random().toString(36).substr(2, 9),
@@ -2299,14 +2803,11 @@ export default function LeadCardDrawer() {
     });
   }, [resolvedLead.id]);
 
-  const handleCreateQuickActivity = useCallback(
-    (source: "menu" | "tab") => {
-      if (isLocked) return;
-      setActiveTab("atividades");
-      handleOpenActivityModal("task");
-    },
-    [isLocked],
-  );
+  const handleCreateQuickActivity = useCallback(() => {
+    if (isLocked) return;
+    setActiveTab("atividades");
+    handleOpenActivityModal("task");
+  }, [handleOpenActivityModal, isLocked]);
 
   const handleCreateVisitFollowUp = useCallback(
     (visit: VisitRow) => {
@@ -2485,7 +2986,7 @@ export default function LeadCardDrawer() {
                     <DropdownMenuContent align="end" className="rounded-[12px]">
                       <DropdownMenuItem
                         onClick={() => {
-                          handleCreateQuickActivity("menu");
+                          handleCreateQuickActivity();
                         }}
                       >
                         <Calendar className="mr-2 h-4 w-4" />
@@ -3338,24 +3839,20 @@ export default function LeadCardDrawer() {
                           )}
 
                           <div className="space-y-3">
-                            {visibleVisitRows.map((visit) => {
-                              const VisitIcon = getVisitTypeIcon(visit.type);
-                              const isExpanded = expandedVisitId === visit.id;
-                              return (
-                                <VisitCard
-                                  key={visit.id}
-                                  visit={visit}
-                                  isExpanded={expandedVisitId === visit.id}
-                                  isLocked={isLocked}
-                                  onToggleDetails={() => toggleVisitDetails(visit.id)}
-                                  onStatusChange={handleVisitStatusChange}
-                                  onReschedule={handleRescheduleVisit}
-                                  onDuplicate={handleDuplicateVisit}
-                                  onFollowUp={handleCreateVisitFollowUp}
-                                  onDelete={handleDeleteVisit}
-                                />
-                              );
-                            })}
+                            {visibleVisitRows.map((visit) => (
+                              <VisitCard
+                                key={visit.id}
+                                visit={visit}
+                                isExpanded={expandedVisitId === visit.id}
+                                isLocked={isLocked}
+                                onToggleDetails={() => toggleVisitDetails(visit.id)}
+                                onStatusChange={handleVisitStatusChange}
+                                onReschedule={handleRescheduleVisit}
+                                onDuplicate={handleDuplicateVisit}
+                                onFollowUp={handleCreateVisitFollowUp}
+                                onDelete={handleDeleteVisit}
+                              />
+                            ))}
                           </div>
                         </TabsContent>
 
@@ -3377,7 +3874,7 @@ export default function LeadCardDrawer() {
                                 size="sm"
                                 variant="outline"
                                 className="h-8 gap-1.5 rounded-full text-xs"
-                                onClick={() => handleCreateQuickActivity("tab")}
+                                onClick={handleCreateQuickActivity}
                               >
                                 <Plus className="h-3.5 w-3.5" />
                                 Nova
@@ -3445,36 +3942,403 @@ export default function LeadCardDrawer() {
 
                         {/* ── Tab: Anotações ────────────────────────────── */}
                         <TabsContent value="anotacoes" className="mt-0 space-y-6">
-                          {/* Editor Principal */}
-                          <div className="space-y-2">
-                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Nova Nota</label>
-                            <NotesCard
-                              initialNotes={notes}
-                              onNotesChange={setNotes}
-                            />
+                          <div className="space-y-3 rounded-[18px] border border-zinc-200 bg-white p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="font-heading text-sm font-semibold text-zinc-900">
+                                  Registro rápido
+                                </p>
+                                <p className="mt-1 text-xs text-zinc-500">
+                                  Escreva o que aconteceu e registre o próximo passo sem perder o contexto.
+                                </p>
+                              </div>
+                              <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 p-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setNoteVisibility("team")}
+                                  className={cn(
+                                    "rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+                                    noteVisibility === "team"
+                                      ? "bg-white text-zinc-900 shadow-sm"
+                                      : "text-zinc-500 hover:text-zinc-700",
+                                  )}
+                                >
+                                  Time
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setNoteVisibility("internal")}
+                                  className={cn(
+                                    "rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+                                    noteVisibility === "internal"
+                                      ? "bg-white text-zinc-900 shadow-sm"
+                                      : "text-zinc-500 hover:text-zinc-700",
+                                  )}
+                                >
+                                  Interna
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Textarea
+                                value={noteDraft}
+                                onChange={(event) => {
+                                  if (noteError) setNoteError(null);
+                                  setNoteSaveState("idle");
+                                  setNoteDraft(event.target.value);
+                                }}
+                                className={cn(
+                                  "min-h-[110px] resize-none rounded-[14px] border-zinc-200 text-sm",
+                                  noteError && "border-red-300 focus-visible:ring-red-200",
+                                )}
+                                placeholder="Escreva o que aconteceu e qual é o próximo passo..."
+                              />
+                              <div className="flex items-center justify-between text-[11px]">
+                                <span className={cn(noteError ? "text-red-600" : "text-zinc-400")}>
+                                  {noteError ?? `Mínimo de ${NOTE_MIN_LENGTH} caracteres.`}
+                                </span>
+                                <span className="text-zinc-400">
+                                  {noteDraft.trim().length}/{NOTE_MAX_LENGTH}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] font-medium text-zinc-500">Intenção:</span>
+                              <button
+                                type="button"
+                                onClick={() => setNoteIntent("general")}
+                                className={cn(
+                                  "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
+                                  noteIntent === "general"
+                                    ? "border-zinc-300 bg-zinc-900 text-white"
+                                    : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100",
+                                )}
+                              >
+                                Registro
+                              </button>
+                              {noteIntentOptions.map((intent) => (
+                                <button
+                                  key={intent.id}
+                                  type="button"
+                                  onClick={() => setNoteIntent(intent.id)}
+                                  className={cn(
+                                    "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
+                                    noteIntent === intent.id
+                                      ? "border-brand/20 bg-brand/10 text-brand"
+                                      : "border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100",
+                                  )}
+                                >
+                                  {intent.label}
+                                </button>
+                              ))}
+                            </div>
+
+                            <AnimatePresence initial={false}>
+                              {noteIntent === "proximo_passo" && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 6 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: 4 }}
+                                  transition={{ duration: 0.18, ease: "easeOut" }}
+                                  className="grid gap-3 rounded-[14px] border border-brand/15 bg-brand/5 p-3 md:grid-cols-2"
+                                >
+                                  <div className="md:col-span-2">
+                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                                      Ação
+                                    </Label>
+                                    <Input
+                                      value={nextStepDraft.action}
+                                      onChange={(event) =>
+                                        setNextStepDraft((prev) => ({
+                                          ...prev,
+                                          action: event.target.value,
+                                        }))
+                                      }
+                                      className="mt-1 h-9 rounded-lg border-zinc-200 text-xs"
+                                      placeholder="Ex.: Confirmar disponibilidade para reunião de proposta"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                                      Data limite
+                                    </Label>
+                                    <Input
+                                      type="date"
+                                      value={nextStepDraft.dueDate}
+                                      onChange={(event) =>
+                                        setNextStepDraft((prev) => ({
+                                          ...prev,
+                                          dueDate: event.target.value,
+                                        }))
+                                      }
+                                      className="mt-1 h-9 rounded-lg border-zinc-200 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                                      Canal
+                                    </Label>
+                                    <Select
+                                      value={nextStepDraft.channel}
+                                      onValueChange={(value) =>
+                                        setNextStepDraft((prev) => ({
+                                          ...prev,
+                                          channel: value as NextStepDraft["channel"],
+                                        }))
+                                      }
+                                    >
+                                      <SelectTrigger className="mt-1 h-9 rounded-lg border-zinc-200 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="call">Ligação</SelectItem>
+                                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                                        <SelectItem value="email">E-mail</SelectItem>
+                                        <SelectItem value="meeting">Reunião</SelectItem>
+                                        <SelectItem value="visit">Visita</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                                      Responsável
+                                    </Label>
+                                    <Select
+                                      value={nextStepDraft.ownerId}
+                                      onValueChange={(value) =>
+                                        setNextStepDraft((prev) => ({
+                                          ...prev,
+                                          ownerId: value,
+                                        }))
+                                      }
+                                      disabled={isLocked}
+                                    >
+                                      <SelectTrigger className="mt-1 h-9 rounded-lg border-zinc-200 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {mockTeamMembers.map((member) => (
+                                          <SelectItem key={member.id} value={member.id}>
+                                            {member.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {nextStepError && (
+                              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                                {nextStepError}
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                                {noteSaveState === "saving" && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Salvando nota...
+                                  </span>
+                                )}
+                                {noteSaveState === "saved" && (
+                                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                                    <Check className="h-3 w-3" />
+                                    Nota salva agora.
+                                  </span>
+                                )}
+                                {nextStepState === "saving" && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Criando próximo passo...
+                                  </span>
+                                )}
+                                {nextStepState === "saved" && (
+                                  <span className="inline-flex items-center gap-1 text-emerald-600">
+                                    <Check className="h-3 w-3" />
+                                    Próximo passo criado.
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-full px-3 text-xs"
+                                  onClick={handleCreateNextStep}
+                                  disabled={isLocked || nextStepState === "saving"}
+                                >
+                                  {nextStepState === "saving" ? (
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
+                                  )}
+                                  Criar próximo passo
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-black"
+                                  onClick={handleSaveNote}
+                                  disabled={isLocked || noteSaveState === "saving"}
+                                >
+                                  {noteSaveState === "saving" ? (
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Check className="mr-1.5 h-3.5 w-3.5" />
+                                  )}
+                                  Salvar nota
+                                </Button>
+                              </div>
+                            </div>
                           </div>
 
                           <Separator />
 
-                          {/* Feed de Histórico */}
                           <div className="space-y-4">
-                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Histórico</label>
-                            <div className="space-y-4 pl-2">
-                              {mockNoteHistory.map((note) => (
-                                <div key={note.id} className="relative border-l border-zinc-100 pl-6 pb-2 last:pb-0">
-                                  <div className="absolute -left-1.5 top-0 h-3 w-3 rounded-full border border-zinc-100 bg-zinc-50" />
-                                  <div className="space-y-1.5">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-heading text-xs font-semibold text-zinc-700">{note.author}</span>
-                                      <span className="text-[10px] text-zinc-400">{note.date}</span>
-                                    </div>
-                                    <p className="font-body text-sm text-zinc-600 leading-relaxed">
-                                      {note.content}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                                Histórico
+                              </label>
+                              <div className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white p-1">
+                                {noteFilterOptions.map((filterOption) => (
+                                  <button
+                                    key={filterOption.id}
+                                    type="button"
+                                    onClick={() => setNotesFilter(filterOption.id)}
+                                    className={cn(
+                                      "rounded-full px-2.5 py-1 text-[11px] font-medium transition-all",
+                                      notesFilter === filterOption.id
+                                        ? "bg-zinc-900 text-white"
+                                        : "text-zinc-500 hover:text-zinc-700",
+                                    )}
+                                  >
+                                    {filterOption.label}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
+                            {groupedNotes.length === 0 ? (
+                              <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-500">
+                                Nenhuma nota para este filtro.
+                              </div>
+                            ) : (
+                              <div className="space-y-5">
+                                {groupedNotes.map((group) => (
+                                  <div key={group.dayLabel} className="space-y-3">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                                      {group.dayLabel}
+                                    </p>
+                                    <div className="space-y-3">
+                                      {group.items.map((note) => (
+                                        <div
+                                          key={note.id}
+                                          className="rounded-[14px] border border-zinc-200 bg-white p-3"
+                                        >
+                                          <div className="flex items-start justify-between gap-3">
+                                            <div className="space-y-1">
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-heading text-xs font-semibold text-zinc-700">
+                                                  {note.authorName}
+                                                </span>
+                                                <span className="text-[10px] text-zinc-400">
+                                                  {formatNoteDateTime(note.createdAt)}
+                                                </span>
+                                                <span
+                                                  className={cn(
+                                                    "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                                                    noteIntentMeta[note.intent].chipClass,
+                                                  )}
+                                                >
+                                                  {noteIntentMeta[note.intent].label}
+                                                </span>
+                                                <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] text-zinc-500">
+                                                  {note.visibility === "internal"
+                                                    ? "Interna"
+                                                    : "Time"}
+                                                </span>
+                                              </div>
+                                              {editingNoteId === note.id ? (
+                                                <div className="space-y-2">
+                                                  <Textarea
+                                                    value={editingNoteDraft}
+                                                    onChange={(event) =>
+                                                      setEditingNoteDraft(event.target.value)
+                                                    }
+                                                    className="min-h-[86px] rounded-lg border-zinc-200 text-sm"
+                                                  />
+                                                  {editingNoteError && (
+                                                    <p className="text-xs text-red-600">
+                                                      {editingNoteError}
+                                                    </p>
+                                                  )}
+                                                  <div className="flex items-center gap-2">
+                                                    <Button
+                                                      size="sm"
+                                                      className="h-7 rounded-full bg-zinc-900 px-3 text-[11px] text-white hover:bg-black"
+                                                      onClick={handleSaveEditedNote}
+                                                      disabled={editingNoteSaveState === "saving"}
+                                                    >
+                                                      {editingNoteSaveState === "saving" && (
+                                                        <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                                                      )}
+                                                      Salvar edição
+                                                    </Button>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-7 rounded-full px-3 text-[11px]"
+                                                      onClick={() => {
+                                                        setEditingNoteId(null);
+                                                        setEditingNoteDraft("");
+                                                        setEditingNoteError(null);
+                                                      }}
+                                                    >
+                                                      Cancelar
+                                                    </Button>
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <p className="font-body text-sm leading-relaxed text-zinc-700">
+                                                  {note.body}
+                                                </p>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                              {canEditNote(note) && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-7 rounded-full px-2 text-[11px]"
+                                                  onClick={() => handleStartEditNote(note)}
+                                                >
+                                                  <Pencil className="mr-1 h-3 w-3" />
+                                                  Editar
+                                                </Button>
+                                              )}
+                                              {!note.isSystem && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-7 rounded-full px-2 text-[11px]"
+                                                  onClick={() => handleDuplicateNote(note)}
+                                                >
+                                                  <Copy className="mr-1 h-3 w-3" />
+                                                  Duplicar
+                                                </Button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </TabsContent>
 
@@ -3488,98 +4352,194 @@ export default function LeadCardDrawer() {
                       <div className="md:col-span-12 lg:col-span-5 space-y-4">
                         <div className="sticky top-4">
                           <PremiumCard
-                            title="Campos da Etapa"
-                            description="Campos específicos desta etapa"
+                            title="Checklist da Etapa"
+                            description="Preencha os campos obrigatórios para destravar avanço e fechamento."
                             icon={LayoutList}
                             delay={0.2}
                             headerAction={
-                              <div className="w-[180px]">
-                                <Select
-                                  value={viewStage || "lead-in"}
-                                  onValueChange={(val) => setViewStage(val as PipelineStage)}
-                                  disabled={isLocked}
-                                >
-                                  <SelectTrigger className="h-8 w-full rounded-lg border-zinc-200 bg-white font-body text-xs font-medium focus:ring-brand/10">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent align="end">
-                                    <SelectItem value="lead-in">Lead In</SelectItem>
-                                    <SelectItem value="contato-feito">Contato Feito</SelectItem>
-                                    <SelectItem value="reuniao-agendada">Reunião Agendada</SelectItem>
-                                    <SelectItem value="proposta-enviada">Proposta Enviada</SelectItem>
-                                    <SelectItem value="negociacao">Negociação</SelectItem>
-                                    <SelectItem value="fechamento">Fechamento</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                              <Badge
+                                variant="outline"
+                                className="rounded-full border-zinc-200 bg-zinc-50 text-[11px] text-zinc-700"
+                              >
+                                {stageConfig.find((stageItem) => stageItem.id === stage)?.label ?? "Etapa"}
+                              </Badge>
                             }
                           >
                             <div className="space-y-4">
+                              {stageFieldsBanner && (
+                                <InlineStatusBanner
+                                  banner={stageFieldsBanner}
+                                  onDismiss={() => setStageFieldsBanner(null)}
+                                />
+                              )}
 
-                              <div className="h-px bg-zinc-100" />
-
-                              {/* Dynamic Fields */}
-                              <div className="space-y-4">
-                                {(stageFieldsConfig[viewStage] || stageFieldsConfig["lead-in"]).map((field) => (
-                                  <div key={field.id}>
-                                    <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                      {field.label} {field.required && <span className="text-red-500">*</span>}
-                                    </Label>
-                                    <div className="mt-1.5">
-                                      {field.type === "select" ? (
-                                        <Select
-                                          value={String(stageValues[field.id] || "")}
-                                          onValueChange={(val) => handleUpdateStageField(field.id, val)}
-                                          disabled={isLocked}
-                                        >
-                                          <SelectTrigger className="h-9 w-full rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10">
-                                            <SelectValue placeholder="Selecione..." />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {field.options?.map((opt) => (
-                                              <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                                {opt.label}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      ) : field.type === "textarea" ? (
-                                        <Textarea
-                                          value={String(stageValues[field.id] || "")}
-                                          onChange={(e) => handleUpdateStageField(field.id, e.target.value)}
-                                          className="flex min-h-[80px] w-full rounded-lg border border-zinc-200 bg-transparent px-3 py-2 text-xs shadow-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-                                          placeholder={field.placeholder}
-                                          disabled={isLocked}
-                                        />
-                                      ) : (
-                                        <Input
-                                          type={field.type === "number" || field.type === "currency" ? "text" : field.type}
-                                          value={String(stageValues[field.id] || "")}
-                                          onChange={(e) => handleUpdateStageField(field.id, e.target.value)}
-                                          placeholder={field.placeholder}
-                                          className="h-9 rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10"
-                                          disabled={isLocked}
-                                        />
-                                      )}
-                                    </div>
-                                    {field.helperText && (
-                                      <p className="mt-1 text-[9px] text-zinc-400">{field.helperText}</p>
-                                    )}
-                                  </div>
-                                ))}
+                              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="font-medium text-zinc-600">Progresso obrigatório</span>
+                                  <span className="font-semibold text-zinc-900">
+                                    {stageChecklistProgress.completed}/{stageChecklistProgress.total || 0}
+                                  </span>
+                                </div>
+                                <div className="mt-2 h-1.5 rounded-full bg-zinc-200">
+                                  <div
+                                    className="h-full rounded-full bg-brand transition-all duration-200"
+                                    style={{
+                                      width: `${
+                                        stageChecklistProgress.total === 0
+                                          ? 100
+                                          : Math.max(
+                                            8,
+                                            (stageChecklistProgress.completed /
+                                              stageChecklistProgress.total) *
+                                            100,
+                                          )
+                                      }%`,
+                                    }}
+                                  />
+                                </div>
+                                <p className="mt-2 text-[11px] text-zinc-500">
+                                  {stageChecklistProgress.total === 0
+                                    ? "Esta etapa não possui campos obrigatórios."
+                                    : stageChecklistProgress.missing === 0
+                                      ? "Checklist completo. Você já pode avançar."
+                                      : `Faltam ${stageChecklistProgress.missing} item(ns) para avançar etapa.`}
+                                </p>
                               </div>
 
-                              {/* Empty State / Message */}
-                              {(!stageFieldsConfig[viewStage] || stageFieldsConfig[viewStage].length === 0) && (
-                                <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
-                                  <LayoutList className="h-8 w-8 text-zinc-200 mb-2" />
-                                  <p className="font-heading text-xs font-medium text-zinc-400">Nenhum campo específico</p>
+                              {currentStageFields.length > 0 ? (
+                                <div className="space-y-4">
+                                  {currentStageFields.map((field) => (
+                                    <div key={field.id}>
+                                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                                        <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                          {field.label} {field.required && <span className="text-red-500">*</span>}
+                                        </Label>
+                                        {stageFieldSaveState[field.id] === "saving" && (
+                                          <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400">
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            Salvando...
+                                          </span>
+                                        )}
+                                        {stageFieldSaveState[field.id] === "saved" && (
+                                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600">
+                                            <Check className="h-3 w-3" />
+                                            Salvo
+                                          </span>
+                                        )}
+                                        {stageFieldSaveState[field.id] === "error" && (
+                                          <span className="text-[10px] text-red-600">
+                                            Falha ao salvar
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="mt-1.5">
+                                        {field.type === "select" ? (
+                                          <Select
+                                            value={String(stageValues[field.id] || "")}
+                                            onValueChange={(val) => handleUpdateStageField(field.id, val)}
+                                            disabled={isLocked}
+                                          >
+                                            <SelectTrigger
+                                              className={cn(
+                                                "h-9 w-full rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10",
+                                                stageFieldErrors[field.id] && "border-red-300 focus:ring-red-200",
+                                              )}
+                                            >
+                                              <SelectValue placeholder="Selecione..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {field.options?.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                                  {opt.label}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        ) : field.type === "textarea" ? (
+                                          <Textarea
+                                            value={String(stageValues[field.id] || "")}
+                                            onChange={(event) => handleUpdateStageField(field.id, event.target.value)}
+                                            className={cn(
+                                              "min-h-[86px] resize-none rounded-lg border border-zinc-200 px-3 py-2 text-xs placeholder:text-zinc-400 focus-visible:ring-2 focus-visible:ring-brand/10",
+                                              stageFieldErrors[field.id] && "border-red-300 focus-visible:ring-red-200",
+                                            )}
+                                            placeholder={field.placeholder}
+                                            disabled={isLocked}
+                                          />
+                                        ) : (
+                                          <Input
+                                            type={field.type === "number" || field.type === "currency" ? "text" : field.type}
+                                            value={String(stageValues[field.id] || "")}
+                                            onChange={(event) => handleUpdateStageField(field.id, event.target.value)}
+                                            placeholder={field.placeholder}
+                                            className={cn(
+                                              "h-9 rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10",
+                                              stageFieldErrors[field.id] && "border-red-300 focus:ring-red-200",
+                                            )}
+                                            disabled={isLocked}
+                                          />
+                                        )}
+                                      </div>
+                                      {stageFieldErrors[field.id] && (
+                                        <p className="mt-1 text-[10px] text-red-600">
+                                          {stageFieldErrors[field.id]}
+                                        </p>
+                                      )}
+                                      {!stageFieldErrors[field.id] && field.helperText && (
+                                        <p className="mt-1 text-[9px] text-zinc-400">{field.helperText}</p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 py-8 text-center">
+                                  <LayoutList className="mb-2 h-8 w-8 text-zinc-200" />
+                                  <p className="font-heading text-xs font-medium text-zinc-400">
+                                    Esta etapa não possui campos configurados
+                                  </p>
                                 </div>
                               )}
+
+                              {missingCurrentStageFields.length > 0 && (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                                  <p className="text-[11px] font-semibold text-amber-700">
+                                    Pendências para avanço
+                                  </p>
+                                  <ul className="mt-1 space-y-1 text-[11px] text-amber-700">
+                                    {missingCurrentStageFields.map((field) => (
+                                      <li key={field.id}>• {field.label}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 rounded-full px-3 text-xs"
+                                  onClick={handleSaveStageFields}
+                                  disabled={isLocked || isSavingStageFields}
+                                >
+                                  {isSavingStageFields ? (
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Check className="mr-1.5 h-3.5 w-3.5" />
+                                  )}
+                                  Salvar campos
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-black disabled:cursor-not-allowed disabled:bg-zinc-300"
+                                  onClick={handleAdvanceStage}
+                                  disabled={isLocked || !nextStage || missingCurrentStageFields.length > 0}
+                                >
+                                  <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
+                                  {nextStage ? `Avançar para ${nextStage.label}` : "Etapa final"}
+                                </Button>
+                              </div>
                             </div>
                           </PremiumCard>
-
-
                         </div>
                       </div>
                     </div>
