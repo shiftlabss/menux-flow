@@ -2285,8 +2285,8 @@ export default function LeadCardDrawer() {
               <ScrollArea className="h-full">
                 <div className="p-5 md:px-8 lg:px-10">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <div className="sticky top-0 z-20 -mx-5 border-b border-zinc-100/80 bg-white/96 px-5 py-3 backdrop-blur-md md:-mx-8 md:px-8 lg:-mx-10 lg:px-10">
-                      <div className="overflow-x-auto">
+                    <div className="sticky top-2 z-20 w-fit">
+                      <div className="max-w-full overflow-x-auto">
                         <TabsList className="inline-flex h-9 items-center justify-start rounded-full bg-zinc-100/80 p-1">
                           {[
                             { value: "empresa", label: "Empresa" },
@@ -2473,161 +2473,198 @@ export default function LeadCardDrawer() {
                             </div>
                           </PremiumCard>
 
-                          {/* ── Section 3: Horário de Funcionamento ── */}
+                          {/* ── Section 3: Horário + Presença Online (1x2) ── */}
                           <PremiumCard
-                            title="Horário"
+                            title="Horário e Online"
                             description=""
                             icon={Clock3}
                             delay={0.12}
-                            successMessage={sectionSuccess.horario}
+                            successMessage={sectionSuccess.horario ?? sectionSuccess.online}
                           >
-                            <div className="mb-4 flex items-center justify-between">
-                              <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                Configuração
-                              </Label>
-                              <div className="flex items-center gap-2">
-                                <span className={cn("font-heading text-[10px] font-bold transition-colors", hoursMode === 'standard' ? "text-brand" : "text-zinc-300")}>PADRÃO</span>
-                                <Switch
-                                  checked={hoursMode === 'daily'}
-                                  onCheckedChange={(v) => setHoursMode(v ? 'daily' : 'standard')}
-                                  className="scale-75 data-[state=checked]:bg-brand"
-                                  disabled={isLocked}
-                                />
-                                <span className={cn("font-heading text-[10px] font-bold transition-colors", hoursMode === 'daily' ? "text-brand" : "text-zinc-300")}>DIÁRIO</span>
-                              </div>
-                            </div>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                              <div className="space-y-4 rounded-[14px] border border-zinc-100 bg-zinc-50/45 p-3.5">
+                                <div className="mb-1 flex items-center justify-between">
+                                  <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                    Configuração
+                                  </Label>
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={cn(
+                                        "font-heading text-[10px] font-bold transition-colors",
+                                        hoursMode === "standard" ? "text-brand" : "text-zinc-300"
+                                      )}
+                                    >
+                                      PADRÃO
+                                    </span>
+                                    <Switch
+                                      checked={hoursMode === "daily"}
+                                      onCheckedChange={(v) =>
+                                        setHoursMode(v ? "daily" : "standard")
+                                      }
+                                      className="scale-75 data-[state=checked]:bg-brand"
+                                      disabled={isLocked}
+                                    />
+                                    <span
+                                      className={cn(
+                                        "font-heading text-[10px] font-bold transition-colors",
+                                        hoursMode === "daily" ? "text-brand" : "text-zinc-300"
+                                      )}
+                                    >
+                                      DIÁRIO
+                                    </span>
+                                  </div>
+                                </div>
 
-                            {hoursMode === "standard" ? (
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <Label className="mb-1.5 block font-heading text-[9px] font-bold uppercase text-zinc-400">Abertura</Label>
-                                  <Input
-                                    type="time"
-                                    value={standardHours.open}
-                                    onChange={(e) => setStandardHours(prev => ({ ...prev, open: e.target.value }))}
-                                    className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
-                                    disabled={isLocked}
-                                  />
-                                </div>
-                                <div>
-                                  <Label className="mb-1.5 block font-heading text-[9px] font-bold uppercase text-zinc-400">Fechamento</Label>
-                                  <Input
-                                    type="time"
-                                    value={standardHours.close}
-                                    onChange={(e) => setStandardHours(prev => ({ ...prev, close: e.target.value }))}
-                                    className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
-                                    disabled={isLocked}
-                                  />
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="space-y-1">
-                                {DAYS_OF_WEEK.map(day => (
-                                  <div key={day.id} className="flex items-center justify-between py-1">
-                                    <div className="flex items-center gap-2">
-                                      <Switch
-                                        checked={dailyHours[day.id].active}
-                                        onCheckedChange={(v) => handleUpdateDailyHour(day.id, "active", v)}
-                                        className="scale-75 data-[state=checked]:bg-brand"
+                                {hoursMode === "standard" ? (
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <Label className="mb-1.5 block font-heading text-[9px] font-bold uppercase text-zinc-400">
+                                        Abertura
+                                      </Label>
+                                      <Input
+                                        type="time"
+                                        value={standardHours.open}
+                                        onChange={(e) =>
+                                          setStandardHours((prev) => ({
+                                            ...prev,
+                                            open: e.target.value,
+                                          }))
+                                        }
+                                        className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
                                         disabled={isLocked}
                                       />
-                                      <span className="w-8 font-heading text-[10px] font-bold text-zinc-500 uppercase">{day.label.slice(0, 3)}</span>
                                     </div>
-                                    {dailyHours[day.id].active ? (
-                                      <div className="flex items-center gap-1.5">
-                                        <Input
-                                          type="time"
-                                          value={dailyHours[day.id].open}
-                                          onChange={(e) => handleUpdateDailyHour(day.id, "open", e.target.value)}
-                                          className="h-7 w-[60px] rounded-md border-zinc-200 p-1 text-center font-body text-[10px]"
-                                          disabled={isLocked}
-                                        />
-                                        <span className="text-zinc-300">-</span>
-                                        <Input
-                                          type="time"
-                                          value={dailyHours[day.id].close}
-                                          onChange={(e) => handleUpdateDailyHour(day.id, "close", e.target.value)}
-                                          className="h-7 w-[60px] rounded-md border-zinc-200 p-1 text-center font-body text-[10px]"
-                                          disabled={isLocked}
-                                        />
+                                    <div>
+                                      <Label className="mb-1.5 block font-heading text-[9px] font-bold uppercase text-zinc-400">
+                                        Fechamento
+                                      </Label>
+                                      <Input
+                                        type="time"
+                                        value={standardHours.close}
+                                        onChange={(e) =>
+                                          setStandardHours((prev) => ({
+                                            ...prev,
+                                            close: e.target.value,
+                                          }))
+                                        }
+                                        className="h-9 rounded-lg border-zinc-200 bg-white font-body text-xs"
+                                        disabled={isLocked}
+                                      />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-1">
+                                    {DAYS_OF_WEEK.map((day) => (
+                                      <div key={day.id} className="flex items-center justify-between py-1">
+                                        <div className="flex items-center gap-2">
+                                          <Switch
+                                            checked={dailyHours[day.id].active}
+                                            onCheckedChange={(v) =>
+                                              handleUpdateDailyHour(day.id, "active", v)
+                                            }
+                                            className="scale-75 data-[state=checked]:bg-brand"
+                                            disabled={isLocked}
+                                          />
+                                          <span className="w-8 font-heading text-[10px] font-bold uppercase text-zinc-500">
+                                            {day.label.slice(0, 3)}
+                                          </span>
+                                        </div>
+                                        {dailyHours[day.id].active ? (
+                                          <div className="flex items-center gap-1.5">
+                                            <Input
+                                              type="time"
+                                              value={dailyHours[day.id].open}
+                                              onChange={(e) =>
+                                                handleUpdateDailyHour(day.id, "open", e.target.value)
+                                              }
+                                              className="h-7 w-[60px] rounded-md border-zinc-200 p-1 text-center font-body text-[10px]"
+                                              disabled={isLocked}
+                                            />
+                                            <span className="text-zinc-300">-</span>
+                                            <Input
+                                              type="time"
+                                              value={dailyHours[day.id].close}
+                                              onChange={(e) =>
+                                                handleUpdateDailyHour(day.id, "close", e.target.value)
+                                              }
+                                              className="h-7 w-[60px] rounded-md border-zinc-200 p-1 text-center font-body text-[10px]"
+                                              disabled={isLocked}
+                                            />
+                                          </div>
+                                        ) : (
+                                          <span className="font-heading text-[9px] font-bold uppercase text-zinc-300">
+                                            Fechado
+                                          </span>
+                                        )}
                                       </div>
-                                    ) : <span className="font-heading text-[9px] font-bold uppercase text-zinc-300">Fechado</span>}
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="space-y-3 rounded-[14px] border border-zinc-100 bg-zinc-50/45 p-3.5">
+                                {[
+                                  {
+                                    id: "site",
+                                    label: "Site",
+                                    icon: Globe,
+                                    value: website,
+                                    setter: setWebsite,
+                                  },
+                                  {
+                                    id: "ig",
+                                    label: "Instagram",
+                                    icon: Instagram,
+                                    value: instagramUrl,
+                                    setter: setInstagramUrl,
+                                  },
+                                  {
+                                    id: "menu",
+                                    label: "Cardápio",
+                                    icon: UtensilsCrossed,
+                                    value: cardapioUrl,
+                                    setter: setCardapioUrl,
+                                  },
+                                ].map((channel) => (
+                                  <div key={channel.id} className="group/field relative">
+                                    <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                                      {channel.label}
+                                    </Label>
+                                    <div className="relative mt-1.5 flex items-center">
+                                      <div className="absolute left-3 flex items-center gap-1.5 text-zinc-300">
+                                        <channel.icon className="h-3.5 w-3.5" />
+                                      </div>
+                                      <Input
+                                        value={channel.value}
+                                        onChange={(e) => channel.setter(e.target.value)}
+                                        placeholder={channel.id === "menu" ? "URL" : "URL"}
+                                        className="h-9 rounded-lg border-zinc-200 pl-9 pr-8 font-body text-xs transition-all focus:border-brand focus:ring-2 focus:ring-brand/10"
+                                        disabled={isLocked}
+                                      />
+                                      <AnimatePresence>
+                                        {channel.value && (
+                                          <motion.button
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9 }}
+                                            onClick={() =>
+                                              window.open(
+                                                channel.value.startsWith("http")
+                                                  ? channel.value
+                                                  : `https://${channel.value}`,
+                                                "_blank"
+                                              )
+                                            }
+                                            className="absolute right-2 h-6 rounded-md bg-zinc-900 px-2 font-heading text-[9px] font-bold text-white shadow-sm transition-all hover:bg-black active:scale-[0.97]"
+                                          >
+                                            Visitar
+                                          </motion.button>
+                                        )}
+                                      </AnimatePresence>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
-                            )}
-                          </PremiumCard>
-
-                          {/* ── Section 4: Presença Online ── */}
-                          <PremiumCard
-                            title="Online"
-                            description=""
-                            icon={Globe2}
-                            delay={0.18}
-                            successMessage={sectionSuccess.online}
-                          >
-                            <div className="space-y-3">
-                              {[
-                                {
-                                  id: "site",
-                                  label: "Site",
-                                  icon: Globe,
-                                  value: website,
-                                  setter: setWebsite,
-                                },
-                                {
-                                  id: "ig",
-                                  label: "Instagram",
-                                  icon: Instagram,
-                                  value: instagramUrl,
-                                  setter: setInstagramUrl,
-                                },
-                                {
-                                  id: "menu",
-                                  label: "Cardápio",
-                                  icon: UtensilsCrossed,
-                                  value: cardapioUrl,
-                                  setter: setCardapioUrl,
-                                },
-                              ].map((channel) => (
-                                <div key={channel.id} className="group/field relative">
-                                  <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                    {channel.label}
-                                  </Label>
-                                  <div className="relative mt-1.5 flex items-center">
-                                    <div className="absolute left-3 flex items-center gap-1.5 text-zinc-300">
-                                      <channel.icon className="h-3.5 w-3.5" />
-                                    </div>
-                                    <Input
-                                      value={channel.value}
-                                      onChange={(e) => channel.setter(e.target.value)}
-                                      placeholder={channel.id === "menu" ? "URL" : "URL"}
-                                      className="h-9 rounded-lg border-zinc-200 pl-9 pr-8 font-body text-xs transition-all focus:border-brand focus:ring-2 focus:ring-brand/10"
-                                      disabled={isLocked}
-                                    />
-                                    <AnimatePresence>
-                                      {channel.value && (
-                                        <motion.button
-                                          initial={{ opacity: 0, scale: 0.9 }}
-                                          animate={{ opacity: 1, scale: 1 }}
-                                          exit={{ opacity: 0, scale: 0.9 }}
-                                          onClick={() =>
-                                            window.open(
-                                              channel.value.startsWith("http")
-                                                ? channel.value
-                                                : `https://${channel.value}`,
-                                              "_blank",
-                                            )
-                                          }
-                                          className="absolute right-2 h-6 rounded-md bg-zinc-900 px-2 font-heading text-[9px] font-bold text-white shadow-sm transition-all hover:bg-black active:scale-[0.97]"
-                                        >
-                                          Visitar
-                                        </motion.button>
-                                      )}
-                                    </AnimatePresence>
-                                  </div>
-                                </div>
-                              ))}
                             </div>
                           </PremiumCard>
 
