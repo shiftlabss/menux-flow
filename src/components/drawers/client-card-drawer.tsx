@@ -154,6 +154,10 @@ function getCargoLabel(value: string): string {
   return RESTAURANT_POSITIONS.find((p) => p.value === value)?.label ?? value;
 }
 
+function getPatentScore(cargo: string): number {
+  return RESTAURANT_POSITIONS.find((p) => p.value === cargo)?.patentScore ?? 0;
+}
+
 const mockTeamMembers = [
   { id: "u1", name: "Maria Silva", avatar: "" },
   { id: "u2", name: "Pedro Santos", avatar: "" },
@@ -717,6 +721,10 @@ export function ClientCardDrawer() {
   const [tags, setTags] = useState(() => [...resolvedClient.tags]);
   const [newTag, setNewTag] = useState("");
   const [contacts, setContacts] = useState(mockContacts);
+  const sortedContacts = useMemo(
+    () => [...contacts].sort((a, b) => getPatentScore(b.cargo) - getPatentScore(a.cargo)),
+    [contacts],
+  );
   const [showChurnModal, setShowChurnModal] = useState(false);
 
   // Company editable fields
@@ -1054,7 +1062,7 @@ export function ClientCardDrawer() {
               <TabsContent value="contatos" className="mt-6">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="font-heading text-base font-semibold text-black">
-                    Contatos ({contacts.length})
+                    Contatos ({sortedContacts.length})
                   </h3>
                   <Button
                     onClick={() => setShowAddContact(true)}
@@ -1155,7 +1163,7 @@ export function ClientCardDrawer() {
                 )}
 
                 <div className="space-y-3">
-                  {contacts.map((contact) =>
+                  {sortedContacts.map((contact) =>
                     editingContactId === contact.id ? (
                       <div
                         key={contact.id}

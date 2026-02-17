@@ -316,6 +316,10 @@ function getCargoLabel(value: string): string {
   return RESTAURANT_POSITIONS.find((p) => p.value === value)?.label ?? value;
 }
 
+function getPatentScore(cargo: string): number {
+  return RESTAURANT_POSITIONS.find((p) => p.value === cargo)?.patentScore ?? 0;
+}
+
 const mockTeamMembers = [
   { id: "u1", name: "Maria Silva", avatar: "" },
   { id: "u2", name: "Pedro Santos", avatar: "" },
@@ -1655,6 +1659,10 @@ export default function LeadCardDrawer() {
     resolvedLead.responsibleName,
   );
   const [contacts, setContacts] = useState(mockContacts);
+  const sortedContacts = useMemo(
+    () => [...contacts].sort((a, b) => getPatentScore(b.cargo) - getPatentScore(a.cargo)),
+    [contacts],
+  );
   const [dealStatus, setDealStatus] = useState<DealStatus>("open");
   const [source] = useState(resolvedLead.source);
 
@@ -2674,7 +2682,7 @@ export default function LeadCardDrawer() {
                         <TabsContent value="contatos" className="mt-0">
                           <div className="mb-4 flex items-center justify-between">
                             <h3 className="font-heading text-sm font-semibold text-black">
-                              Contatos ({contacts.length})
+                              Contatos ({sortedContacts.length})
                             </h3>
                             {!isLocked && (
                               <Button
@@ -2800,7 +2808,7 @@ export default function LeadCardDrawer() {
                             </div>
                           )}
 
-                          {contacts.length === 0 ? (
+                          {sortedContacts.length === 0 ? (
                             <div className="flex flex-col items-center py-8 text-center">
                               <User className="h-8 w-8 text-zinc-200" />
                               <p className="mt-2 font-body text-sm text-zinc-400">
@@ -2820,7 +2828,7 @@ export default function LeadCardDrawer() {
                             </div>
                           ) : (
                             <div className="space-y-2">
-                              {contacts.map((contact) =>
+                              {sortedContacts.map((contact) =>
                                 editingContactId === contact.id ? (
                                   <div
                                     key={contact.id}
