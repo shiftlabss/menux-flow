@@ -75,7 +75,13 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,9 +101,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useUIStore } from "@/stores/ui-store";
 import type { Activity as FlowActivity, Temperature, PipelineStage } from "@/types";
-import { calculateLeadScore, calculateTemperature, RESTAURANT_POSITIONS } from "@/lib/business-rules";
+import {
+  calculateCardPatentScore,
+  calculateLeadScore,
+  calculateTemperature,
+  getPositionPatentScore,
+  RESTAURANT_POSITIONS,
+} from "@/lib/business-rules";
 import { mockActivities } from "@/lib/mock-data";
 import { stageFieldsConfig } from "@/lib/mock-stage-fields";
+import { StageFieldsPanel } from "@/components/drawers/stage-fields";
 import { NegotiationTab } from "./lead-negotiation-tab";
 import { useOpportunityStore } from "@/stores/opportunity-store";
 import { NewVisitModal } from "@/components/modals/new-visit-modal";
@@ -158,6 +171,9 @@ const NOTE_EDIT_WINDOW_MS = 15 * 60 * 1000;
 const NOTE_MIN_LENGTH = 10;
 const NOTE_MAX_LENGTH = 2000;
 const EXECUTION_SIGNAL_WINDOW_DAYS = 7;
+const MIN_CONTACTS_PER_CARD = 1;
+const MAX_CONTACTS_PER_CARD = 10;
+const PROPOSAL_STAGE_ID: PipelineStage = "proposta-enviada";
 const LOGGED_USER = {
   id: "u1",
   name: "Maria Silva",
@@ -380,7 +396,7 @@ const mockContacts = [
     nome: "Ana Costa",
     email: "ana@belavista.com",
     telefone: "(11) 99999-5678",
-    cargo: "diretor-financeiro",
+    cargo: "diretor",
     personalidade: "Analítica e detalhista, precisa de dados concretos para tomar decisões.",
     isDecisionMaker: true,
   },
@@ -389,7 +405,7 @@ const mockContacts = [
     nome: "Carlos Mendes",
     email: "carlos@belavista.com",
     telefone: "(11) 99999-9012",
-    cargo: "coordenador-ti",
+    cargo: "operacional",
     personalidade: "Técnico, curioso sobre integrações e APIs. Receptivo a demos.",
     isDecisionMaker: false,
   },
@@ -400,7 +416,7 @@ function getCargoLabel(value: string): string {
 }
 
 function getPatentScore(cargo: string): number {
-  return RESTAURANT_POSITIONS.find((p) => p.value === cargo)?.patentScore ?? 0;
+  return getPositionPatentScore(cargo);
 }
 
 const mockTeamMembers = [
@@ -1034,11 +1050,15 @@ function TimelinePremium({ events }: { events: typeof mockTimeline }) {
 
 function ContactCard({
   contact,
+  patentScore,
+  isPrimary,
   onEdit,
   onDelete,
   onToggleDecisionMaker,
 }: {
   contact: (typeof mockContacts)[0];
+  patentScore: number;
+  isPrimary: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onToggleDecisionMaker: () => void;
@@ -1070,11 +1090,19 @@ function ContactCard({
               <p className="font-heading text-sm font-semibold text-black">
                 {contact.nome}
               </p>
+              {isPrimary && (
+                <Badge className="rounded-[6px] bg-zinc-100 px-1.5 py-0.5 font-body text-[9px] text-zinc-700">
+                  Principal
+                </Badge>
+              )}
               {contact.isDecisionMaker && (
                 <Badge className="gap-0.5 rounded-[6px] bg-brand/10 px-1.5 py-0.5 font-body text-[9px] text-brand">
                   <Shield className="h-2.5 w-2.5" /> Decisor
                 </Badge>
               )}
+              <Badge className="gap-0.5 rounded-[6px] bg-indigo-50 px-1.5 py-0.5 font-body text-[9px] text-indigo-700">
+                Patente {patentScore}
+              </Badge>
             </div>
             <p className="font-body text-[11px] text-zinc-400">{getCargoLabel(contact.cargo)}</p>
             <div className="mt-1.5 flex flex-wrap items-center gap-3">
@@ -1483,7 +1511,10 @@ function ExecutiveCompanyStrip({
                       {primaryContact.nome}
                     </p>
                     <p className="truncate font-body text-[10px] text-zinc-400 leading-tight">
-                      {primaryContact.cargo}
+                      {getCargoLabel(primaryContact.cargo)}
+                    </p>
+                    <p className="truncate font-body text-[10px] text-zinc-500 leading-tight">
+                      Patente {getPatentScore(primaryContact.cargo)}
                     </p>
                   </div>
                 </div>
@@ -1953,6 +1984,8 @@ export default function LeadCardDrawer() {
 
   // Contact forms
   const [showAddContact, setShowAddContact] = useState(false);
+  const [contactsBanner, setContactsBanner] = useState<InlineBanner | null>(null);
+  const [newContactError, setNewContactError] = useState<string | null>(null);
   const [newContact, setNewContact] = useState({
     nome: "",
     email: "",
@@ -2196,9 +2229,25 @@ export default function LeadCardDrawer() {
     () => stageConfig.findIndex((item) => item.id === stage),
     [stage],
   );
+  const hasDecisionMaker = useMemo(
+    () => contacts.some((contact) => contact.isDecisionMaker),
+    [contacts],
+  );
+  const cardPatentScore = useMemo(
+    () => calculateCardPatentScore(contacts),
+    [contacts],
+  );
   const nextStage = useMemo(
     () => stageConfig[currentStageIndex + 1] ?? null,
     [currentStageIndex],
+  );
+  const isBlockedByMissingDecisionMaker = useMemo(
+    () => nextStage?.id === PROPOSAL_STAGE_ID && !hasDecisionMaker,
+    [hasDecisionMaker, nextStage],
+  );
+  const primaryContact = useMemo(
+    () => contacts.find((contact) => contact.isDecisionMaker) ?? sortedContacts[0] ?? null,
+    [contacts, sortedContacts],
   );
   const currentStageFields = useMemo(
     () => stageFieldsConfig[stage] || [],
@@ -2332,10 +2381,13 @@ export default function LeadCardDrawer() {
       mockActivities.filter((activity) => activity.opportunityId === resolvedLead.id)
     );
     setStage(initialLeadStage);
+    setShowAddContact(false);
     setStageValues(initialStageValuesForLead);
     setStageFieldErrors({});
     setStageFieldSaveState({});
     setStageFieldsBanner(null);
+    setContactsBanner(null);
+    setNewContactError(null);
     setIsSavingStageFields(false);
     setNoteDraft("");
     setNoteIntent("general");
@@ -2373,14 +2425,48 @@ export default function LeadCardDrawer() {
   // ── Handlers ─────────────────────────────────────────────────
 
   const handleStageChange = useCallback(
-    (newStage: PipelineStage) => {
-      if (isLocked) return;
-      if (newStage === stage) return;
+    (newStage: PipelineStage): boolean => {
+      if (isLocked) return false;
+      if (newStage === stage) return false;
       const prevStage = stage;
       const prevIndex = stageConfig.findIndex((stageItem) => stageItem.id === prevStage);
       const nextIndex = stageConfig.findIndex((stageItem) => stageItem.id === newStage);
       const isForwardTransition = nextIndex > prevIndex;
       if (isForwardTransition) {
+        if (contacts.length < MIN_CONTACTS_PER_CARD) {
+          setActiveTab("contatos");
+          setContactsBanner({
+            message: "Adicione pelo menos 1 contato para avançar no funil.",
+            variant: "warning",
+          });
+          setStageBanner({
+            message: "Etapa bloqueada. O card precisa ter ao menos 1 contato.",
+            variant: "warning",
+          });
+          trackEvent("stage_change_blocked_missing_contact", {
+            from_stage_id: prevStage,
+            to_stage_id: newStage,
+            entity_id: resolvedLead.id,
+          });
+          return false;
+        }
+        if (newStage === PROPOSAL_STAGE_ID && !hasDecisionMaker) {
+          setActiveTab("contatos");
+          setContactsBanner({
+            message: "Defina ao menos 1 decisor para avançar para Proposta.",
+            variant: "warning",
+          });
+          setStageBanner({
+            message: "Etapa bloqueada. É obrigatório ter um decisor para avançar para Proposta.",
+            variant: "warning",
+          });
+          trackEvent("stage_change_blocked_missing_decision_maker", {
+            from_stage_id: prevStage,
+            to_stage_id: newStage,
+            entity_id: resolvedLead.id,
+          });
+          return false;
+        }
         const missingRequired = validateRequiredFieldsForStage(prevStage);
         if (missingRequired.length > 0) {
           const missingLabels = missingRequired.map((field) => field.label).join(", ");
@@ -2398,7 +2484,7 @@ export default function LeadCardDrawer() {
             missing_count: missingRequired.length,
             entity_id: resolvedLead.id,
           });
-          return;
+          return false;
         }
       }
       trackEvent("stage_changed", {
@@ -2412,8 +2498,15 @@ export default function LeadCardDrawer() {
         message: `Checklist atualizado para ${stageConfig.find((stageItem) => stageItem.id === newStage)?.label ?? "nova etapa"}.`,
         variant: "info",
       });
+      return true;
     },
-    [isLocked, resolvedLead.id, stage, validateRequiredFieldsForStage],
+    [contacts.length, hasDecisionMaker, isLocked, resolvedLead.id, stage, validateRequiredFieldsForStage],
+  );
+
+  // Stage change from StageFieldsPanel still passes through the same business rules.
+  const handleStageChangeFromPanel = useCallback(
+    (newStage: PipelineStage) => handleStageChange(newStage),
+    [handleStageChange],
   );
 
   const handleMarkWon = useCallback(() => {
@@ -2502,25 +2595,79 @@ export default function LeadCardDrawer() {
   }, [hasRecentExecutionSignal, resolvedLead.id, stage]);
 
   const handleAddContact = () => {
-    if (newContact.nome.trim()) {
-      setContacts([
-        ...contacts,
-        { id: `c${Date.now()}`, ...newContact, isDecisionMaker: false },
-      ]);
-      setNewContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
-      setShowAddContact(false);
+    if (contacts.length >= MAX_CONTACTS_PER_CARD) {
+      const message = `Limite atingido: no máximo ${MAX_CONTACTS_PER_CARD} contatos por card.`;
+      setContactsBanner({
+        message,
+        variant: "warning",
+      });
+      setNewContactError(message);
+      return;
     }
+    if (!newContact.nome.trim()) {
+      setNewContactError("Informe o nome do contato para continuar.");
+      return;
+    }
+    if (!newContact.cargo) {
+      setNewContactError("Selecione o cargo do contato para calcular o score de patente.");
+      return;
+    }
+    setContacts([
+      ...contacts,
+      { id: `c${Date.now()}`, ...newContact, isDecisionMaker: false },
+    ]);
+    setNewContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
+    setShowAddContact(false);
+    setNewContactError(null);
+    setContactsBanner({
+      message: "Contato adicionado. O score de patente do card foi recalculado.",
+      variant: "success",
+    });
   };
 
-  const handleDeleteContact = (id: string) =>
-    setContacts(contacts.filter((c) => c.id !== id));
+  const handleDeleteContact = (id: string) => {
+    if (contacts.length <= MIN_CONTACTS_PER_CARD) {
+      setContactsBanner({
+        message: "O card precisa manter pelo menos 1 contato.",
+        variant: "warning",
+      });
+      return;
+    }
+    const removedContact = contacts.find((contact) => contact.id === id);
+    const nextContacts = contacts.filter((contact) => contact.id !== id);
+    setContacts(nextContacts);
+    if (removedContact?.isDecisionMaker && !nextContacts.some((contact) => contact.isDecisionMaker)) {
+      setContactsBanner({
+        message: "Contato removido. Defina outro decisor para manter avanço até Proposta.",
+        variant: "warning",
+      });
+      return;
+    }
+    setContactsBanner({
+      message: "Contato removido com sucesso.",
+      variant: "info",
+    });
+  };
 
-  const handleToggleDecisionMaker = (id: string) =>
-    setContacts(
-      contacts.map((c) =>
-        c.id === id ? { ...c, isDecisionMaker: !c.isDecisionMaker } : c
-      )
+  const handleToggleDecisionMaker = (id: string) => {
+    const nextContacts = contacts.map((contact) =>
+      contact.id === id
+        ? { ...contact, isDecisionMaker: !contact.isDecisionMaker }
+        : contact,
     );
+    setContacts(nextContacts);
+    if (nextContacts.some((contact) => contact.isDecisionMaker)) {
+      setContactsBanner({
+        message: "Decisor atualizado. Regras de avanço para Proposta atendidas.",
+        variant: "success",
+      });
+      return;
+    }
+    setContactsBanner({
+      message: "Sem decisor definido. A etapa Proposta ficará bloqueada.",
+      variant: "warning",
+    });
+  };
 
   const handleStartEditContact = (contact: (typeof mockContacts)[0]) => {
     setEditingContactId(contact.id);
@@ -2534,15 +2681,32 @@ export default function LeadCardDrawer() {
   };
 
   const handleSaveEditContact = () => {
-    if (editingContactId && editContact.nome.trim()) {
-      setContacts(
-        contacts.map((c) =>
-          c.id === editingContactId ? { ...c, ...editContact } : c,
-        ),
-      );
-      setEditingContactId(null);
-      setEditContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
+    if (!editingContactId) return;
+    if (!editContact.nome.trim()) {
+      setContactsBanner({
+        message: "O nome do contato é obrigatório.",
+        variant: "warning",
+      });
+      return;
     }
+    if (!editContact.cargo) {
+      setContactsBanner({
+        message: "Selecione o cargo para manter o score de patente correto.",
+        variant: "warning",
+      });
+      return;
+    }
+    setContacts(
+      contacts.map((contact) =>
+        contact.id === editingContactId ? { ...contact, ...editContact } : contact,
+      ),
+    );
+    setEditingContactId(null);
+    setEditContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
+    setContactsBanner({
+      message: "Contato atualizado. Score de patente recalculado.",
+      variant: "success",
+    });
   };
 
   const appendActivity = useCallback(
@@ -2769,19 +2933,6 @@ export default function LeadCardDrawer() {
     }, 380);
   }, [currentStageFields, isLocked, resolvedLead.id, stage, validateRequiredFieldsForStage]);
 
-  const handleAdvanceStage = useCallback(() => {
-    if (isLocked || !nextStage) return;
-    const missingRequired = validateRequiredFieldsForStage(stage);
-    if (missingRequired.length > 0) {
-      setStageFieldsBanner({
-        message: "Preencha os campos obrigatórios para avançar etapa.",
-        variant: "warning",
-      });
-      return;
-    }
-    handleStageChange(nextStage.id);
-  }, [handleStageChange, isLocked, nextStage, stage, validateRequiredFieldsForStage]);
-
   const handleSaveActivity = useCallback((data: ActivityFormData) => {
     const newActivity: FlowActivity = {
       id: Math.random().toString(36).substr(2, 9),
@@ -2925,6 +3076,13 @@ export default function LeadCardDrawer() {
                         {leadScore}
                       </div>
                     )}
+                    <div
+                      className="inline-flex items-center gap-0.5 rounded-md border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 font-heading text-[10px] font-bold leading-none text-indigo-700"
+                      title={`Score de Patente: ${cardPatentScore}`}
+                    >
+                      <Shield className="h-2 w-2" aria-hidden="true" />
+                      {cardPatentScore}
+                    </div>
 
                     <span
                       className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-body text-[10px] font-medium transition-all duration-[140ms] ${statusCfg.color} ${statusCfg.bg}`}
@@ -3057,7 +3215,7 @@ export default function LeadCardDrawer() {
                 website={website}
                 instagramUrl={instagramUrl}
                 cardapioUrl={cardapioUrl}
-                primaryContact={contacts.find((c) => c.isDecisionMaker) ?? contacts[0] ?? null}
+                primaryContact={primaryContact}
                 stage={stage}
                 temperature={temperature}
                 responsibleName={responsibleName}
@@ -3479,12 +3637,22 @@ export default function LeadCardDrawer() {
                         {/* ── Tab: Contatos ─────────────────────────────── */}
                         <TabsContent value="contatos" className="mt-0">
                           <div className="mb-4 flex items-center justify-between">
-                            <h3 className="font-heading text-sm font-semibold text-black">
-                              Contatos ({sortedContacts.length})
-                            </h3>
+                            <div>
+                              <h3 className="font-heading text-sm font-semibold text-black">
+                                Contatos ({sortedContacts.length})
+                              </h3>
+                              <p className="mt-1 font-body text-[11px] text-zinc-500">
+                                Score de Patente do card: <span className="font-semibold text-zinc-800">{cardPatentScore}</span> ·
+                                limite {MIN_CONTACTS_PER_CARD}-{MAX_CONTACTS_PER_CARD} contatos
+                              </p>
+                            </div>
                             {!isLocked && (
                               <Button
-                                onClick={() => setShowAddContact(true)}
+                                onClick={() => {
+                                  setNewContactError(null);
+                                  setShowAddContact(true);
+                                }}
+                                disabled={contacts.length >= MAX_CONTACTS_PER_CARD}
                                 className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
                                 size="sm"
                               >
@@ -3493,116 +3661,12 @@ export default function LeadCardDrawer() {
                             )}
                           </div>
 
-                          {showAddContact && (
-                            <div className="mb-4 space-y-3 rounded-[14px] border border-zinc-200 p-4">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                    Nome
-                                  </Label>
-                                  <Input
-                                    value={newContact.nome}
-                                    onChange={(e) =>
-                                      setNewContact({
-                                        ...newContact,
-                                        nome: e.target.value,
-                                      })
-                                    }
-                                    className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                    placeholder="Nome"
-                                  />
-                                </div>
-                                <div>
-                                  <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                    Cargo
-                                  </Label>
-                                  <Select
-                                    value={newContact.cargo}
-                                    onValueChange={(value) =>
-                                      setNewContact({
-                                        ...newContact,
-                                        cargo: value,
-                                      })
-                                    }
-                                  >
-                                    <SelectTrigger className="mt-1 h-8 w-full rounded-[10px] border-zinc-200 font-body text-sm">
-                                      <SelectValue placeholder="Selecione o cargo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {RESTAURANT_POSITIONS.map((pos) => (
-                                        <SelectItem key={pos.value} value={pos.value}>
-                                          {pos.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                    E-mail
-                                  </Label>
-                                  <Input
-                                    type="email"
-                                    value={newContact.email}
-                                    onChange={(e) =>
-                                      setNewContact({
-                                        ...newContact,
-                                        email: e.target.value,
-                                      })
-                                    }
-                                    className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                    placeholder="email@empresa.com"
-                                  />
-                                </div>
-                                <div>
-                                  <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                    Telefone
-                                  </Label>
-                                  <PhoneInput
-                                    value={newContact.telefone}
-                                    onValueChange={(raw) =>
-                                      setNewContact({
-                                        ...newContact,
-                                        telefone: raw,
-                                      })
-                                    }
-                                    className="mt-1 h-8 rounded-[10px] font-body text-sm"
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
-                                  Personalidade
-                                </Label>
-                                <Textarea
-                                  value={newContact.personalidade}
-                                  onChange={(e) =>
-                                    setNewContact({
-                                      ...newContact,
-                                      personalidade: e.target.value,
-                                    })
-                                  }
-                                  className="mt-1 min-h-[60px] rounded-[10px] font-body text-sm"
-                                  placeholder="Ex: Direto e objetivo, prefere reuniões curtas..."
-                                />
-                              </div>
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="rounded-full font-heading text-xs"
-                                  onClick={() => setShowAddContact(false)}
-                                >
-                                  Cancelar
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
-                                  onClick={handleAddContact}
-                                >
-                                  Salvar
-                                </Button>
-                              </div>
+                          {contactsBanner && (
+                            <div className="mb-3">
+                              <InlineStatusBanner
+                                banner={contactsBanner}
+                                onDismiss={() => setContactsBanner(null)}
+                              />
                             </div>
                           )}
 
@@ -3617,7 +3681,10 @@ export default function LeadCardDrawer() {
                                   size="sm"
                                   variant="ghost"
                                   className="mt-2 rounded-full font-body text-xs text-brand"
-                                  onClick={() => setShowAddContact(true)}
+                                  onClick={() => {
+                                    setNewContactError(null);
+                                    setShowAddContact(true);
+                                  }}
                                 >
                                   <Plus className="mr-1 h-3.5 w-3.5" /> Vincular
                                   contato
@@ -3746,6 +3813,8 @@ export default function LeadCardDrawer() {
                                   <ContactCard
                                     key={contact.id}
                                     contact={contact}
+                                    patentScore={getPatentScore(contact.cargo)}
+                                    isPrimary={primaryContact?.id === contact.id}
                                     onEdit={() => handleStartEditContact(contact)}
                                     onDelete={() => handleDeleteContact(contact.id)}
                                     onToggleDecisionMaker={() => handleToggleDecisionMaker(contact.id)}
@@ -4350,197 +4419,23 @@ export default function LeadCardDrawer() {
 
                       {/* ── Right Column: Persistent Sidebar (Span 5) ── */}
                       <div className="md:col-span-12 lg:col-span-5 space-y-4">
-                        <div className="sticky top-4">
-                          <PremiumCard
-                            title="Checklist da Etapa"
-                            description="Preencha os campos obrigatórios para destravar avanço e fechamento."
-                            icon={LayoutList}
-                            delay={0.2}
-                            headerAction={
-                              <Badge
-                                variant="outline"
-                                className="rounded-full border-zinc-200 bg-zinc-50 text-[11px] text-zinc-700"
-                              >
-                                {stageConfig.find((stageItem) => stageItem.id === stage)?.label ?? "Etapa"}
-                              </Badge>
-                            }
-                          >
-                            <div className="space-y-4">
-                              {stageFieldsBanner && (
-                                <InlineStatusBanner
-                                  banner={stageFieldsBanner}
-                                  onDismiss={() => setStageFieldsBanner(null)}
-                                />
-                              )}
-
-                              <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
-                                <div className="flex items-center justify-between text-[11px]">
-                                  <span className="font-medium text-zinc-600">Progresso obrigatório</span>
-                                  <span className="font-semibold text-zinc-900">
-                                    {stageChecklistProgress.completed}/{stageChecklistProgress.total || 0}
-                                  </span>
-                                </div>
-                                <div className="mt-2 h-1.5 rounded-full bg-zinc-200">
-                                  <div
-                                    className="h-full rounded-full bg-brand transition-all duration-200"
-                                    style={{
-                                      width: `${
-                                        stageChecklistProgress.total === 0
-                                          ? 100
-                                          : Math.max(
-                                            8,
-                                            (stageChecklistProgress.completed /
-                                              stageChecklistProgress.total) *
-                                            100,
-                                          )
-                                      }%`,
-                                    }}
-                                  />
-                                </div>
-                                <p className="mt-2 text-[11px] text-zinc-500">
-                                  {stageChecklistProgress.total === 0
-                                    ? "Esta etapa não possui campos obrigatórios."
-                                    : stageChecklistProgress.missing === 0
-                                      ? "Checklist completo. Você já pode avançar."
-                                      : `Faltam ${stageChecklistProgress.missing} item(ns) para avançar etapa.`}
-                                </p>
-                              </div>
-
-                              {currentStageFields.length > 0 ? (
-                                <div className="space-y-4">
-                                  {currentStageFields.map((field) => (
-                                    <div key={field.id}>
-                                      <div className="mb-1.5 flex items-center justify-between gap-2">
-                                        <Label className="font-heading text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                                          {field.label} {field.required && <span className="text-red-500">*</span>}
-                                        </Label>
-                                        {stageFieldSaveState[field.id] === "saving" && (
-                                          <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400">
-                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                            Salvando...
-                                          </span>
-                                        )}
-                                        {stageFieldSaveState[field.id] === "saved" && (
-                                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600">
-                                            <Check className="h-3 w-3" />
-                                            Salvo
-                                          </span>
-                                        )}
-                                        {stageFieldSaveState[field.id] === "error" && (
-                                          <span className="text-[10px] text-red-600">
-                                            Falha ao salvar
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="mt-1.5">
-                                        {field.type === "select" ? (
-                                          <Select
-                                            value={String(stageValues[field.id] || "")}
-                                            onValueChange={(val) => handleUpdateStageField(field.id, val)}
-                                            disabled={isLocked}
-                                          >
-                                            <SelectTrigger
-                                              className={cn(
-                                                "h-9 w-full rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10",
-                                                stageFieldErrors[field.id] && "border-red-300 focus:ring-red-200",
-                                              )}
-                                            >
-                                              <SelectValue placeholder="Selecione..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {field.options?.map((opt) => (
-                                                <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                                  {opt.label}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        ) : field.type === "textarea" ? (
-                                          <Textarea
-                                            value={String(stageValues[field.id] || "")}
-                                            onChange={(event) => handleUpdateStageField(field.id, event.target.value)}
-                                            className={cn(
-                                              "min-h-[86px] resize-none rounded-lg border border-zinc-200 px-3 py-2 text-xs placeholder:text-zinc-400 focus-visible:ring-2 focus-visible:ring-brand/10",
-                                              stageFieldErrors[field.id] && "border-red-300 focus-visible:ring-red-200",
-                                            )}
-                                            placeholder={field.placeholder}
-                                            disabled={isLocked}
-                                          />
-                                        ) : (
-                                          <Input
-                                            type={field.type === "number" || field.type === "currency" ? "text" : field.type}
-                                            value={String(stageValues[field.id] || "")}
-                                            onChange={(event) => handleUpdateStageField(field.id, event.target.value)}
-                                            placeholder={field.placeholder}
-                                            className={cn(
-                                              "h-9 rounded-lg border-zinc-200 font-body text-xs focus:ring-brand/10",
-                                              stageFieldErrors[field.id] && "border-red-300 focus:ring-red-200",
-                                            )}
-                                            disabled={isLocked}
-                                          />
-                                        )}
-                                      </div>
-                                      {stageFieldErrors[field.id] && (
-                                        <p className="mt-1 text-[10px] text-red-600">
-                                          {stageFieldErrors[field.id]}
-                                        </p>
-                                      )}
-                                      {!stageFieldErrors[field.id] && field.helperText && (
-                                        <p className="mt-1 text-[9px] text-zinc-400">{field.helperText}</p>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 py-8 text-center">
-                                  <LayoutList className="mb-2 h-8 w-8 text-zinc-200" />
-                                  <p className="font-heading text-xs font-medium text-zinc-400">
-                                    Esta etapa não possui campos configurados
-                                  </p>
-                                </div>
-                              )}
-
-                              {missingCurrentStageFields.length > 0 && (
-                                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-                                  <p className="text-[11px] font-semibold text-amber-700">
-                                    Pendências para avanço
-                                  </p>
-                                  <ul className="mt-1 space-y-1 text-[11px] text-amber-700">
-                                    {missingCurrentStageFields.map((field) => (
-                                      <li key={field.id}>• {field.label}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 rounded-full px-3 text-xs"
-                                  onClick={handleSaveStageFields}
-                                  disabled={isLocked || isSavingStageFields}
-                                >
-                                  {isSavingStageFields ? (
-                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                                  ) : (
-                                    <Check className="mr-1.5 h-3.5 w-3.5" />
-                                  )}
-                                  Salvar campos
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-black disabled:cursor-not-allowed disabled:bg-zinc-300"
-                                  onClick={handleAdvanceStage}
-                                  disabled={isLocked || !nextStage || missingCurrentStageFields.length > 0}
-                                >
-                                  <ArrowRight className="mr-1.5 h-3.5 w-3.5" />
-                                  {nextStage ? `Avançar para ${nextStage.label}` : "Etapa final"}
-                                </Button>
-                              </div>
-                            </div>
-                          </PremiumCard>
-                        </div>
+                        <StageFieldsPanel
+                          opportunityId={resolvedLead.id}
+                          currentStage={stage}
+                          stages={stageConfig}
+                          initialValues={initialStageValuesForLead as Record<string, string | number | boolean | string[] | null | undefined>}
+                          isLocked={isLocked}
+                          onStageChange={(newStage) => handleStageChangeFromPanel(newStage)}
+                          nextStage={nextStage}
+                          canCreateFields={true}
+                          advanceBlockedReason={
+                            contacts.length < MIN_CONTACTS_PER_CARD
+                              ? "Adicione pelo menos 1 contato para avançar no funil."
+                              : nextStage?.id === PROPOSAL_STAGE_ID && !hasDecisionMaker
+                                ? "Defina ao menos 1 decisor na aba Contatos para avançar para Proposta."
+                                : null
+                          }
+                        />
                       </div>
                     </div>
                   </Tabs>
@@ -4616,6 +4511,162 @@ export default function LeadCardDrawer() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog
+        open={showAddContact}
+        onOpenChange={(open) => {
+          setShowAddContact(open);
+          if (!open) {
+            setNewContactError(null);
+            setNewContact({
+              nome: "",
+              email: "",
+              telefone: "",
+              cargo: "",
+              personalidade: "",
+            });
+          }
+        }}
+      >
+        <DialogContent className="max-w-3xl gap-0 overflow-hidden rounded-[20px] p-0">
+          <div className="border-b border-zinc-100 px-5 py-4">
+            <DialogTitle className="font-heading text-lg font-semibold text-zinc-900">
+              Adicionar contato
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-sm text-zinc-500">
+              Cadastre um novo contato para este card. Nome e cargo são obrigatórios.
+            </DialogDescription>
+          </div>
+
+          <div className="space-y-4 px-5 py-4">
+            {newContactError && (
+              <InlineStatusBanner
+                banner={{ message: newContactError, variant: "warning" }}
+                onDismiss={() => setNewContactError(null)}
+              />
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                  Nome
+                </Label>
+                <Input
+                  value={newContact.nome}
+                  onChange={(e) =>
+                    setNewContact({
+                      ...newContact,
+                      nome: e.target.value,
+                    })
+                  }
+                  className="mt-1 h-9 rounded-[10px] font-body text-sm"
+                  placeholder="Nome"
+                />
+              </div>
+              <div>
+                <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                  Cargo
+                </Label>
+                <Select
+                  value={newContact.cargo}
+                  onValueChange={(value) =>
+                    setNewContact({
+                      ...newContact,
+                      cargo: value,
+                    })
+                  }
+                >
+                  <SelectTrigger className="mt-1 h-9 w-full rounded-[10px] border-zinc-200 font-body text-sm">
+                    <SelectValue placeholder="Selecione o cargo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RESTAURANT_POSITIONS.map((pos) => (
+                      <SelectItem key={pos.value} value={pos.value}>
+                        {pos.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                  E-mail
+                </Label>
+                <Input
+                  type="email"
+                  value={newContact.email}
+                  onChange={(e) =>
+                    setNewContact({
+                      ...newContact,
+                      email: e.target.value,
+                    })
+                  }
+                  className="mt-1 h-9 rounded-[10px] font-body text-sm"
+                  placeholder="email@empresa.com"
+                />
+              </div>
+              <div>
+                <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                  Telefone
+                </Label>
+                <PhoneInput
+                  value={newContact.telefone}
+                  onValueChange={(raw) =>
+                    setNewContact({
+                      ...newContact,
+                      telefone: raw,
+                    })
+                  }
+                  className="mt-1 h-9 rounded-[10px] font-body text-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="font-body text-[10px] uppercase tracking-wider text-zinc-400">
+                Personalidade
+              </Label>
+              <Textarea
+                value={newContact.personalidade}
+                onChange={(e) =>
+                  setNewContact({
+                    ...newContact,
+                    personalidade: e.target.value,
+                  })
+                }
+                className="mt-1 min-h-[86px] rounded-[10px] font-body text-sm"
+                placeholder="Ex: Direto e objetivo, prefere reuniões curtas..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="border-t border-zinc-100 bg-zinc-50/50 px-5 py-3 sm:justify-end">
+            <Button
+              variant="ghost"
+              className="rounded-full font-heading text-xs"
+              onClick={() => {
+                setShowAddContact(false);
+                setNewContactError(null);
+                setNewContact({
+                  nome: "",
+                  email: "",
+                  telefone: "",
+                  cargo: "",
+                  personalidade: "",
+                });
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="rounded-full bg-brand font-heading text-xs text-white hover:bg-brand/90"
+              onClick={handleAddContact}
+            >
+              Salvar contato
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <NewVisitModal
         isOpen={isNewVisitModalOpen}
         onClose={() => setIsNewVisitModalOpen(false)}
@@ -4623,6 +4674,13 @@ export default function LeadCardDrawer() {
         dealId={resolvedLead.id}
         contacts={contacts}
         onAddContact={(newContact) => {
+          if (contacts.length >= MAX_CONTACTS_PER_CARD) {
+            setContactsBanner({
+              message: `Limite atingido: no máximo ${MAX_CONTACTS_PER_CARD} contatos por card.`,
+              variant: "warning",
+            });
+            return;
+          }
           // Adapt to the existing handleSaveContact which expects full QuickContactData but we only have partial
           // Creating a minimal valid contact object
           const contactToAdd = {
@@ -4630,11 +4688,15 @@ export default function LeadCardDrawer() {
             nome: newContact.nome || "Sem Nome",
             email: newContact.email || "",
             telefone: newContact.telefone || "",
-            cargo: newContact.cargo || "",
+            cargo: newContact.cargo || "operacional",
             personalidade: "",
             isDecisionMaker: false,
           };
           setContacts((prev) => [...prev, contactToAdd]);
+          setContactsBanner({
+            message: "Contato criado a partir de Visitas.",
+            variant: "success",
+          });
         }}
       />
       <NewActivityModal

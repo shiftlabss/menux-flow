@@ -5,10 +5,10 @@
 4 silly config load:file:/Users/fernandocalado/Documents/Flow/.npmrc
 5 silly config load:file:/Users/fernandocalado/.npmrc
 6 silly config load:file:/usr/local/etc/npmrc
-7 verbose title npm exec eslint src/components/drawers/lead-card-drawer.tsx
-8 verbose argv "exec" "--" "eslint" "src/components/drawers/lead-card-drawer.tsx"
-9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T19_19_31_015Z-
-10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T19_19_31_015Z-debug-0.log
+7 verbose title npm exec vitest run
+8 verbose argv "exec" "--" "vitest" "run"
+9 verbose logfile logs-max:10 dir:/Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T23_12_51_779Z-
+10 verbose logfile /Users/fernandocalado/Documents/Flow/.npm-cache/_logs/2026-02-17T23_12_51_779Z-debug-0.log
 11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd /Users/fernandocalado/Documents/Flow

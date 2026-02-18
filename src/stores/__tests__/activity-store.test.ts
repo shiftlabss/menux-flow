@@ -112,33 +112,21 @@ describe("activity-store", () => {
       expect(activity.completedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
-    it("should append notes to description when provided", () => {
+    it("should store notes in completionNotes field when provided", () => {
       useActivityStore.getState().completeActivity("act-1", "Cliente confirmou");
 
       const activity = useActivityStore.getState().activities.find((a) => a.id === "act-1")!;
       expect(activity.status).toBe("completed");
-      expect(activity.description).toContain("Agendar reuniao");
-      expect(activity.description).toContain("Notas de conclusão: Cliente confirmou");
+      expect(activity.completionNotes).toBe("Cliente confirmou");
+      // Original description should NOT be modified
+      expect(activity.description).toBe("Agendar reuniao");
     });
 
-    it("should handle missing description when notes provided", () => {
-      // Set an activity with no description
-      useActivityStore.setState({
-        activities: [
-          { ...seedActivities[0], id: "act-no-desc", description: undefined },
-        ],
-      });
-
-      useActivityStore.getState().completeActivity("act-no-desc", "Feito");
-
-      const activity = useActivityStore.getState().activities.find((a) => a.id === "act-no-desc")!;
-      expect(activity.description).toContain("Notas de conclusão: Feito");
-    });
-
-    it("should preserve description when no notes provided", () => {
+    it("should not set completionNotes when no notes provided", () => {
       useActivityStore.getState().completeActivity("act-1");
 
       const activity = useActivityStore.getState().activities.find((a) => a.id === "act-1")!;
+      expect(activity.completionNotes).toBeUndefined();
       expect(activity.description).toBe("Agendar reuniao");
     });
   });
@@ -153,37 +141,51 @@ describe("activity-store", () => {
   });
 
   describe("postponeActivity", () => {
+    // Use a date far enough in the future so the test won't break over time
+    const futureDate = "2099-07-20";
+    const futureDate2 = "2099-08-01";
+    const pastDate = "2020-01-01";
+
     it("should update dueDate and dueTime", () => {
-      useActivityStore.getState().postponeActivity("act-1", "2025-07-20", "16:00");
+      useActivityStore.getState().postponeActivity("act-1", futureDate, "16:00");
 
       const activity = useActivityStore.getState().activities.find((a) => a.id === "act-1")!;
-      expect(activity.dueDate).toBe("2025-07-20");
+      expect(activity.dueDate).toBe(futureDate);
       expect(activity.dueTime).toBe("16:00");
     });
 
     it("should keep existing dueTime when newDueTime is not provided", () => {
-      useActivityStore.getState().postponeActivity("act-1", "2025-07-20");
+      useActivityStore.getState().postponeActivity("act-1", futureDate);
 
       const activity = useActivityStore.getState().activities.find((a) => a.id === "act-1")!;
-      expect(activity.dueDate).toBe("2025-07-20");
+      expect(activity.dueDate).toBe(futureDate);
       expect(activity.dueTime).toBe("10:00"); // original dueTime preserved
     });
 
-    it("should change overdue status to pending", () => {
+    it("should change overdue status to pending when new date is in the future", () => {
       // act-2 is overdue
-      useActivityStore.getState().postponeActivity("act-2", "2025-08-01");
+      useActivityStore.getState().postponeActivity("act-2", futureDate2);
 
       const activity = useActivityStore.getState().activities.find((a) => a.id === "act-2")!;
       expect(activity.status).toBe("pending");
-      expect(activity.dueDate).toBe("2025-08-01");
+      expect(activity.dueDate).toBe(futureDate2);
     });
 
-    it("should not change status when activity is not overdue", () => {
+    it("should keep status as pending when postponed to a future date", () => {
       // act-1 is pending
-      useActivityStore.getState().postponeActivity("act-1", "2025-07-20");
+      useActivityStore.getState().postponeActivity("act-1", futureDate);
 
       const activity = useActivityStore.getState().activities.find((a) => a.id === "act-1")!;
       expect(activity.status).toBe("pending");
+    });
+
+    it("should set status to overdue when postponed to a past date", () => {
+      // act-1 is pending, postpone to a past date
+      useActivityStore.getState().postponeActivity("act-1", pastDate);
+
+      const activity = useActivityStore.getState().activities.find((a) => a.id === "act-1")!;
+      expect(activity.status).toBe("overdue");
+      expect(activity.dueDate).toBe(pastDate);
     });
   });
 
@@ -238,11 +240,39 @@ describe("activity-store", () => {
   });
 
   describe("getOverdue", () => {
-    it("should return only activities with status overdue", () => {
+    it("should return activities with status overdue AND pending activities with past dueDate", () => {
+      // act-1 is "pending" with dueDate "2025-06-15" (past) → included
+      // act-2 is "overdue" with dueDate "2025-06-10" (past) → included
+      const result = useActivityStore.getState().getOverdue();
+      expect(result).toHaveLength(2);
+
+      const ids = result.map((a) => a.id).sort();
+      expect(ids).toEqual(["act-1", "act-2"]);
+    });
+
+    it("should not include pending activities with future dueDate", () => {
+      useActivityStore.setState({
+        activities: [
+          { ...seedActivities[0], id: "act-future", dueDate: "2099-12-31", status: "pending" },
+          { ...seedActivities[1] }, // act-2, overdue
+        ],
+      });
+
       const result = useActivityStore.getState().getOverdue();
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe("act-2");
-      expect(result[0].status).toBe("overdue");
+    });
+
+    it("should not include completed or cancelled activities", () => {
+      useActivityStore.setState({
+        activities: [
+          { ...seedActivities[0], status: "completed" as const, dueDate: "2020-01-01" },
+          { ...seedActivities[1], status: "cancelled" as const, dueDate: "2020-01-01" },
+        ],
+      });
+
+      const result = useActivityStore.getState().getOverdue();
+      expect(result).toHaveLength(0);
     });
   });
 });

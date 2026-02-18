@@ -109,6 +109,7 @@ export interface Activity {
   clientId?: string;
   clientName?: string;
   completedAt?: string;
+  completionNotes?: string;
   createdAt: string;
 }
 

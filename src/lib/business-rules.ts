@@ -38,33 +38,51 @@ const CLIENT_STAGE_ORDER: ClientStage[] = [
   "churn",
 ];
 
-/** Cargos predefinidos para food-service com score de patente (0-100) */
+/** Cargos oficiais com score de patente fixo e imutável (0-100). */
 export const RESTAURANT_POSITIONS = [
-  { label: "Proprietário / Sócio", value: "proprietario", patentScore: 100 },
-  { label: "Diretor(a) Geral", value: "diretor-geral", patentScore: 95 },
-  { label: "Diretor(a) Financeiro(a)", value: "diretor-financeiro", patentScore: 90 },
-  { label: "Diretor(a) de Operações", value: "diretor-operacoes", patentScore: 90 },
-  { label: "Gerente Geral", value: "gerente-geral", patentScore: 80 },
-  { label: "Gerente de Operações", value: "gerente-operacoes", patentScore: 75 },
-  { label: "Gerente Financeiro(a)", value: "gerente-financeiro", patentScore: 75 },
-  { label: "Gerente de A&B", value: "gerente-ab", patentScore: 70 },
-  { label: "Gerente de Compras", value: "gerente-compras", patentScore: 70 },
-  { label: "Chef de Cozinha", value: "chef-cozinha", patentScore: 65 },
-  { label: "Maître", value: "maitre", patentScore: 60 },
-  { label: "Sommelier", value: "sommelier", patentScore: 55 },
-  { label: "Coordenador(a) de TI", value: "coordenador-ti", patentScore: 55 },
-  { label: "Coordenador(a) Administrativo", value: "coordenador-admin", patentScore: 50 },
-  { label: "Supervisor(a) de Salão", value: "supervisor-salao", patentScore: 45 },
-  { label: "Sub-Chef", value: "sub-chef", patentScore: 45 },
-  { label: "Bartender / Barista", value: "bartender", patentScore: 40 },
-  { label: "Hostess / Recepcionista", value: "hostess", patentScore: 35 },
-  { label: "Cozinheiro(a)", value: "cozinheiro", patentScore: 30 },
-  { label: "Garçom / Garçonete", value: "garcom", patentScore: 25 },
-  { label: "Auxiliar de Cozinha", value: "auxiliar-cozinha", patentScore: 20 },
-  { label: "Outro", value: "outro", patentScore: 10 },
+  { label: "Proprietário", value: "proprietario", patentScore: 100 },
+  { label: "Sócio", value: "socio", patentScore: 90 },
+  { label: "Diretor", value: "diretor", patentScore: 80 },
+  { label: "Gerente Geral", value: "gerente-geral", patentScore: 70 },
+  { label: "Gerente", value: "gerente", patentScore: 60 },
+  { label: "Financeiro", value: "financeiro", patentScore: 50 },
+  { label: "Operacional", value: "operacional", patentScore: 40 },
+  {
+    label: "Supervisor/Líder de Turno",
+    value: "supervisor-lider-turno",
+    patentScore: 30,
+  },
+  {
+    label: "Caixa/Recepcionista",
+    value: "caixa-recepcionista",
+    patentScore: 20,
+  },
+  { label: "Garçom/Atendente", value: "garcom-atendente", patentScore: 10 },
 ] as const;
 
 export type RestaurantPosition = (typeof RESTAURANT_POSITIONS)[number]["value"];
+
+type PatentContactLike = {
+  cargo?: string | null;
+};
+
+/**
+ * Score individual de patente por cargo.
+ * Valores ausentes ou desconhecidos retornam 0.
+ */
+export function getPositionPatentScore(position: string | null | undefined): number {
+  if (!position) return 0;
+  return RESTAURANT_POSITIONS.find((item) => item.value === position)?.patentScore ?? 0;
+}
+
+/**
+ * Score de Patente do card: maior score individual entre os contatos.
+ * Regra: MAX sem soma/média/ponderação.
+ */
+export function calculateCardPatentScore<T extends PatentContactLike>(contacts: T[]): number {
+  if (contacts.length === 0) return 0;
+  return Math.max(...contacts.map((contact) => getPositionPatentScore(contact.cargo)));
+}
 
 // ─── 1. Status Efetivo de Atividade ────────────────────────────────────────
 

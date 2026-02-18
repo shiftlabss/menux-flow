@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNow } from "@/hooks/use-now";
 import {
   AlertTriangle,
   ArrowRight,
@@ -22,6 +23,7 @@ import {
   Plus,
   Sparkles,
   WandSparkles,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,6 +34,29 @@ import { useAuthStore } from "@/stores/auth-store";
 import type { Activity, ActivityStatus, ActivityType } from "@/types";
 import { allActivityTypes, typeColors, typeIconComponents, typeLabels } from "./components/config";
 import { GeneratedContentModal } from "./components/generated-content-modal";
+import {
+  DAY_MS,
+  startOfDay,
+  parseDateISO,
+  toISODate,
+  addDays,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  formatMonthTitle,
+  formatDateBR,
+  formatDateFull,
+  formatCompactDateLabel,
+  initials,
+  getDelayText,
+  isActivityOverdue,
+  isSlaRisk,
+  getRelativeTimeLabel,
+  getStatusChip,
+  getActivityChecklist,
+  getActivityInsight,
+} from "./components/helpers";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,230 +133,7 @@ const SLA_OPTIONS: { value: SlaFilter; label: string }[] = [
   { value: "risk", label: "Em risco" },
 ];
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function parseDateISO(dateStr: string): Date {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function toISODate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function addDays(date: Date, days: number): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-}
-
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function endOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
-function startOfWeek(date: Date): Date {
-  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = start.getDay();
-  return addDays(start, -day);
-}
-
-function endOfWeek(date: Date): Date {
-  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const day = end.getDay();
-  return addDays(end, 6 - day);
-}
-
-function formatMonthTitle(date: Date): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
-
-function formatDateBR(dateStr: string): string {
-  return parseDateISO(dateStr).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-  });
-}
-
-function formatDateFull(dateStr: string): string {
-  return parseDateISO(dateStr).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-  });
-}
-
-function formatCompactDateLabel(date: Date): string {
-  const parts = new Intl.DateTimeFormat("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  }).formatToParts(date);
-  const weekday = (parts.find((part) => part.type === "weekday")?.value ?? "")
-    .replaceAll(".", "")
-    .trim();
-  const day = parts.find((part) => part.type === "day")?.value ?? "";
-  const month = (parts.find((part) => part.type === "month")?.value ?? "")
-    .replaceAll(".", "")
-    .trim();
-  return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)}, ${day} ${month}`;
-}
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-function getDelayText(daysOverdue: number): string {
-  if (daysOverdue <= 0) return "";
-  if (daysOverdue === 1) return "1 dia de atraso";
-  if (daysOverdue < 7) return `${daysOverdue} dias de atraso`;
-  if (daysOverdue < 30) {
-    const weeks = Math.floor(daysOverdue / 7);
-    return weeks === 1 ? "1 semana de atraso" : `${weeks} semanas de atraso`;
-  }
-  const months = Math.floor(daysOverdue / 30);
-  return months === 1 ? "1 mês de atraso" : `${months} meses de atraso`;
-}
-
-function getRelativeTimeLabel(activity: Activity, now: Date): string {
-  const dueDate = startOfDay(parseDateISO(activity.dueDate));
-  const today = startOfDay(now);
-  const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / DAY_MS);
-
-  if (diffDays < 0 || activity.status === "overdue") {
-    return getDelayText(Math.max(1, Math.abs(diffDays)));
-  }
-
-  if (diffDays === 0) {
-    return activity.dueTime ? `Hoje · ${activity.dueTime}` : "Hoje";
-  }
-
-  if (diffDays === 1) return "Amanhã";
-  if (diffDays <= 7) return `Em ${diffDays} dias`;
-  return formatDateFull(activity.dueDate);
-}
-
-function isActivityOverdue(activity: Activity, now: Date): boolean {
-  if (activity.status === "overdue") return true;
-  if (activity.status === "completed" || activity.status === "cancelled") return false;
-  return startOfDay(parseDateISO(activity.dueDate)).getTime() < startOfDay(now).getTime();
-}
-
-function isSlaRisk(activity: Activity, now: Date): boolean {
-  if (activity.status !== "pending") return false;
-  const today = startOfDay(now);
-  const tomorrow = addDays(today, 1);
-  const due = startOfDay(parseDateISO(activity.dueDate));
-  return due.getTime() >= today.getTime() && due.getTime() <= tomorrow.getTime();
-}
-
-function getStatusChip(activity: Activity, now: Date): {
-  label: string;
-  className: string;
-} {
-  if (isActivityOverdue(activity, now)) {
-    return {
-      label: "Atrasada",
-      className: "bg-status-danger-light text-status-danger border-status-danger/20",
-    };
-  }
-
-  const due = startOfDay(parseDateISO(activity.dueDate));
-  const today = startOfDay(now);
-
-  if (due.getTime() === today.getTime()) {
-    return {
-      label: "Hoje",
-      className: "bg-status-warning-light text-status-warning border-status-warning/25",
-    };
-  }
-
-  if (activity.status === "completed") {
-    return {
-      label: "Concluída",
-      className: "bg-status-success-light text-status-success border-status-success/20",
-    };
-  }
-
-  if (activity.status === "cancelled") {
-    return {
-      label: "Cancelada",
-      className: "bg-zinc-100 text-zinc-500 border-zinc-200",
-    };
-  }
-
-  return {
-    label: "Pendente",
-    className: "bg-status-info-light text-status-info border-status-info/20",
-  };
-}
-
-function getActivityChecklist(activity: Activity): string[] {
-  const base = [
-    "Contexto do cliente validado",
-    "Objetivo da interação definido",
-    "Próxima ação registrada",
-  ];
-
-  if (activity.type === "meeting") {
-    return [
-      "Participantes confirmados",
-      "Pauta compartilhada",
-      "Follow-up preparado",
-    ];
-  }
-
-  if (activity.type === "call" || activity.type === "whatsapp") {
-    return [
-      "Script revisado",
-      "Objeções mapeadas",
-      "Próximo passo combinado",
-    ];
-  }
-
-  return base;
-}
-
-function getActivityInsight(activity: Activity, now: Date): {
-  message: string;
-  nextStep: string;
-  risk: string;
-} {
-  const label = activity.clientName || activity.opportunityTitle || "o cliente";
-  const overdue = isActivityOverdue(activity, now);
-  const urgency = overdue ? "urgente" : "prioritária";
-
-  return {
-    message:
-      activity.type === "email"
-        ? `Olá! Revendo nossa agenda, gostaria de avançar o próximo passo com ${label}. Podemos alinhar ainda hoje?`
-        : activity.type === "meeting"
-          ? `Perfeito, vamos alinhar os pontos críticos de ${label} e sair com decisão clara no final da reunião.`
-          : `Oi! Passando para mantermos ${label} em ritmo ${urgency}. Você consegue me confirmar o melhor horário para avançarmos?`,
-    nextStep:
-      activity.type === "task"
-        ? "Feche esta tarefa e transforme em contato ativo com data definida."
-        : "Registrar compromisso com data/horário e responsável antes de encerrar.",
-    risk: overdue
-      ? `Se ignorar, ${label} pode perder prioridade e aumentar risco de churn.`
-      : `Se ignorar, ${label} perde cadência e pode esfriar o ciclo de decisão.`,
-  };
-}
+// Utility functions are imported from ./components/helpers
 
 function buildRecommendations(
   activities: Activity[],
@@ -467,14 +269,15 @@ const RAIL_COMMANDS = [
 export default function ActivitiesPage() {
   const { openDrawer } = useUIStore();
   const { user } = useAuthStore();
+  const router = useRouter();
   const {
     activities: storeActivities,
     completeActivity,
+    cancelActivity,
     postponeActivity,
   } = useActivityStore();
-  const router = useRouter();
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -526,21 +329,22 @@ export default function ActivitiesPage() {
 
   const timeoutRef = useRef<number[]>([]);
   const intelligenceRailRef = useRef<HTMLDivElement | null>(null);
-  const now = useMemo(() => new Date(), []);
+  const now = useNow(60_000);
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => startOfMonth(now));
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
     () => toISODate(startOfDay(now))
   );
 
-  const scopedOwnerId = useMemo(() => {
+  const { scopedOwnerId, isFallbackOwner } = useMemo(() => {
     const preferredId = user?.id;
     if (
       preferredId &&
       storeActivities.some((activity) => activity.responsibleId === preferredId)
     ) {
-      return preferredId;
+      return { scopedOwnerId: preferredId, isFallbackOwner: false };
     }
-    return storeActivities[0]?.responsibleId ?? preferredId ?? "user-5";
+    const fallbackId = storeActivities[0]?.responsibleId ?? preferredId ?? "user-5";
+    return { scopedOwnerId: fallbackId, isFallbackOwner: true };
   }, [storeActivities, user?.id]);
 
   const activities = useMemo(
@@ -557,9 +361,7 @@ export default function ActivitiesPage() {
     timeoutRef.current.push(id);
   }, []);
 
-  useEffect(() => {
-    schedule(() => setIsLoading(false), 780);
-  }, [schedule]);
+  // Loading is instant since data comes from the local store (no API).
 
   useEffect(() => {
     return () => {
@@ -959,7 +761,7 @@ export default function ActivitiesPage() {
   }, []);
 
   const handleCompleteActivity = useCallback(
-    (activityId: string) => {
+    (activityId: string, notes?: string) => {
       setActivityFeedback((prev) => ({
         ...prev,
         [activityId]: { state: "loading-complete" },
@@ -973,7 +775,7 @@ export default function ActivitiesPage() {
       }, 180);
 
       schedule(() => {
-        completeActivity(activityId);
+        completeActivity(activityId, notes);
       }, 1180);
 
       schedule(() => {
@@ -985,6 +787,32 @@ export default function ActivitiesPage() {
       }, 1560);
     },
     [completeActivity, schedule]
+  );
+
+  const handleCancelActivity = useCallback(
+    (activityId: string) => {
+      setActivityFeedback((prev) => ({
+        ...prev,
+        [activityId]: { state: "loading-complete" },
+      }));
+
+      schedule(() => {
+        cancelActivity(activityId);
+        setActivityFeedback((prev) => ({
+          ...prev,
+          [activityId]: { state: "complete-success", message: "Cancelada" },
+        }));
+      }, 180);
+
+      schedule(() => {
+        setActivityFeedback((prev) => {
+          const next = { ...prev };
+          delete next[activityId];
+          return next;
+        });
+      }, 1560);
+    },
+    [cancelActivity, schedule]
   );
 
   const handlePostponeActivity = useCallback(
@@ -1111,30 +939,37 @@ export default function ActivitiesPage() {
     [executionActivities.length, overdueCount, riskCount, selectedActivity, schedule, router, user?.name]
   );
 
-  const handleExportPreview = useCallback(() => {
-    const rows = filteredActivities.slice(0, 40).map((activity) => {
-      const context = activity.clientName || activity.opportunityTitle || "Sem contexto";
-      return `${activity.title} | ${context} | ${formatDateBR(activity.dueDate)} ${activity.dueTime || ""}`;
-    });
+  const handleExportCSV = useCallback(() => {
+    const header = ["Título", "Tipo", "Status", "Cliente", "Oportunidade", "Data", "Horário", "Responsável"];
+    const rows = filteredActivities.map((activity) => [
+      activity.title,
+      typeLabels[activity.type],
+      activity.status === "pending" ? "Pendente" : activity.status === "completed" ? "Concluída" : activity.status === "overdue" ? "Atrasada" : "Cancelada",
+      activity.clientName || "",
+      activity.opportunityTitle || "",
+      formatDateBR(activity.dueDate),
+      activity.dueTime || "",
+      activity.responsibleName,
+    ]);
 
-    const content = [
-      "Preview de exportação — Atividades",
-      "",
-      ...rows,
+    const csvContent = [
+      header.join(";"),
+      ...rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(";")),
     ].join("\n");
 
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const BOM = "\uFEFF";
+    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "atividades-preview.txt";
+    link.download = `atividades-${toISODate(now)}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
 
     setCommandResult({
       status: "success",
-      text: "Preview de exportação gerada com sucesso.",
+      text: `${filteredActivities.length} atividades exportadas em CSV.`,
     });
-  }, [filteredActivities]);
+  }, [filteredActivities, now]);
 
   const renderSectionBody = useCallback(
     (items: Activity[], sectionKey: Exclude<SectionKey, "intelligence">) => {
@@ -1263,7 +1098,8 @@ export default function ActivitiesPage() {
                             );
                             setSelectedActivityId(activity.id);
                           }}
-                          onComplete={() => handleCompleteActivity(activity.id)}
+                          onComplete={(notes) => handleCompleteActivity(activity.id, notes)}
+                          onCancel={() => handleCancelActivity(activity.id)}
                           onPostpone={(newDate) => handlePostponeActivity(activity.id, newDate)}
                           onSelectIntelligence={() => setSelectedActivityId(activity.id)}
                           onGenerateFollowup={() => handleGenerateFollowup(activity)}
@@ -1300,7 +1136,8 @@ export default function ActivitiesPage() {
                     setExpandedActivityId((prev) => (prev === activity.id ? null : activity.id));
                     setSelectedActivityId(activity.id);
                   }}
-                  onComplete={() => handleCompleteActivity(activity.id)}
+                  onComplete={(notes) => handleCompleteActivity(activity.id, notes)}
+                  onCancel={() => handleCancelActivity(activity.id)}
                   onPostpone={(newDate) => handlePostponeActivity(activity.id, newDate)}
                   onSelectIntelligence={() => setSelectedActivityId(activity.id)}
                   onGenerateFollowup={() => handleGenerateFollowup(activity)}
@@ -1322,6 +1159,7 @@ export default function ActivitiesPage() {
       openDrawer,
       handleGeneratePlan,
       handleCompleteActivity,
+      handleCancelActivity,
       handlePostponeActivity,
       handleGenerateFollowup,
     ]
@@ -1574,6 +1412,14 @@ export default function ActivitiesPage() {
         }
       />
 
+      {isFallbackOwner && activities.length > 0 && (
+        <div className="rounded-[14px] border border-amber-200 bg-amber-50/80 px-4 py-3">
+          <p className="font-body text-sm text-amber-800">
+            <span className="font-semibold">Atenção:</span> Você está visualizando atividades de outro responsável porque não há atividades atribuídas ao seu usuário.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(320px,3fr)]">
         <div className="space-y-4">
           {viewMode === "agenda" ? (
@@ -1593,6 +1439,11 @@ export default function ActivitiesPage() {
               onNextMonth={() =>
                 setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
               }
+              onGoToToday={() => {
+                const todayDate = startOfDay(now);
+                setCalendarMonth(startOfMonth(todayDate));
+                setSelectedCalendarDate(toISODate(todayDate));
+              }}
               onSelectDate={(date) => {
                 const monthStart = startOfMonth(date);
                 const iso = toISODate(date);
@@ -1604,6 +1455,7 @@ export default function ActivitiesPage() {
                 setSelectedActivityId(activityId);
               }}
               onComplete={handleCompleteActivity}
+              onCancel={handleCancelActivity}
               onPostpone={handlePostponeActivity}
               onSelectIntelligence={setSelectedActivityId}
               onGenerateFollowup={handleGenerateFollowup}
@@ -1779,7 +1631,7 @@ export default function ActivitiesPage() {
                   size="sm"
                   variant="outline"
                   className="rounded-full text-xs"
-                  onClick={handleExportPreview}
+                  onClick={handleExportCSV}
                 >
                   Exportar lista
                 </Button>
@@ -1883,7 +1735,13 @@ export default function ActivitiesPage() {
               </p>
               <div className="space-y-1.5 text-sm">
                 <DiagnosticItem label="Atrasadas" value={String(overdueCount)} tone={overdueCount > 0 ? "danger" : "success"} />
-                <DiagnosticItem label="SLAs estourados" value={String(overdueCount)} tone={overdueCount > 0 ? "danger" : "success"} />
+                <DiagnosticItem label="SLAs críticos" value={String(overdueActivities.filter((a) => {
+                  const daysLate = Math.floor((startOfDay(now).getTime() - parseDateISO(a.dueDate).getTime()) / DAY_MS);
+                  return daysLate >= 3;
+                }).length)} tone={overdueActivities.some((a) => {
+                  const daysLate = Math.floor((startOfDay(now).getTime() - parseDateISO(a.dueDate).getTime()) / DAY_MS);
+                  return daysLate >= 3;
+                }) ? "danger" : "success"} />
                 <DiagnosticItem label="SLAs em risco" value={String(riskCount)} tone={riskCount > 0 ? "warning" : "success"} />
                 <DiagnosticItem
                   label="Tipo mais afetado"
@@ -1891,14 +1749,6 @@ export default function ActivitiesPage() {
                   tone="neutral"
                 />
               </div>
-              <Button
-                size="sm"
-                className="mt-3 h-8 w-full rounded-full border border-cyan-300/22 bg-cyan-500/18 text-xs text-cyan-50 hover:bg-cyan-500/28"
-                onClick={handleGeneratePlan}
-              >
-                <WandSparkles className="h-3.5 w-3.5" />
-                Criar plano de ataque
-              </Button>
             </div>
 
             <div className="rounded-[16px] border border-white/14 bg-white/7 p-3.5">
@@ -2004,9 +1854,11 @@ function ActivitiesCalendarView({
   activityFeedback,
   onPreviousMonth,
   onNextMonth,
+  onGoToToday,
   onSelectDate,
   onToggleExpand,
   onComplete,
+  onCancel,
   onPostpone,
   onSelectIntelligence,
   onGenerateFollowup,
@@ -2023,9 +1875,11 @@ function ActivitiesCalendarView({
   activityFeedback: Record<string, ActivityFeedback>;
   onPreviousMonth: () => void;
   onNextMonth: () => void;
+  onGoToToday: () => void;
   onSelectDate: (date: Date) => void;
   onToggleExpand: (activityId: string) => void;
-  onComplete: (activityId: string) => void;
+  onComplete: (activityId: string, notes?: string) => void;
+  onCancel: (activityId: string) => void;
   onPostpone: (activityId: string, newDate: string) => void;
   onSelectIntelligence: (activityId: string) => void;
   onGenerateFollowup: (activity: Activity) => void;
@@ -2046,28 +1900,38 @@ function ActivitiesCalendarView({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50/90 p-1">
+        <div className="flex items-center gap-2">
           <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 rounded-full text-zinc-600"
-            onClick={onPreviousMonth}
-            aria-label="Mês anterior"
+            size="sm"
+            variant="outline"
+            className="rounded-full border-zinc-200 text-xs"
+            onClick={onGoToToday}
           >
-            <ChevronLeft className="h-4 w-4" />
+            Hoje
           </Button>
-          <span className="min-w-[164px] text-center font-heading text-sm font-semibold text-zinc-900 capitalize">
-            {formatMonthTitle(monthDate)}
-          </span>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8 rounded-full text-zinc-600"
-            onClick={onNextMonth}
-            aria-label="Próximo mês"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50/90 p-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 rounded-full text-zinc-600"
+              onClick={onPreviousMonth}
+              aria-label="Mês anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-[164px] text-center font-heading text-sm font-semibold text-zinc-900 capitalize">
+              {formatMonthTitle(monthDate)}
+            </span>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 rounded-full text-zinc-600"
+              onClick={onNextMonth}
+              aria-label="Próximo mês"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -2198,7 +2062,8 @@ function ActivitiesCalendarView({
                     isHighlighted={highlightedPostponedId === activity.id}
                     feedback={activityFeedback[activity.id]}
                     onToggleExpand={() => onToggleExpand(activity.id)}
-                    onComplete={() => onComplete(activity.id)}
+                    onComplete={(notes) => onComplete(activity.id, notes)}
+                    onCancel={() => onCancel(activity.id)}
                     onPostpone={(newDate) => onPostpone(activity.id, newDate)}
                     onSelectIntelligence={() => onSelectIntelligence(activity.id)}
                     onGenerateFollowup={() => onGenerateFollowup(activity)}
@@ -2444,6 +2309,7 @@ function ExecutionActivityCard({
   isHighlighted,
   onToggleExpand,
   onComplete,
+  onCancel,
   onPostpone,
   onSelectIntelligence,
   onGenerateFollowup,
@@ -2454,13 +2320,16 @@ function ExecutionActivityCard({
   isExpanded: boolean;
   isHighlighted: boolean;
   onToggleExpand: () => void;
-  onComplete: () => void;
+  onComplete: (notes?: string) => void;
+  onCancel: () => void;
   onPostpone: (newDate: string) => void;
   onSelectIntelligence: () => void;
   onGenerateFollowup: () => void;
 }) {
   const [postponeOpen, setPostponeOpen] = useState(false);
   const [insightOpen, setInsightOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completionNotes, setCompletionNotes] = useState("");
   const [customPostponeDate, setCustomPostponeDate] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -2557,19 +2426,64 @@ function ExecutionActivityCard({
         className="mt-3 flex flex-wrap items-center gap-2"
         onClick={(event) => event.stopPropagation()}
       >
-        <Button
-          size="sm"
-          className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800"
-          disabled={isBusy}
-          onClick={onComplete}
-        >
-          {feedback?.state === "loading-complete" ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <CheckCircle2 className="h-3.5 w-3.5" />
-          )}
-          Concluir
-        </Button>
+        <Popover open={completeOpen} onOpenChange={setCompleteOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              size="sm"
+              className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800"
+              disabled={isBusy}
+            >
+              {feedback?.state === "loading-complete" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              Concluir
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            sideOffset={8}
+            className="w-[280px] rounded-[16px] border-zinc-200 p-3"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Concluir atividade
+            </p>
+            <textarea
+              placeholder="Observações da conclusão (opcional)"
+              value={completionNotes}
+              onChange={(event) => setCompletionNotes(event.target.value)}
+              className="w-full resize-none rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 placeholder:text-zinc-400 focus:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand/20"
+              rows={3}
+            />
+            <div className="mt-2 flex gap-2">
+              <Button
+                size="sm"
+                className="h-8 flex-1 rounded-full bg-zinc-900 text-xs text-white hover:bg-zinc-800"
+                onClick={() => {
+                  onComplete(completionNotes.trim() || undefined);
+                  setCompleteOpen(false);
+                  setCompletionNotes("");
+                }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Confirmar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-full text-xs"
+                onClick={() => {
+                  setCompleteOpen(false);
+                  setCompletionNotes("");
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <Popover open={postponeOpen} onOpenChange={setPostponeOpen}>
           <PopoverTrigger asChild>
@@ -2597,7 +2511,7 @@ function ExecutionActivityCard({
               Reagendar
             </p>
             <div className="space-y-2">
-              {[1, 3].map((days) => (
+              {[1, 3, 7].map((days) => (
                 <button
                   key={days}
                   onClick={() => {
@@ -2690,9 +2604,22 @@ function ExecutionActivityCard({
           {isExpanded ? "Ocultar detalhes" : "Ver detalhes"}
         </Button>
 
+        {activity.status !== "completed" && activity.status !== "cancelled" && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-full px-3 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+            disabled={isBusy}
+            onClick={onCancel}
+          >
+            <XCircle className="h-3.5 w-3.5" />
+            Cancelar
+          </Button>
+        )}
+
         {feedback?.state === "complete-success" && (
           <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-700">
-            Concluída
+            {feedback.message || "Concluída"}
           </span>
         )}
 
@@ -2727,6 +2654,17 @@ function ExecutionActivityCard({
                   <p className="mt-1 text-sm text-zinc-700">
                     {activity.description || "Sem descrição detalhada para esta atividade."}
                   </p>
+
+                  {activity.completionNotes && (
+                    <>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                        Notas de conclusão
+                      </p>
+                      <p className="mt-1 rounded-[8px] border border-emerald-200 bg-emerald-50/60 px-2.5 py-2 text-sm text-emerald-800">
+                        {activity.completionNotes}
+                      </p>
+                    </>
+                  )}
 
                   <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                     Checklist

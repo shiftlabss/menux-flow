@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -43,21 +43,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { activitySchema, type ActivityFormData } from "@/lib/validations/activity";
 
-interface NewActivityModalProps {
+export interface NewActivityModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: ActivityFormData) => void;
   dealId?: string;
-  initialType?: "call" | "email" | "meeting" | "task" | "whatsapp";
+  initialType?: "call" | "email" | "meeting" | "visit" | "task" | "follow-up" | "whatsapp";
 }
 
 const activityTypes = [
@@ -66,12 +59,6 @@ const activityTypes = [
   { id: "email", label: "E-mail", icon: Mail },
   { id: "meeting", label: "Reunião", icon: Users },
   { id: "task", label: "Tarefa", icon: CheckSquare },
-];
-
-const priorities = [
-  { id: "low", label: "Baixa", color: "text-blue-600 bg-blue-50 border-blue-200" },
-  { id: "medium", label: "Média", color: "text-amber-600 bg-amber-50 border-amber-200" },
-  { id: "high", label: "Alta", color: "text-red-600 bg-red-50 border-red-200" },
 ];
 
 export function NewActivityModal({
@@ -92,9 +79,7 @@ export function NewActivityModal({
       title: "",
       date: format(new Date(), "yyyy-MM-dd"),
       time: format(new Date(), "HH:mm"),
-      duration: "30",
       description: "",
-      priority: "medium",
       responsible: "Eu (Logado)",
     },
   });
@@ -104,13 +89,11 @@ export function NewActivityModal({
     handleSubmit,
     watch,
     setValue,
-    control,
     formState: { errors },
     reset,
   } = form;
 
   const type = watch("type");
-  const priority = watch("priority");
 
   // Reset form when modal closes
   React.useEffect(() => {
@@ -121,9 +104,7 @@ export function NewActivityModal({
           title: "",
           date: format(new Date(), "yyyy-MM-dd"),
           time: format(new Date(), "HH:mm"),
-          duration: "30",
           description: "",
-          priority: "medium",
           responsible: "Eu (Logado)",
         });
         setSaveSuccess(false);
@@ -147,8 +128,6 @@ export function NewActivityModal({
   const handleSmartSuggestion = () => {
     setValue("title", "Follow-up da proposta enviada");
     setValue("description", "Verificar se o cliente teve alguma dúvida sobre os valores apresentados.");
-    setValue("priority", "high");
-    setValue("duration", "15");
   };
 
   const Content = (
@@ -211,28 +190,6 @@ export function NewActivityModal({
               )}
             </div>
 
-            <div>
-              <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Prioridade
-              </Label>
-              <div className="flex gap-2">
-                {priorities.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setValue("priority", p.id as any)}
-                    className={cn(
-                      "flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all",
-                      priority === p.id
-                        ? p.color
-                        : "border-zinc-200 text-zinc-500 bg-white hover:bg-zinc-50"
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* SECTION C: Date & Time */}
@@ -271,32 +228,6 @@ export function NewActivityModal({
             </div>
           </div>
 
-          {/* SECTION D: Duration */}
-          <div>
-            <Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Duração (minutos)
-            </Label>
-            <Controller
-              name="duration"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="15">15 min</SelectItem>
-                    <SelectItem value="30">30 min</SelectItem>
-                    <SelectItem value="45">45 min</SelectItem>
-                    <SelectItem value="60">1 hora</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.duration && (
-              <p className="mt-1 text-xs text-red-500">{errors.duration.message}</p>
-            )}
-          </div>
 
           {/* SECTION E: Description */}
           <div>

@@ -63,9 +63,7 @@ export const useActivityStore = create<ActivityState>()(
                   ...act,
                   status: "completed" as ActivityStatus,
                   completedAt: new Date().toISOString().split("T")[0],
-                  description: notes
-                    ? `${act.description || ""}\n\nNotas de conclusão: ${notes}`.trim()
-                    : act.description,
+                  completionNotes: notes || undefined,
                 }
               : act
           ),
@@ -81,21 +79,22 @@ export const useActivityStore = create<ActivityState>()(
         })),
 
       postponeActivity: (id, newDueDate, newDueTime) =>
-        set((state) => ({
-          activities: state.activities.map((act) =>
-            act.id === id
-              ? {
-                  ...act,
-                  dueDate: newDueDate,
-                  dueTime: newDueTime ?? act.dueTime,
-                  status:
-                    act.status === "overdue"
-                      ? ("pending" as ActivityStatus)
-                      : act.status,
-                }
-              : act
-          ),
-        })),
+        set((state) => {
+          const todayStr = new Date().toISOString().split("T")[0];
+          return {
+            activities: state.activities.map((act) => {
+              if (act.id !== id) return act;
+              const newStatus: ActivityStatus =
+                newDueDate < todayStr ? "overdue" : "pending";
+              return {
+                ...act,
+                dueDate: newDueDate,
+                dueTime: newDueTime ?? act.dueTime,
+                status: newStatus,
+              };
+            }),
+          };
+        }),
 
       getById: (id) => get().activities.find((a) => a.id === id),
       getByOpportunity: (opportunityId) =>
@@ -104,8 +103,14 @@ export const useActivityStore = create<ActivityState>()(
         get().activities.filter((a) => a.clientId === clientId),
       getPending: () =>
         get().activities.filter((a) => a.status === "pending"),
-      getOverdue: () =>
-        get().activities.filter((a) => a.status === "overdue"),
+      getOverdue: () => {
+        const todayStr = new Date().toISOString().split("T")[0];
+        return get().activities.filter(
+          (a) =>
+            a.status === "overdue" ||
+            (a.status === "pending" && a.dueDate < todayStr)
+        );
+      },
     }),
     { name: "activity-store" }
   )

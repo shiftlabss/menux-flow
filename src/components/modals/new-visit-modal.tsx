@@ -23,7 +23,7 @@ import {
   User,
   TriangleAlert,
 } from "lucide-react";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Command,
   CommandEmpty,
@@ -215,6 +215,34 @@ export function NewVisitModal({
     }
   }, [isOpen, form]);
 
+  // --- Auto-select newly created contact logic ---
+  const prevContactsLengthRef = React.useRef(contacts.length);
+
+  React.useEffect(() => {
+    // If contacts list grew, it means a new contact was added
+    if (contacts.length > prevContactsLengthRef.current) {
+      // Find the new contact (assuming it's at the end or we can diff)
+      // Since we don't know the ID structure for sure, let's take the last one or diff
+      const newContact = contacts[contacts.length - 1];
+
+      if (newContact) {
+        // Auto-select it
+        const currentParticipants = form.getValues("participants") || [];
+        if (!currentParticipants.includes(newContact.id)) {
+          form.setValue("participants", [...currentParticipants, newContact.id], {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        }
+        // Switch back to list view if we were adding
+        setIsAddingContact(false);
+      }
+    }
+    // Update ref
+    prevContactsLengthRef.current = contacts.length;
+  }, [contacts, form]);
+  // -----------------------------------------------
+
   React.useEffect(() => {
     if (visitType === "presencial") {
       setValue("platform", "google-meet", { shouldValidate: false });
@@ -387,7 +415,7 @@ export function NewVisitModal({
 
     onAddContact?.(newContact);
     setNewContactData({ nome: "", cargo: "", telefone: "", email: "" });
-    setIsAddingContact(false);
+    // Note: setIsAddingContact(false) is handled by the useEffect monitoring contacts length
   }, [newContactData, onAddContact]);
 
   const handleClose = React.useCallback(() => {
@@ -472,7 +500,7 @@ export function NewVisitModal({
 
   const content = (
     <div className="flex h-full flex-col bg-white">
-      <div className="sticky top-0 z-20 flex-none border-b border-zinc-100 bg-white px-6 py-4">
+      <div className="sticky top-0 z-20 flex-none border-b border-zinc-100 bg-white px-8 py-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
@@ -511,8 +539,8 @@ export function NewVisitModal({
         )}
       </div>
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-6 py-6">
-        <section className="rounded-2xl border border-zinc-200/80 bg-white p-4">
+      <div className="flex-1 space-y-8 overflow-y-auto px-8 py-8">
+        <section className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
               <Label className="text-[11px] uppercase tracking-[0.08em] text-zinc-500">Tipo da visita</Label>
@@ -585,7 +613,7 @@ export function NewVisitModal({
           )}
         </section>
 
-        <section className="rounded-2xl border border-zinc-200/80 bg-white p-4">
+        <section className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2 border-b border-zinc-100 pb-2">
             <Clock className="h-4 w-4 text-zinc-400" />
             <h4 className="text-sm font-semibold text-zinc-700">Quando</h4>
@@ -635,112 +663,7 @@ export function NewVisitModal({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-zinc-200/80 bg-white p-4">
-          <div className="mb-3 flex items-center gap-2 border-b border-zinc-100 pb-2">
-            {visitType === "presencial" ? (
-              <MapPin className="h-4 w-4 text-zinc-400" />
-            ) : visitType === "remoto" ? (
-              <LinkIcon className="h-4 w-4 text-zinc-400" />
-            ) : (
-              <HelpCircle className="h-4 w-4 text-zinc-400" />
-            )}
-            <h4 className="text-sm font-semibold text-zinc-700">Onde</h4>
-          </div>
-
-          {visitType === "presencial" && (
-            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-              <div className="space-y-1.5">
-                <Label>
-                  Local <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  {...form.register("location")}
-                  placeholder="Endereço, unidade ou ponto de referência"
-                  className={cn(errors.location && "border-red-300")}
-                />
-                {errors.location && <p className="text-xs text-red-500">{errors.location.message}</p>}
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-zinc-500">Observação de acesso (Opcional)</Label>
-                <Textarea
-                  {...form.register("accessSearch")}
-                  placeholder="Instruções para portaria, estacionamento..."
-                  className="h-20 resize-none"
-                />
-              </div>
-            </div>
-          )}
-
-          {visitType === "remoto" && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-top-2">
-              <div className="space-y-1.5">
-                <Label>
-                  Plataforma <span className="text-red-500">*</span>
-                </Label>
-                <Controller
-                  name="platform"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className={cn(errors.platform && "border-red-300")}>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {REMOTE_PROVIDERS.map((provider) => (
-                          <SelectItem key={provider.id} value={provider.id}>
-                            {provider.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.platform && <p className="text-xs text-red-500">{errors.platform.message}</p>}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>
-                  Link da reunião <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  {...form.register("link")}
-                  placeholder="https://meet.google.com/..."
-                  className={cn(errors.link && "border-red-300")}
-                />
-                {errors.link && <p className="text-xs text-red-500">{errors.link.message}</p>}
-              </div>
-            </div>
-          )}
-
-          {visitType === "outro" && (
-            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-              <div className="space-y-1.5">
-                <Label>
-                  Tipo <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  {...form.register("typeDescription")}
-                  placeholder="Ex: Ligação, WhatsApp, Evento"
-                  className={cn(errors.typeDescription && "border-red-300")}
-                />
-                {errors.typeDescription && (
-                  <p className="text-xs text-red-500">{errors.typeDescription.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Detalhe (Opcional)</Label>
-                <Textarea
-                  {...form.register("details")}
-                  className="h-20 resize-none"
-                  placeholder="Contexto adicional desta interação"
-                />
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-2xl border border-zinc-200/80 bg-white p-4">
+        <section className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
           <div className="mb-3 flex items-center gap-2 border-b border-zinc-100 pb-2">
             <Users className="h-4 w-4 text-zinc-400" />
             <h4 className="text-sm font-semibold text-zinc-700">Quem</h4>
@@ -763,7 +686,7 @@ export function NewVisitModal({
                       onValueChange={field.onChange}
                       disabled={!canDelegateResponsible}
                     >
-                      <SelectTrigger className={cn(errors.responsibleId && "border-red-300")}> 
+                      <SelectTrigger className={cn(errors.responsibleId && "border-red-300")}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -810,7 +733,7 @@ export function NewVisitModal({
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent
-                        className="w-[340px] overflow-hidden rounded-2xl border border-zinc-200/90 p-0 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+                        className="w-[calc(100vw-4rem)] sm:w-[340px] md:w-[var(--radix-popover-trigger-width)] min-w-[300px] overflow-hidden rounded-2xl border border-zinc-200/90 p-0 shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
                         align="start"
                       >
                         {isAddingContact ? (
@@ -962,16 +885,16 @@ export function NewVisitModal({
                               <CommandGroup>
                                 <CommandItem
                                   onSelect={() => setIsAddingContact(true)}
-                                  className="group flex cursor-pointer items-center gap-2.5 rounded-xl border border-brand/20 bg-gradient-to-r from-brand/5 to-brand/10 px-2.5 py-2.5 text-brand transition-colors duration-[120ms] hover:from-brand/10 hover:to-brand/15"
+                                  className="group flex cursor-pointer items-center gap-2.5 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 px-2.5 py-2.5 text-zinc-600 transition-colors duration-[120ms] hover:border-brand/40 hover:bg-brand/5 hover:text-brand"
                                 >
-                                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/15 text-brand">
+                                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white border border-zinc-200 text-zinc-400 group-hover:border-brand/30 group-hover:text-brand">
                                     <Plus className="h-4 w-4" />
                                   </span>
                                   <div className="flex min-w-0 flex-col">
-                                    <span className="font-body text-sm font-semibold text-brand">
+                                    <span className="font-body text-sm font-semibold">
                                       Cadastrar novo contato
                                     </span>
-                                    <span className="font-body text-[11px] text-zinc-600">
+                                    <span className="font-body text-[11px] text-zinc-400 group-hover:text-brand/80">
                                       Adicione e selecione sem sair da visita
                                     </span>
                                   </div>
@@ -1006,6 +929,113 @@ export function NewVisitModal({
             </div>
           </div>
         </section>
+
+        <section className="rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-sm">
+          <div className="mb-3 flex items-center gap-2 border-b border-zinc-100 pb-2">
+            {visitType === "presencial" ? (
+              <MapPin className="h-4 w-4 text-zinc-400" />
+            ) : visitType === "remoto" ? (
+              <LinkIcon className="h-4 w-4 text-zinc-400" />
+            ) : (
+              <HelpCircle className="h-4 w-4 text-zinc-400" />
+            )}
+            <h4 className="text-sm font-semibold text-zinc-700">Onde</h4>
+          </div>
+
+          {visitType === "presencial" && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-1.5">
+                <Label>
+                  Local <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  {...form.register("location")}
+                  placeholder="Endereço, unidade ou ponto de referência"
+                  className={cn(errors.location && "border-red-300")}
+                />
+                {errors.location && <p className="text-xs text-red-500">{errors.location.message}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-500">Observação de acesso (Opcional)</Label>
+                <Textarea
+                  {...form.register("accessSearch")}
+                  placeholder="Instruções para portaria, estacionamento..."
+                  className="h-20 resize-none"
+                />
+              </div>
+            </div>
+          )}
+
+          {visitType === "remoto" && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-1.5">
+                <Label>
+                  Plataforma <span className="text-red-500">*</span>
+                </Label>
+                <Controller
+                  name="platform"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={cn(errors.platform && "border-red-300")}>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REMOTE_PROVIDERS.map((provider) => (
+                          <SelectItem key={provider.id} value={provider.id}>
+                            {provider.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.platform && <p className="text-xs text-red-500">{errors.platform.message}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>
+                  Link da reunião <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  {...form.register("link")}
+                  placeholder="https://meet.google.com/..."
+                  className={cn(errors.link && "border-red-300")}
+                />
+                {errors.link && <p className="text-xs text-red-500">{errors.link.message}</p>}
+              </div>
+            </div>
+          )}
+
+          {visitType === "outro" && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-1.5">
+                <Label>
+                  Tipo <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  {...form.register("typeDescription")}
+                  placeholder="Ex: Ligação, WhatsApp, Evento"
+                  className={cn(errors.typeDescription && "border-red-300")}
+                />
+                {errors.typeDescription && (
+                  <p className="text-xs text-red-500">{errors.typeDescription.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Detalhe (Opcional)</Label>
+                <Textarea
+                  {...form.register("details")}
+                  className="h-20 resize-none"
+                  placeholder="Contexto adicional desta interação"
+                />
+              </div>
+            </div>
+          )}
+        </section>
+
+
 
         {visitStatus === "realizada" && (
           <section className="rounded-2xl border border-zinc-200/80 bg-white p-4 animate-in fade-in slide-in-from-top-2">
@@ -1149,7 +1179,7 @@ export function NewVisitModal({
         </section>
       </div>
 
-      <div className="flex-none border-t border-zinc-100 bg-white px-6 py-4 z-10">
+      <div className="flex-none border-t border-zinc-100 bg-white px-8 py-6 z-10">
         {showCancellationConfirm ? (
           <div className="flex w-full items-center justify-end gap-2 animate-in fade-in slide-in-from-right-2">
             <span className="mr-2 text-xs text-zinc-500">Alterações não salvas. Descartar?</span>
@@ -1234,13 +1264,10 @@ export function NewVisitModal({
   );
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <SheetContent
-        side="right"
-        className="flex h-screen w-full max-w-[920px] flex-col gap-0 border-l border-zinc-200 bg-white p-0 shadow-[0_18px_44px_rgba(15,23,42,0.22)]"
-      >
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent showCloseButton={false} className="flex max-h-[90vh] w-full sm:max-w-2xl md:max-w-3xl flex-col gap-0 p-0 overflow-hidden bg-white border-zinc-200/50 shadow-2xl sm:rounded-2xl">
         {content}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

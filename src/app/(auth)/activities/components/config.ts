@@ -28,9 +28,9 @@ export const typeIconComponents: Record<ActivityType, typeof Phone> = {
 };
 
 export const typeLabels: Record<ActivityType, string> = {
-  call: "Ligacao",
+  call: "Ligação",
   email: "E-mail",
-  meeting: "Reuniao",
+  meeting: "Reunião",
   visit: "Visita",
   task: "Tarefa",
   "follow-up": "Follow-up",
@@ -38,9 +38,9 @@ export const typeLabels: Record<ActivityType, string> = {
 };
 
 export const typeLabelsPt: Record<ActivityType, string> = {
-  call: "Ligacoes",
+  call: "Ligações",
   email: "E-mails",
-  meeting: "Reunioes",
+  meeting: "Reuniões",
   visit: "Visitas",
   task: "Tarefas",
   "follow-up": "Follow-ups",
@@ -90,7 +90,7 @@ export const statusIconComponents: Record<ActivityStatus, typeof Clock> = {
 
 export const statusLabels: Record<ActivityStatus, string> = {
   pending: "Pendente",
-  completed: "Concluida",
+  completed: "Concluída",
   overdue: "Atrasada",
   cancelled: "Cancelada",
 };

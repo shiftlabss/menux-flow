@@ -480,6 +480,8 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
     "idle",
   );
   const [nextStepError, setNextStepError] = useState<string | null>(null);
+  const [highlightRoundId, setHighlightRoundId] = useState<string | null>(null);
+  const [highlightNextStep, setHighlightNextStep] = useState(false);
 
   const orderedRounds = useMemo(
     () =>
@@ -493,6 +495,11 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
     () => orderedRounds.find((round) => round.id === currentTermsRoundId) ?? null,
     [orderedRounds, currentTermsRoundId],
   );
+  const currentTermsRoundNumber = useMemo(() => {
+    if (!currentTermsRound) return null;
+    const index = orderedRounds.findIndex((round) => round.id === currentTermsRound.id);
+    return index >= 0 ? index + 1 : null;
+  }, [currentTermsRound, orderedRounds]);
 
   const currentTerms = useMemo(() => extractTerms(currentTermsRound), [currentTermsRound]);
 
@@ -534,6 +541,30 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
   const pushBanner = (next: InlineBanner) => {
     setBanner(next);
     window.setTimeout(() => setBanner(null), 2200);
+  };
+
+  const pulseRound = (roundId: string) => {
+    setHighlightRoundId(roundId);
+    window.setTimeout(() => {
+      setHighlightRoundId((prev) => (prev === roundId ? null : prev));
+    }, 1800);
+  };
+
+  const scrollToRound = (roundId: string) => {
+    const target = document.querySelector(`[data-round-anchor="${roundId}"]`);
+    if (target instanceof HTMLElement) {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      pulseRound(roundId);
+    }
+  };
+
+  const focusNextStepCard = () => {
+    const target = document.querySelector('[data-next-step-card="true"]');
+    if (target instanceof HTMLElement) {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightNextStep(true);
+      window.setTimeout(() => setHighlightNextStep(false), 1600);
+    }
   };
 
   const openCreateRound = (sourceRound?: NegotiationRoundItem | null) => {
@@ -630,6 +661,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
 
         if (shouldPromoteTerms) {
           setCurrentTermsRoundId(editingRoundId);
+          pulseRound(editingRoundId);
         }
 
         pushBanner({
@@ -678,6 +710,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
 
         if (newRound.lifecycleStatus === "accepted" && isTeamOfferCandidate(newRound)) {
           setCurrentTermsRoundId(newRound.id);
+          pulseRound(newRound.id);
         }
 
         pushBanner({
@@ -778,6 +811,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
         );
         if (isTeamOfferCandidate(round)) {
           setCurrentTermsRoundId(round.id);
+          pulseRound(round.id);
         }
         pushBanner({
           type: "success",
@@ -840,6 +874,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
       "set-current",
       () => {
         setCurrentTermsRoundId(round.id);
+        pulseRound(round.id);
         pushBanner({
           type: "success",
           message: `Rodada ${round.id} definida como fonte dos termos vigentes.`,
@@ -963,6 +998,31 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
     }
   };
 
+  const handleOpenClientReturn = () => {
+    setFormMode("create");
+    setEditingRoundId(null);
+    setFormError(null);
+    setFormSeed({
+      type: "counter",
+      actorRole: "client",
+      visibility: "client",
+      lifecycleStatus: "awaiting",
+      monthlyValue: String(
+        latestClientCounter?.monthlyValue ?? currentTerms?.monthlyValue ?? latestTeamOffer?.monthlyValue ?? 0,
+      ),
+      setupValue: String(
+        latestClientCounter?.setupValue ?? currentTerms?.setupValue ?? latestTeamOffer?.setupValue ?? 0,
+      ),
+      termMonths: String(
+        latestClientCounter?.termMonths ?? currentTerms?.termMonths ?? latestTeamOffer?.termMonths ?? 12,
+      ),
+      notes: "",
+      conditionsText: "",
+      rejectedReason: "",
+    });
+    setIsFormOpen(true);
+  };
+
   const statusToneClass =
     negotiationStatus.tone === "success"
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -1034,8 +1094,8 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        <div className="space-y-4 lg:col-span-8">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
+        <div className="space-y-4 lg:col-span-8 lg:min-h-[calc(100vh-24rem)] lg:space-y-3">
           <AnimatePresence>
             {isFormOpen && (
               <motion.div
@@ -1059,8 +1119,8 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
           {orderedRounds.length === 0 ? (
             <EmptyState onStart={() => openCreateRound()} />
           ) : (
-            <div className="relative space-y-3">
-              <div className="absolute bottom-3 left-5 top-3 w-px bg-zinc-200" />
+            <div className="relative space-y-2.5 rounded-2xl border border-zinc-200 bg-white p-3">
+              <div className="absolute bottom-3 left-[1.35rem] top-3 w-px bg-zinc-200" />
 
               {orderedRounds.map((round, index) => (
                 <NegotiationRoundCard
@@ -1069,6 +1129,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
                   displayIndex={index + 1}
                   isCurrentTerms={round.id === currentTermsRoundId}
                   isLast={index === orderedRounds.length - 1}
+                  isHighlighted={highlightRoundId === round.id}
                   loadingAction={rowActionLoading[round.id] ?? null}
                   onEdit={openEditRound}
                   onDelete={handleDeleteRound}
@@ -1082,12 +1143,27 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
               ))}
             </div>
           )}
+
+          <NegotiationExecutionCard
+            hasRounds={orderedRounds.length > 0}
+            hasCurrentTerms={Boolean(currentTerms)}
+            sourceRound={currentTermsRound}
+            hasClientCounter={Boolean(latestClientCounter)}
+            nextStep={nextStep}
+            onCreateRound={() => openCreateRound(latestTeamOffer ?? currentTermsRound)}
+            onExport={handleExportSummary}
+            onRegisterClientReturn={handleOpenClientReturn}
+            onFocusNextStep={focusNextStepCard}
+            isExporting={isExporting}
+          />
         </div>
 
-        <div className="space-y-4 lg:col-span-4 lg:sticky lg:top-5">
+        <div className="space-y-4 lg:col-span-4 lg:sticky lg:top-4 lg:self-start">
           <CurrentTermsCard
             terms={currentTerms}
             sourceRound={currentTermsRound}
+            sourceRoundNumber={currentTermsRoundNumber}
+            onJumpToSourceRound={scrollToRound}
             onCreateFromCurrent={() => openCreateRound(currentTermsRound)}
           />
 
@@ -1102,6 +1178,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
             errorMessage={nextStepError}
             onChange={setNextStep}
             onSave={handleSaveNextStep}
+            highlighted={highlightNextStep}
           />
 
           <div className="rounded-2xl border border-zinc-200 bg-white p-4">
@@ -1153,10 +1230,14 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
 function CurrentTermsCard({
   terms,
   sourceRound,
+  sourceRoundNumber,
+  onJumpToSourceRound,
   onCreateFromCurrent,
 }: {
   terms: NegotiationTermsState | null;
   sourceRound: NegotiationRoundItem | null;
+  sourceRoundNumber: number | null;
+  onJumpToSourceRound: (roundId: string) => void;
   onCreateFromCurrent: () => void;
 }) {
   return (
@@ -1184,9 +1265,13 @@ function CurrentTermsCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-[11px]">
-            <Badge className="border-zinc-200 bg-zinc-100 text-zinc-700">
-              Rodada fonte: {sourceRound.id}
-            </Badge>
+            <button
+              type="button"
+              onClick={() => onJumpToSourceRound(sourceRound.id)}
+              className="inline-flex h-6 items-center rounded-full border border-zinc-200 bg-zinc-100 px-2 text-[11px] font-medium text-zinc-700 transition-colors hover:border-brand/30 hover:text-brand"
+            >
+              Rodada fonte: {sourceRoundNumber ? `Rodada ${sourceRoundNumber}` : sourceRound.id}
+            </button>
             <Badge className={cn("border", lifecycleMeta[sourceRound.lifecycleStatus].chipClass)}>
               {lifecycleMeta[sourceRound.lifecycleStatus].label}
             </Badge>
@@ -1301,15 +1386,23 @@ function NextStepCard({
   errorMessage,
   onChange,
   onSave,
+  highlighted,
 }: {
   draft: NextStepDraft;
   saveState: "idle" | "saving" | "saved" | "error";
   errorMessage: string | null;
   onChange: (draft: NextStepDraft) => void;
   onSave: () => void;
+  highlighted: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
+    <div
+      className={cn(
+        "rounded-2xl border border-zinc-200 bg-white p-4 transition-all duration-200",
+        highlighted && "ring-2 ring-brand/30",
+      )}
+      data-next-step-card="true"
+    >
       <div className="flex items-center gap-2">
         <CalendarClock className="h-4 w-4 text-zinc-500" />
         <h3 className="font-heading text-sm font-semibold text-zinc-900">Próximo passo</h3>
@@ -1417,11 +1510,160 @@ function NextStepCard({
   );
 }
 
+function NegotiationExecutionCard({
+  hasRounds,
+  hasCurrentTerms,
+  sourceRound,
+  hasClientCounter,
+  nextStep,
+  onCreateRound,
+  onExport,
+  onRegisterClientReturn,
+  onFocusNextStep,
+  isExporting,
+}: {
+  hasRounds: boolean;
+  hasCurrentTerms: boolean;
+  sourceRound: NegotiationRoundItem | null;
+  hasClientCounter: boolean;
+  nextStep: NextStepDraft;
+  onCreateRound: () => void;
+  onExport: () => void;
+  onRegisterClientReturn: () => void;
+  onFocusNextStep: () => void;
+  isExporting: boolean;
+}) {
+  const nextStepReady = nextStep.action.trim().length >= 4 && Boolean(nextStep.dueAt);
+  const dueAtDate = nextStep.dueAt ? new Date(`${nextStep.dueAt}T00:00:00`) : null;
+  const dueAtLabel =
+    dueAtDate && !Number.isNaN(dueAtDate.getTime())
+      ? format(dueAtDate, "dd MMM", { locale: ptBR })
+      : "Sem data";
+  const sourceSent =
+    sourceRound?.visibility === "client" &&
+    (sourceRound.lifecycleStatus === "sent" ||
+      sourceRound.lifecycleStatus === "awaiting" ||
+      sourceRound.lifecycleStatus === "accepted");
+
+  const checklistItems = [
+    {
+      id: "terms",
+      label: "Termos vigentes definidos",
+      done: hasCurrentTerms,
+    },
+    {
+      id: "source",
+      label: "Rodada vigente enviada ao cliente",
+      done: sourceSent,
+    },
+    {
+      id: "counter",
+      label: "Retorno do cliente registrado",
+      done: hasClientCounter,
+    },
+    {
+      id: "next-step",
+      label: "Próximo passo com data",
+      done: nextStepReady,
+    },
+  ];
+
+  return (
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="font-heading text-sm font-semibold text-zinc-900">Execução da negociação</h3>
+          <p className="mt-1 text-xs text-zinc-500">
+            Fechamento visual da timeline com checklist e ações rápidas da rodada vigente.
+          </p>
+        </div>
+        {!hasRounds ? (
+          <Badge className="border-zinc-200 bg-zinc-100 text-[10px] text-zinc-600">Sem rodadas</Badge>
+        ) : null}
+      </div>
+
+      <div className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium text-zinc-800">Próximo passo</p>
+          <button
+            type="button"
+            className="text-[11px] font-medium text-brand transition-colors hover:text-brand/80"
+            onClick={onFocusNextStep}
+          >
+            Editar
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-zinc-600">
+          {nextStepReady
+            ? `${nextStep.action} · ${dueAtLabel} · ${
+                channelOptions.find((channel) => channel.id === nextStep.channel)?.label ?? "Canal"
+              }`
+            : "Defina ação, data e canal para não perder o timing da negociação."}
+        </p>
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {checklistItems.map((item) => (
+          <div
+            key={item.id}
+            className={cn(
+              "flex items-center gap-2 rounded-lg border px-2.5 py-2",
+              item.done
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-zinc-200 bg-zinc-50 text-zinc-600",
+            )}
+          >
+            {item.done ? (
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            ) : (
+              <Clock3 className="h-3.5 w-3.5" />
+            )}
+            <span className="text-[11px] font-medium">{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800"
+          onClick={onCreateRound}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Nova rodada
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-full px-3 text-xs"
+          onClick={onRegisterClientReturn}
+        >
+          Registrar retorno do cliente
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-full px-3 text-xs"
+          onClick={onExport}
+          disabled={isExporting}
+        >
+          {isExporting ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}
+          Exportar resumo
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 function NegotiationRoundCard({
   round,
   displayIndex,
   isCurrentTerms,
   isLast,
+  isHighlighted,
   loadingAction,
   onEdit,
   onDelete,
@@ -1436,6 +1678,7 @@ function NegotiationRoundCard({
   displayIndex: number;
   isCurrentTerms: boolean;
   isLast: boolean;
+  isHighlighted: boolean;
   loadingAction: RowAction | null;
   onEdit: (round: NegotiationRoundItem) => void;
   onDelete: (round: NegotiationRoundItem) => void;
@@ -1459,7 +1702,7 @@ function NegotiationRoundCard({
   const canDelete = isRoundDeletable(round);
 
   return (
-    <div className="relative pl-6">
+    <div className="relative pl-6" data-round-anchor={round.id}>
       <div
         className={cn(
           "absolute left-3 top-5 h-6 w-6 -translate-x-1/2 rounded-full border-2 bg-white",
@@ -1474,13 +1717,20 @@ function NegotiationRoundCard({
         />
       </div>
 
-      <motion.div layout className={cn("rounded-2xl border bg-white shadow-sm", expanded && "ring-1 ring-zinc-200")}>
+      <motion.div
+        layout
+        className={cn(
+          "rounded-xl border bg-white shadow-sm transition-all duration-200",
+          expanded && "ring-1 ring-zinc-200",
+          isHighlighted && "border-brand/50 ring-2 ring-brand/20",
+        )}
+      >
         <button
           type="button"
-          className="flex w-full items-center gap-3 p-4 text-left"
+          className="flex w-full items-center gap-3 p-3 text-left"
           onClick={() => setExpanded((prev) => !prev)}
         >
-          <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border", typeMeta.badgeClass)}>
+          <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border", typeMeta.badgeClass)}>
             <TypeIcon className="h-4 w-4" />
           </div>
 
@@ -1498,12 +1748,12 @@ function NegotiationRoundCard({
               </Badge>
               {isCurrentTerms ? (
                 <Badge className="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700">
-                  Termos vigentes
+                  Fonte dos termos vigentes
                 </Badge>
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-600">
+            <div className="flex flex-wrap items-center gap-2.5 text-xs text-zinc-600">
               <span className="font-medium text-zinc-800">{round.authorName}</span>
               <span>{formatCurrency(round.monthlyValue ?? 0)} /mês</span>
               <span>Setup {formatCurrency(round.setupValue ?? 0)}</span>
@@ -1527,11 +1777,11 @@ function NegotiationRoundCard({
               transition={{ duration: 0.16 }}
               className="overflow-hidden"
             >
-              <div className="space-y-4 px-4 pb-4 pt-0">
+              <div className="space-y-3 px-3 pb-3 pt-0">
                 <Separator />
 
                 {isTermsRequired(round.type) ? (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <StatCard label="Mensal" value={formatCurrency(round.monthlyValue ?? 0)} />
                     <StatCard label="Setup" value={formatCurrency(round.setupValue ?? 0)} />
                     <StatCard label="Prazo" value={`${round.termMonths ?? 12} meses`} />
@@ -1547,7 +1797,7 @@ function NegotiationRoundCard({
                   <div className="space-y-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Condições</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {round.conditions.map((condition) => (
+                      {round.conditions.slice(0, 3).map((condition) => (
                         <Badge
                           key={`${round.id}-${condition}`}
                           className="border-zinc-200 bg-zinc-100 text-[10px] font-normal text-zinc-700"
@@ -1555,6 +1805,11 @@ function NegotiationRoundCard({
                           {condition}
                         </Badge>
                       ))}
+                      {round.conditions.length > 3 ? (
+                        <Badge className="border-zinc-200 bg-zinc-100 text-[10px] font-normal text-zinc-700">
+                          +{round.conditions.length - 3}
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
                 ) : null}
