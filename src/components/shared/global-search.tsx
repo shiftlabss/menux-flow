@@ -27,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { canAccessIntelligence } from "@/lib/intelligence-permissions";
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -228,9 +229,6 @@ const basePages = [
   { path: "/activities", label: "Atividades", icon: CalendarCheck },
   { path: "/pipes", label: "Pipeline de Vendas", icon: Kanban },
   { path: "/clients", label: "Clientes", icon: Users },
-  { path: "/finance", label: "Financeiro", icon: DollarSign },
-  { path: "/goals", label: "Metas", icon: Target },
-  { path: "/intelligence", label: "Menux Intelligence", icon: Handshake },
 ];
 
 const privilegedPages = [
@@ -300,7 +298,7 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 // ---------------------------------------------------------------------------
 
 export function GlobalSearch() {
-  const { isSearchOpen, setSearchOpen, openDrawer } = useUIStore();
+  const { isSearchOpen, setSearchOpen, openDrawer, openModal } = useUIStore();
   const { user, permissions } = useAuthStore();
   const router = useRouter();
 
@@ -350,9 +348,25 @@ export function GlobalSearch() {
       (item) => item.responsible === currentSellerName
     );
   }, [currentSellerName, isSellerMode]);
+  const hasIntelligenceAccess = user?.role
+    ? canAccessIntelligence(user.role)
+    : false;
 
   const pages = useMemo(() => {
     const items = [...basePages];
+    if (permissions?.canViewFinance) {
+      items.push({ path: "/finance", label: "Financeiro", icon: DollarSign });
+    }
+    if (permissions?.canManageGoals) {
+      items.push({ path: "/goals", label: "Metas", icon: Target });
+    }
+    if (hasIntelligenceAccess) {
+      items.push({
+        path: "/intelligence",
+        label: "Menux Intelligence",
+        icon: Handshake,
+      });
+    }
     if (permissions?.canViewReports) {
       items.push(
         ...privilegedPages.filter((page) => page.path.startsWith("/reports"))
@@ -370,7 +384,10 @@ export function GlobalSearch() {
     }
     return items;
   }, [
+    hasIntelligenceAccess,
     permissions?.canManageSettings,
+    permissions?.canManageGoals,
+    permissions?.canViewFinance,
     permissions?.canViewAllUnits,
     permissions?.canViewReports,
   ]);
@@ -403,7 +420,7 @@ export function GlobalSearch() {
 
   const openOpportunity = useCallback(
     (item: SearchableItem) => {
-      openDrawer("lead-card", {
+      openModal("lead-card", {
         name: item.name,
         razaoSocial: item.razaoSocial,
         cnpj: item.cnpj,
@@ -416,7 +433,7 @@ export function GlobalSearch() {
       });
       setSearchOpen(false);
     },
-    [openDrawer, setSearchOpen],
+    [openModal, setSearchOpen],
   );
 
   const openClient = useCallback(

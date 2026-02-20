@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
+import type { ActivityType } from "@/types";
 import type {
   Message,
   CopyableBlock,
@@ -174,8 +175,9 @@ function SuggestedActionButton({
   action: SuggestedAction;
   messageId: string;
 }) {
-  const { markActionExecuted, openClientPicker } = useIntelligenceStore();
-  const { openDrawer } = useUIStore();
+  const { markActionExecuted, openClientPicker, contextCard } =
+    useIntelligenceStore();
+  const { openDrawer, openModal } = useUIStore();
 
   const iconMap: Record<string, React.ReactNode> = {
     calendar: <Calendar className="h-3.5 w-3.5" />,
@@ -185,34 +187,119 @@ function SuggestedActionButton({
     users: <MessageSquare className="h-3.5 w-3.5" />,
   };
 
+  const normalizeActivityType = (value: unknown): ActivityType => {
+    if (value === "followup" || value === "follow-up") return "follow-up";
+    if (
+      value === "call" ||
+      value === "email" ||
+      value === "meeting" ||
+      value === "visit" ||
+      value === "task" ||
+      value === "whatsapp"
+    ) {
+      return value;
+    }
+    return "task";
+  };
+
   const handleClick = () => {
     if (action.executed) return;
+    let didExecute = false;
 
     // Handle "Escolher cliente" action — abre o modal D11
     if (action.payload?.action === "open-client-picker") {
       openClientPicker();
-      markActionExecuted(messageId, action.id);
-      return;
-    }
+      didExecute = true;
+    } else {
+      const payload = (action.payload ?? {}) as Record<string, unknown>;
 
-    // Open real drawers based on action type
-    switch (action.type) {
-      case "create-activity":
-        openDrawer("new-activity", { ...action.payload, fromIntelligence: true });
-        break;
-      case "schedule-followup":
-        openDrawer("new-activity", { type: "followup", ...action.payload, fromIntelligence: true });
-        break;
-      case "save-note":
-        openDrawer("new-activity", { type: "note", ...action.payload, fromIntelligence: true });
-        break;
-      case "open-card":
-        // Already handled by the open-client-picker check above
-        break;
+      // Open real drawers based on action type
+      switch (action.type) {
+        case "create-activity":
+          openDrawer("new-activity", {
+            ...payload,
+            type: normalizeActivityType(payload.type),
+            fromIntelligence: true,
+          });
+          didExecute = true;
+          break;
+        case "schedule-followup":
+          openDrawer("new-activity", {
+            ...payload,
+            type: "follow-up",
+            fromIntelligence: true,
+          });
+          didExecute = true;
+          break;
+        case "save-note": {
+          const noteTargetId =
+            (typeof payload.cardId === "string"
+              ? payload.cardId
+              : contextCard?.cardId) ?? null;
+          const noteText =
+            typeof payload.noteText === "string" ? payload.noteText : undefined;
+          const entityType =
+            payload.entityType === "client"
+              ? "client"
+              : (contextCard?.entityType ?? "opportunity");
+
+          if (!noteTargetId) {
+            openClientPicker();
+            didExecute = true;
+            break;
+          }
+
+          if (entityType === "client") {
+            openDrawer("client-card", {
+              id: noteTargetId,
+              initialTab: "notes",
+              prefillNote: noteText,
+              fromIntelligence: true,
+            });
+            didExecute = true;
+            break;
+          }
+
+          openModal("lead-card", {
+            id: noteTargetId,
+            initialTab: "anotacoes",
+            prefillNote: noteText,
+            fromIntelligence: true,
+          });
+          didExecute = true;
+          break;
+        }
+        case "open-card": {
+          const cardId =
+            (typeof payload.cardId === "string"
+              ? payload.cardId
+              : contextCard?.cardId) ?? null;
+          const entityType =
+            payload.entityType === "client"
+              ? "client"
+              : (contextCard?.entityType ?? "opportunity");
+
+          if (!cardId) {
+            openClientPicker();
+            didExecute = true;
+            break;
+          }
+
+          if (entityType === "client") {
+            openDrawer("client-card", { id: cardId });
+          } else {
+            openModal("lead-card", { id: cardId });
+          }
+          didExecute = true;
+          break;
+        }
+      }
     }
 
     // Marcar como executada
-    markActionExecuted(messageId, action.id);
+    if (didExecute) {
+      markActionExecuted(messageId, action.id);
+    }
   };
 
   return (

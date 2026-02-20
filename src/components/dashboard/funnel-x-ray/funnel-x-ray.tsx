@@ -222,9 +222,9 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
             onClick={() => openPipeline(activeStage?.id)}
             whileTap={{ scale: 0.99 }}
             transition={{ duration: 0.09, ease: "easeOut" }}
-            className="group inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold text-zinc-700 transition-all duration-[120ms] ease-out hover:-translate-y-px hover:bg-zinc-100 hover:text-zinc-900"
+            className="group inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold text-zinc-700 transition-all duration-120 ease-out hover:-translate-y-px hover:bg-zinc-100 hover:text-zinc-900"
           >
-            <span className="underline-offset-4 transition-all duration-[120ms] group-hover:underline">
+            <span className="underline-offset-4 transition-all duration-120 group-hover:underline">
               Ver Pipeline
             </span>
             <ArrowRight className="h-3.5 w-3.5" />

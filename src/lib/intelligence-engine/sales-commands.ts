@@ -75,6 +75,8 @@ ${
       payload: {
         type: "follow-up",
         description: `Follow-up do briefing de ${card.cardName}`,
+        opportunityId: card.cardId,
+        opportunityTitle: card.cardName,
       },
     },
     {
@@ -82,6 +84,11 @@ ${
       type: "save-note",
       label: "📝 Salvar na timeline",
       icon: "file-text",
+      payload: {
+        cardId: card.cardId,
+        entityType: card.entityType,
+        noteText: `Briefing gerado para ${card.cardName} (${card.stageLabel} · ${temperatureLabel(card.temperature)}).`,
+      },
     },
   ];
 
@@ -280,7 +287,12 @@ export function generatePitch(card: CardContext): Message {
         type: "create-activity",
         label: "📅 Agendar demonstração",
         icon: "calendar",
-        payload: { type: "meeting", description: `Demo ${card.cardName}` },
+        payload: {
+          type: "meeting",
+          description: `Demo ${card.cardName}`,
+          opportunityId: card.cardId,
+          opportunityTitle: card.cardName,
+        },
       },
     ],
     sourceCommand: "/pitch",
@@ -331,6 +343,8 @@ export function generateFollowup(card: CardContext): Message {
         payload: {
           type: "follow-up",
           description: `Follow-up ${card.cardName}`,
+          opportunityId: card.cardId,
+          opportunityTitle: card.cardName,
         },
       },
     ],

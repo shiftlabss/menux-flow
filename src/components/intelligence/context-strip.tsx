@@ -8,12 +8,15 @@ import { useUIStore } from "@/stores/ui-store";
 
 export function ContextStrip() {
   const { contextCard, openClientPicker } = useIntelligenceStore();
-  const { openDrawer } = useUIStore();
+  const { openDrawer, openModal } = useUIStore();
 
   const handleOpenDeal = () => {
     if (contextCard?.cardId) {
-       const dType = contextCard.entityType === "client" ? "client-card" : "lead-card";
-       openDrawer(dType, { id: contextCard.cardId });
+      if (contextCard.entityType === "client") {
+        openDrawer("client-card", { id: contextCard.cardId });
+        return;
+      }
+      openModal("lead-card", { id: contextCard.cardId });
     }
   };
 

@@ -4,6 +4,7 @@
 // ============================================================================
 
 import type {
+  SlashCommand,
   SlashCommandDefinition,
   UserRoleIntelligence,
 } from "@/types/intelligence";
@@ -177,6 +178,15 @@ export function getAvailableCommands(
     // Se o comando requer card e não há card → ainda mostra, mas será disabled
     return roleAllowed;
   });
+}
+
+/**
+ * Retorna a definição de um comando específico.
+ */
+export function getCommandDefinition(
+  command: SlashCommand
+): SlashCommandDefinition | undefined {
+  return SLASH_COMMANDS.find((cmd) => cmd.command === command);
 }
 
 /**

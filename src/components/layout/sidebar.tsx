@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useSidebarStore } from "@/stores/sidebar-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { canAccessIntelligence } from "@/lib/intelligence-permissions";
 
 // Simple useMediaQuery hook
 function useMediaQuery(query: string): boolean {
@@ -99,9 +100,10 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { isExpanded, toggle } = useSidebarStore();
-  const { permissions } = useAuthStore();
+  const { permissions, user } = useAuthStore();
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const hasIntelligenceAccess = user?.role ? canAccessIntelligence(user.role) : false;
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -275,55 +277,55 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Menux Intelligence Button */}
-        <div className="px-3 pb-3">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href="/intelligence"
-                className={cn(
-                  "premium-shine group flex items-center gap-3 rounded-[15px] px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  pathname === "/intelligence"
-                    ? "menux-intelligence-btn text-slate-100"
-                    : "menux-intelligence-btn-soft"
-                )}
-                onClick={() => {
-                  if (!isDesktop) setIsMobileOpen(false);
-                }}
-              >
-                <div className="relative shrink-0">
-                  <Sparkles
-                    className={cn(
-                      "h-5 w-5 transition-transform duration-300",
-                      pathname === "/intelligence" ? "text-cyan-100" : "text-cyan-200",
-                      "group-hover:scale-110"
+        {hasIntelligenceAccess && (
+          <div className="px-3 pb-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href="/intelligence"
+                  className={cn(
+                    "premium-shine group flex items-center gap-3 rounded-[15px] px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                    pathname === "/intelligence"
+                      ? "menux-intelligence-btn text-slate-100"
+                      : "menux-intelligence-btn-soft"
+                  )}
+                  onClick={() => {
+                    if (!isDesktop) setIsMobileOpen(false);
+                  }}
+                >
+                  <div className="relative shrink-0">
+                    <Sparkles
+                      className={cn(
+                        "h-5 w-5 transition-transform duration-300",
+                        pathname === "/intelligence" ? "text-cyan-100" : "text-cyan-200",
+                        "group-hover:scale-110"
+                      )}
+                    />
+                    {pathname === "/intelligence" && (
+                      <span className="absolute inset-0 animate-ping rounded-full bg-white opacity-30"></span>
                     )}
-                  />
-                  {pathname === "/intelligence" && (
-                    <span className="absolute inset-0 animate-ping rounded-full bg-white opacity-30"></span>
-                  )}
-                </div>
-                <AnimatePresence>
-                  {sidebarExpanded && (
-                    <motion.span
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: "auto" }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="overflow-hidden whitespace-nowrap font-heading font-semibold"
-                    >
-                      Menux Intelligence
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p>Menux Intelligence</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
+                  </div>
+                  <AnimatePresence>
+                    {sidebarExpanded && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: "auto" }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="overflow-hidden whitespace-nowrap font-heading font-semibold"
+                      >
+                        Menux Intelligence
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Menux Intelligence</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
 
         {/* Collapse Toggle - only on desktop */}
         {isDesktop && (

@@ -147,6 +147,14 @@ type NoteIntent =
 type NoteVisibility = "team" | "internal";
 type NotesFilter = "all" | "cliente" | "decisao" | "proximo_passo";
 type StageFieldSaveState = "idle" | "saving" | "saved" | "error";
+type LeadDrawerTab =
+  | "empresa"
+  | "contatos"
+  | "visitas"
+  | "atividades"
+  | "negociacao"
+  | "anotacoes"
+  | "linha-do-tempo";
 
 interface OpportunityNote {
   id: string;
@@ -221,6 +229,34 @@ const noteIntentMeta: Record<
     chipClass: "border-zinc-200 bg-zinc-100 text-zinc-500",
   },
 };
+
+function resolveLeadDrawerTab(rawTab: unknown): LeadDrawerTab {
+  if (typeof rawTab !== "string") return "empresa";
+  const tab = rawTab.trim().toLowerCase();
+
+  switch (tab) {
+    case "empresa":
+      return "empresa";
+    case "contatos":
+      return "contatos";
+    case "visitas":
+      return "visitas";
+    case "atividades":
+      return "atividades";
+    case "negociacao":
+    case "negociação":
+      return "negociacao";
+    case "anotacoes":
+    case "anotações":
+    case "notes":
+      return "anotacoes";
+    case "linha-do-tempo":
+    case "timeline":
+      return "linha-do-tempo";
+    default:
+      return "empresa";
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Telemetria — Frontend event tracking stub
@@ -1735,6 +1771,14 @@ export default function LeadCardDrawer() {
   const { modalType, modalData, closeModal } = useUIStore();
   const isOpen = modalType === "lead-card";
   const selectedLeadId = modalData?.id as string | undefined;
+  const initialTabFromModal = useMemo(
+    () => resolveLeadDrawerTab(modalData?.initialTab),
+    [modalData?.initialTab]
+  );
+  const prefillNoteFromModal = useMemo(() => {
+    const raw = modalData?.prefillNote;
+    return typeof raw === "string" ? raw.trim() : "";
+  }, [modalData?.prefillNote]);
   const opportunities = useOpportunityStore((state) => state.opportunities);
   const selectedLead = useMemo(
     () => opportunities.find((opportunity) => opportunity.id === selectedLeadId),
@@ -1975,7 +2019,7 @@ export default function LeadCardDrawer() {
     cargo: "",
     personalidade: "",
   });
-  const [activeTab, setActiveTab] = useState("timeline");
+  const [activeTab, setActiveTab] = useState<LeadDrawerTab>(initialTabFromModal);
   const [isNewVisitModalOpen, setIsNewVisitModalOpen] = useState(false);
   const [isNewActivityModalOpen, setIsNewActivityModalOpen] = useState(false);
   const [newActivityType, setNewActivityType] = useState<"task" | "call" | "email" | "meeting" | "whatsapp">("task");
@@ -2317,7 +2361,7 @@ export default function LeadCardDrawer() {
   }, []);
 
   useEffect(() => {
-    setActiveTab("empresa");
+    setActiveTab(initialTabFromModal);
     setVisitRows([...mockVisits]);
     setVisitFilter("all");
     setExpandedVisitId(null);
@@ -2335,7 +2379,7 @@ export default function LeadCardDrawer() {
     setContactsBanner(null);
     setNewContactError(null);
     setIsSavingStageFields(false);
-    setNoteDraft("");
+    setNoteDraft(prefillNoteFromModal);
     setNoteIntent("general");
     setNoteVisibility("team");
     setNoteSaveState("idle");
@@ -2366,7 +2410,15 @@ export default function LeadCardDrawer() {
       });
     }
     setNotesHistory(seed);
-  }, [initialLeadNote, initialLeadOwnerId, initialLeadStage, initialStageValuesForLead, resolvedLead.id]);
+  }, [
+    initialLeadNote,
+    initialLeadOwnerId,
+    initialLeadStage,
+    initialStageValuesForLead,
+    initialTabFromModal,
+    prefillNoteFromModal,
+    resolvedLead.id,
+  ]);
 
   // ── Handlers ─────────────────────────────────────────────────
 
@@ -3152,7 +3204,12 @@ export default function LeadCardDrawer() {
             <div className="min-h-0 flex-1">
               <ScrollArea className="h-full">
                 <div className="p-5 md:px-8 lg:px-10">
-                  <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={(value) =>
+                      setActiveTab(resolveLeadDrawerTab(value))
+                    }
+                  >
                     <div className="sticky top-2 z-20 w-fit">
                       <div className="max-w-full overflow-x-auto">
                         <TabsList className="inline-flex h-9 items-center justify-start rounded-full bg-zinc-100/80 p-1">

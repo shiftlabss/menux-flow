@@ -32,18 +32,32 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { SlashCommand } from "@/types/intelligence";
+import { getAvailableCommands } from "@/lib/intelligence-commands";
+import type { SlashCommand, UserRoleIntelligence } from "@/types/intelligence";
 import { useIntelligenceStore } from "@/stores/intelligence-store";
 import { useOpportunityStore } from "@/stores/opportunity-store";
+import { useAuthStore } from "@/stores/auth-store";
 import { useExecutionPanelData } from "@/hooks/use-execution-panel-data";
 import { formatCurrencyBRL } from "@/lib/business-rules";
+
+function isIntelligenceRole(
+  role: string | undefined
+): role is UserRoleIntelligence {
+  return (
+    role === "master" ||
+    role === "admin" ||
+    role === "comercial" ||
+    role === "cs"
+  );
+}
 
 export function IntelligenceExecutionPanel() {
   const { contextCard, executeSlashCommand, proactiveSuggestions, dismissSuggestion, menuxIntelligenceMode } =
     useIntelligenceStore();
   const { opportunities } = useOpportunityStore();
+  const userRole = useAuthStore((s) => s.user?.role);
 
   const { priorities, insights, quickWins, riskAlerts } =
     useExecutionPanelData();
@@ -71,19 +85,27 @@ export function IntelligenceExecutionPanel() {
   };
 
   const allowedQuickActions = quickActionFilter[menuxIntelligenceMode] ?? quickActionFilter.focus;
+  const availableCommandSet = useMemo(() => {
+    if (!isIntelligenceRole(userRole)) return new Set<SlashCommand>();
+    return new Set(getAvailableCommands(userRole).map((command) => command.command));
+  }, [userRole]);
 
   const allQuickActions = [
-    { key: "whatsapp", icon: <MessageSquare className="h-3.5 w-3.5" />, label: "WhatsApp", color: "border-emerald-300/25 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/18 hover:border-emerald-300/40", needsClient: true },
-    { key: "email", icon: <Mail className="h-3.5 w-3.5" />, label: "Email", color: "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/18 hover:border-cyan-300/40", needsClient: true },
-    { key: "agendar", icon: <Calendar className="h-3.5 w-3.5" />, label: "Follow-up", color: "border-violet-300/25 bg-violet-400/12 text-violet-100 hover:bg-violet-400/18 hover:border-violet-300/40", needsClient: true },
-    { key: "proposta", icon: <Target className="h-3.5 w-3.5" />, label: "Pitch", color: "border-amber-300/25 bg-amber-400/12 text-amber-100 hover:bg-amber-400/18 hover:border-amber-300/40", needsClient: true },
-    { key: "resumo", icon: <Sunrise className="h-3.5 w-3.5" />, label: "Resumo", color: "border-indigo-300/25 bg-indigo-400/12 text-indigo-100 hover:bg-indigo-400/18 hover:border-indigo-300/40", needsClient: false },
-    { key: "funil", icon: <TrendingUp className="h-3.5 w-3.5" />, label: "Funil", color: "border-blue-300/25 bg-blue-400/12 text-blue-100 hover:bg-blue-400/18 hover:border-blue-300/40", needsClient: false },
-    { key: "riscos", icon: <ShieldAlert className="h-3.5 w-3.5" />, label: "Riscos", color: "border-rose-300/25 bg-rose-400/12 text-rose-100 hover:bg-rose-400/18 hover:border-rose-300/40", needsClient: false },
-    { key: "planos", icon: <FileText className="h-3.5 w-3.5" />, label: "Planos", color: "border-slate-300/25 bg-slate-400/12 text-slate-100 hover:bg-slate-400/18 hover:border-slate-200/35", needsClient: false },
+    { key: "whatsapp", command: "/mensagem" as SlashCommand, icon: <MessageSquare className="h-3.5 w-3.5" />, label: "WhatsApp", color: "border-emerald-300/25 bg-emerald-400/12 text-emerald-100 hover:bg-emerald-400/18 hover:border-emerald-300/40", needsClient: true },
+    { key: "email", command: "/mensagem" as SlashCommand, icon: <Mail className="h-3.5 w-3.5" />, label: "Email", color: "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/18 hover:border-cyan-300/40", needsClient: true },
+    { key: "agendar", command: "/followup" as SlashCommand, icon: <Calendar className="h-3.5 w-3.5" />, label: "Follow-up", color: "border-violet-300/25 bg-violet-400/12 text-violet-100 hover:bg-violet-400/18 hover:border-violet-300/40", needsClient: true },
+    { key: "proposta", command: "/pitch" as SlashCommand, icon: <Target className="h-3.5 w-3.5" />, label: "Pitch", color: "border-amber-300/25 bg-amber-400/12 text-amber-100 hover:bg-amber-400/18 hover:border-amber-300/40", needsClient: true },
+    { key: "resumo", command: "/resumo" as SlashCommand, icon: <Sunrise className="h-3.5 w-3.5" />, label: "Resumo", color: "border-indigo-300/25 bg-indigo-400/12 text-indigo-100 hover:bg-indigo-400/18 hover:border-indigo-300/40", needsClient: false },
+    { key: "funil", command: "/funil" as SlashCommand, icon: <TrendingUp className="h-3.5 w-3.5" />, label: "Funil", color: "border-blue-300/25 bg-blue-400/12 text-blue-100 hover:bg-blue-400/18 hover:border-blue-300/40", needsClient: false },
+    { key: "riscos", command: "/riscos" as SlashCommand, icon: <ShieldAlert className="h-3.5 w-3.5" />, label: "Riscos", color: "border-rose-300/25 bg-rose-400/12 text-rose-100 hover:bg-rose-400/18 hover:border-rose-300/40", needsClient: false },
+    { key: "planos", command: "/planos" as SlashCommand, icon: <FileText className="h-3.5 w-3.5" />, label: "Planos", color: "border-slate-300/25 bg-slate-400/12 text-slate-100 hover:bg-slate-400/18 hover:border-slate-200/35", needsClient: false },
   ];
 
-  const filteredQuickActions = allQuickActions.filter((a) => allowedQuickActions.includes(a.key));
+  const filteredQuickActions = allQuickActions.filter(
+    (action) =>
+      allowedQuickActions.includes(action.key) &&
+      availableCommandSet.has(action.command)
+  );
 
   // Collapsible sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -587,11 +609,8 @@ function SectionHeader({
   onToggle?: () => void;
   accentColor?: string;
 }) {
-  return (
-    <button
-      onClick={onToggle}
-      className="flex items-center gap-2 w-full px-1 group"
-    >
+  const content = (
+    <>
       {icon}
       <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-slate-400 flex-1 text-left">
         {title}
@@ -614,15 +633,27 @@ function SectionHeader({
           {count}
         </span>
       )}
-      {onToggle && (
-        <span className="text-slate-500 group-hover:text-slate-300 transition-colors">
-          {expanded ? (
-            <ChevronUp className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
-          )}
-        </span>
-      )}
+    </>
+  );
+
+  if (!onToggle) {
+    return <div className="flex items-center gap-2 w-full px-1">{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center gap-2 w-full px-1 group"
+    >
+      {content}
+      <span className="text-slate-500 group-hover:text-slate-300 transition-colors">
+        {expanded ? (
+          <ChevronUp className="h-3.5 w-3.5" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5" />
+        )}
+      </span>
     </button>
   );
 }

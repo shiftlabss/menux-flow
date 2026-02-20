@@ -24,6 +24,7 @@ import {
   generateContextLoaded,
   generateErrorMessage,
 } from "@/lib/intelligence-engine";
+import { getCommandDefinition } from "@/lib/intelligence-commands";
 import { useAuthStore } from "@/stores/auth-store";
 import { useOpportunityStore } from "@/stores/opportunity-store";
 import { useActivityStore } from "@/stores/activity-store";
@@ -37,6 +38,17 @@ function uid(): string {
 
 function now(): string {
   return new Date().toISOString();
+}
+
+function isIntelligenceRole(
+  role: string | undefined
+): role is UserRoleIntelligence {
+  return (
+    role === "master" ||
+    role === "admin" ||
+    role === "comercial" ||
+    role === "cs"
+  );
 }
 
 function createConversation(messages: Message[] = []): Conversation {
@@ -221,6 +233,38 @@ export const useIntelligenceStore = create<IntelligenceStore>((set, get) => ({
 
   executeSlashCommand: async (command: SlashCommand, payload?: string) => {
     const state = get();
+    const rawRole = useAuthStore.getState().user?.role;
+    const role = isIntelligenceRole(rawRole) ? rawRole : null;
+    const definition = getCommandDefinition(command);
+
+    if (!definition) {
+      const errorMsg = generateErrorMessage("invalid-command");
+      set((s) => ({ messages: [...s.messages, errorMsg] }));
+      return;
+    }
+
+    if (!role || !definition.availableFor.includes(role)) {
+      const errorMsg = generateErrorMessage("forbidden-command", {
+        command: definition.command,
+      });
+      set((s) => ({ messages: [...s.messages, errorMsg] }));
+      return;
+    }
+
+    if (definition.requiresCard && !state.contextCard) {
+      const errorMsg = generateErrorMessage("no-card");
+      set((s) => ({ messages: [...s.messages, errorMsg] }));
+      return;
+    }
+
+    if (definition.requiresInput && !(payload ?? "").trim()) {
+      const errorMsg = generateErrorMessage("missing-command-input", {
+        command: definition.command,
+        hint: definition.inputPlaceholder ?? "",
+      });
+      set((s) => ({ messages: [...s.messages, errorMsg] }));
+      return;
+    }
 
     if (state.remainingQueries <= 0) {
       const errorMsg = generateErrorMessage("rate-limit");

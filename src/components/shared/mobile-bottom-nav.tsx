@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
+import { canAccessIntelligence } from "@/lib/intelligence-permissions";
 
 // ── Nav item type ──────────────────────────────────────────────────
 interface NavItem {
@@ -40,7 +41,6 @@ const mainNavItems: NavItem[] = [
 
 const moreNavItemsBase: NavItem[] = [
   { label: "Financeiro", href: "/finance", icon: DollarSign },
-  { label: "Menux Intelligence", href: "/intelligence", icon: Sparkles },
 ];
 
 // ── Mobile Bottom Nav ──────────────────────────────────────────────
@@ -48,9 +48,13 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const permissions = useAuthStore((state) => state.permissions);
+  const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const isIntelligencePage = pathname.startsWith("/intelligence");
+  const hasIntelligenceAccess = user?.role
+    ? canAccessIntelligence(user.role)
+    : false;
 
   const moreNavItems = useMemo(() => {
     const items: NavItem[] = permissions?.canViewFinance
@@ -64,8 +68,19 @@ export function MobileBottomNav() {
         icon: Settings,
       });
     }
+    if (hasIntelligenceAccess) {
+      items.push({
+        label: "Menux Intelligence",
+        href: "/intelligence",
+        icon: Sparkles,
+      });
+    }
     return items;
-  }, [permissions?.canManageSettings, permissions?.canViewFinance]);
+  }, [
+    hasIntelligenceAccess,
+    permissions?.canManageSettings,
+    permissions?.canViewFinance,
+  ]);
 
   const isActive = (item: NavItem) => {
     const target = item.matchPrefix ?? item.href;

@@ -129,6 +129,8 @@ ${
         payload: {
           type: overdueCount > 0 ? "task" : "follow-up",
           description: `Ação pós-análise de ${card.cardName}`,
+          opportunityId: card.cardId,
+          opportunityTitle: card.cardName,
         },
       },
       {
@@ -136,6 +138,11 @@ ${
         type: "save-note",
         label: "📝 Salvar na timeline",
         icon: "file-text",
+        payload: {
+          cardId: card.cardId,
+          entityType: card.entityType,
+          noteText: `Análise executada para ${card.cardName}: saúde ${healthScore}/100, probabilidade ${closeProbability}.`,
+        },
       },
     ],
     sourceCommand: "/analise",

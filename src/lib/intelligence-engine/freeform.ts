@@ -123,7 +123,15 @@ export function generateFreeResponse(
 // ─── Error responses — seção 11 ─────────────────────────────────────────
 
 export function generateErrorMessage(
-  type: "no-card" | "rate-limit" | "api-error" | "max-messages" | "media-unsupported",
+  type:
+    | "no-card"
+    | "rate-limit"
+    | "api-error"
+    | "max-messages"
+    | "media-unsupported"
+    | "forbidden-command"
+    | "invalid-command"
+    | "missing-command-input",
   extra?: Record<string, string>
 ): Message {
   const messages: Record<string, string> = {
@@ -136,6 +144,12 @@ export function generateErrorMessage(
       "Atingimos o limite desta conversa (100 mensagens). Inicie uma nova conversa para continuar.",
     "media-unsupported":
       "Por enquanto, consigo processar apenas texto. Descreva sua dúvida por escrito que eu te ajudo!",
+    "forbidden-command":
+      `Você não tem permissão para usar o comando ${extra?.command ?? "solicitado"} neste perfil.`,
+    "invalid-command":
+      "Comando inválido. Use /ajuda para ver os comandos disponíveis.",
+    "missing-command-input":
+      `Faltou informar o conteúdo para ${extra?.command ?? "este comando"}. ${extra?.hint ?? "Preencha o campo e tente novamente."}`,
   };
 
   return {

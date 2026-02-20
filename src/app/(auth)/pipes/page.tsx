@@ -22,8 +22,6 @@ import {
   Settings2,
   Plus,
   Sparkles,
-  RotateCcw,
-  UserRound,
   Flame,
   TimerReset,
 } from "lucide-react";
@@ -40,9 +38,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useUIStore } from "@/stores/ui-store";
@@ -69,6 +64,18 @@ import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 const FILTERS_APPLIED_EVENT = "flow:filters-applied";
 const STALE_ACTIVITY_DAYS = 5;
+type GlobalPipesFilters = {
+  responsible: string[];
+  stage: string[];
+  temperature: string[];
+  tags: string[];
+  dateStart: string;
+  dateEnd: string;
+  valueMin: string;
+  valueMax: string;
+  overdue: boolean;
+  stale: boolean;
+};
 
 const WIP_LIMIT_BY_STAGE: Record<PipelineStage, number> = {
   "lead-in": 9,
@@ -128,10 +135,7 @@ function PipesPageContent() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [appliedFiltersCount, setAppliedFiltersCount] = useState(0);
   const [recentFiltersCount, setRecentFiltersCount] = useState<number | null>(null);
-  const [temperatureFilter, setTemperatureFilter] = useState<Temperature | "all">("all");
-  const [ownerFilter, setOwnerFilter] = useState<string>("all");
-  const [segmentFilter, setSegmentFilter] = useState<string>("all");
-  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [globalPipesFilters, setGlobalPipesFilters] = useState<GlobalPipesFilters | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
@@ -179,13 +183,21 @@ function PipesPageContent() {
     if (typeof window === "undefined") return;
 
     const handleFiltersApplied = (event: Event) => {
-      const customEvent = event as CustomEvent<{ context?: string; count?: number }>;
+      const customEvent = event as CustomEvent<{
+        context?: string;
+        count?: number;
+        filters?: GlobalPipesFilters;
+      }>;
       if (customEvent.detail?.context !== "pipes") return;
 
       const count = Number(customEvent.detail?.count ?? 0);
       const safeCount = Number.isFinite(count) && count >= 0 ? count : 0;
       setAppliedFiltersCount(safeCount);
       setRecentFiltersCount(safeCount);
+
+      if (customEvent.detail?.filters) {
+        setGlobalPipesFilters(customEvent.detail.filters);
+      }
     };
 
     window.addEventListener(FILTERS_APPLIED_EVENT, handleFiltersApplied as EventListener);
@@ -218,22 +230,6 @@ function PipesPageContent() {
     () => opportunities.filter((opportunity) => effectiveStageIds.includes(opportunity.stage)),
     [effectiveStageIds, opportunities]
   );
-
-  const ownerOptions = useMemo(
-    () =>
-      Array.from(
-        new Map(activeCards.map((opportunity) => [opportunity.responsibleId, opportunity.responsibleName]))
-      ).map(([id, name]) => ({ id, name })),
-    [activeCards]
-  );
-
-  const segmentOptions = useMemo(() => {
-    const uniqueTags = new Set<string>();
-    activeCards.forEach((opportunity) => {
-      opportunity.tags.forEach((tag) => uniqueTags.add(tag));
-    });
-    return Array.from(uniqueTags).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [activeCards]);
 
   const averageDealValue = useMemo(() => {
     if (activeCards.length === 0) return 10000;
@@ -273,20 +269,14 @@ function PipesPageContent() {
       }
 
       const computedTemperature = resolveTemperature(opportunity);
-      if (temperatureFilter !== "all" && computedTemperature !== temperatureFilter) {
-        continue;
-      }
 
-      if (ownerFilter !== "all" && opportunity.responsibleId !== ownerFilter) {
-        continue;
-      }
-
-      if (segmentFilter !== "all" && !opportunity.tags.includes(segmentFilter)) {
-        continue;
-      }
-
-      if (overdueOnly && getSlaStatus(opportunity.slaDeadline).status !== "breached") {
-        continue;
+      if (globalPipesFilters) {
+        if (globalPipesFilters.temperature?.length > 0 && !globalPipesFilters.temperature.includes(computedTemperature)) continue;
+        if (globalPipesFilters.responsible?.length > 0 && !globalPipesFilters.responsible.includes(opportunity.responsibleId)) continue;
+        if (globalPipesFilters.tags?.length > 0 && !globalPipesFilters.tags.some(t => opportunity.tags.includes(t))) continue;
+        if (globalPipesFilters.overdue && getSlaStatus(opportunity.slaDeadline).status !== "breached") continue;
+        if (globalPipesFilters.stale && !isStaleOpportunity(opportunity)) continue;
+        if (globalPipesFilters.stage?.length > 0 && !globalPipesFilters.stage.includes(opportunity.stage)) continue;
       }
 
       grouped[opportunity.stage].push(opportunity);
@@ -298,10 +288,7 @@ function PipesPageContent() {
     effectiveStageIds,
     normalizedSearch,
     resolveTemperature,
-    temperatureFilter,
-    ownerFilter,
-    segmentFilter,
-    overdueOnly,
+    globalPipesFilters,
   ]);
 
   const boardMetrics = useMemo(() => {
@@ -317,18 +304,9 @@ function PipesPageContent() {
     };
   }, [opportunitiesByStage]);
 
-  const localFilterCount = useMemo(() => {
-    let count = 0;
-    if (temperatureFilter !== "all") count += 1;
-    if (ownerFilter !== "all") count += 1;
-    if (segmentFilter !== "all") count += 1;
-    if (overdueOnly) count += 1;
-    return count;
-  }, [ownerFilter, overdueOnly, segmentFilter, temperatureFilter]);
-
   const activeFilterCount = useMemo(
-    () => appliedFiltersCount + localFilterCount + (stageFilter ? 1 : 0),
-    [appliedFiltersCount, localFilterCount, stageFilter]
+    () => appliedFiltersCount + (stageFilter ? 1 : 0),
+    [appliedFiltersCount, stageFilter]
   );
 
   const clearSearch = useCallback(() => {
@@ -354,10 +332,12 @@ function PipesPageContent() {
   );
 
   const clearLocalFilters = useCallback(() => {
-    setTemperatureFilter("all");
-    setOwnerFilter("all");
-    setSegmentFilter("all");
-    setOverdueOnly(false);
+    setGlobalPipesFilters(null);
+    setAppliedFiltersCount(0);
+    setRecentFiltersCount(0);
+    setSearchInputValue("");
+    setSearchQuery("");
+    setIsMobileSearchOpen(false);
     if (stageFilter) {
       updateStageFilter("all");
     }
@@ -405,7 +385,6 @@ function PipesPageContent() {
         label: `Estourados: ${boardMetrics.overdueCards}`,
         icon: <Flame className="h-3.5 w-3.5" />,
         tone: boardMetrics.overdueCards > 0 ? "danger" : "neutral",
-        onClick: () => setOverdueOnly((prev) => !prev),
       },
       {
         id: "cards-stale",
@@ -415,27 +394,81 @@ function PipesPageContent() {
       },
     ];
 
-    if (recentFiltersCount !== null) {
-      chips.push({
-        id: "filters-feedback",
-        label: `Filtros ativos: ${activeFilterCount}`,
-        icon: <Filter className="h-3.5 w-3.5" />,
-        tone: activeFilterCount > 0 ? "warning" : "neutral",
-        onClick: () => openDrawer("filters"),
-      });
-    }
-
     return chips;
   }, [
-    activeFilterCount,
     boardMetrics.boardTotal,
     boardMetrics.overdueCards,
     boardMetrics.staleCards,
     boardMetrics.totalCards,
-    openDrawer,
-    recentFiltersCount,
     visibleStages.length,
   ]);
+
+  const activeFilters = useMemo(() => {
+    const filters: { id: string; label: string; onRemove: () => void }[] = [];
+    if (!globalPipesFilters) return filters;
+
+    const dispatchUpdate = (newFilters: NonNullable<typeof globalPipesFilters>) => {
+      setGlobalPipesFilters(newFilters);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("flow:filters-update", { detail: { context: "pipes", filters: newFilters } })
+        );
+      }
+    };
+
+    if (globalPipesFilters.temperature?.length > 0) {
+      filters.push({
+        id: "temp",
+        label: `Temperatura: ${globalPipesFilters.temperature.map((t) => (t === "hot" ? "Quente" : t === "warm" ? "Morna" : "Fria")).join(", ")}`,
+        onRemove: () => dispatchUpdate({ ...globalPipesFilters, temperature: [] }),
+      });
+    }
+    if (globalPipesFilters.responsible?.length > 0) {
+      filters.push({
+        id: "owner",
+        label: `Donos: ${globalPipesFilters.responsible.length}`,
+        onRemove: () => dispatchUpdate({ ...globalPipesFilters, responsible: [] }),
+      });
+    }
+    if (globalPipesFilters.tags?.length > 0) {
+      filters.push({
+        id: "segment",
+        label: `Tags: ${globalPipesFilters.tags.join(", ")}`,
+        onRemove: () => dispatchUpdate({ ...globalPipesFilters, tags: [] }),
+      });
+    }
+    if (globalPipesFilters.stage?.length > 0) {
+      filters.push({
+        id: "stage-filters",
+        label: `Etapas: ${globalPipesFilters.stage.length}`,
+        onRemove: () => dispatchUpdate({ ...globalPipesFilters, stage: [] }),
+      });
+    }
+    if (globalPipesFilters.overdue) {
+      filters.push({
+        id: "overdue",
+        label: "Somente estourados",
+        onRemove: () => dispatchUpdate({ ...globalPipesFilters, overdue: false }),
+      });
+    }
+    if (globalPipesFilters.stale) {
+      filters.push({
+        id: "stale",
+        label: "Somente sem atividade",
+        onRemove: () => dispatchUpdate({ ...globalPipesFilters, stale: false }),
+      });
+    }
+
+    if (stageFilter) {
+      filters.push({
+        id: "stage",
+        label: `Status: ${activeFunnel.stages.find((stage) => stage.id === stageFilter)?.label ?? getStageParamLabel(stageFilter)}`,
+        onRemove: () => updateStageFilter("all"),
+      });
+    }
+
+    return filters;
+  }, [globalPipesFilters, stageFilter, activeFunnel.stages, updateStageFilter]);
 
   useEffect(() => {
     if (!normalizedSearch) return;
@@ -552,8 +585,6 @@ function PipesPageContent() {
   if (isLoading) {
     return <PipelineSkeleton stageCount={visibleStages.length} />;
   }
-
-  const hasQuickFiltersApplied = localFilterCount > 0 || stageFilter !== null;
 
   return (
     <>
@@ -691,6 +722,11 @@ function PipesPageContent() {
               >
                 <Filter className="h-4 w-4" />
                 Filtros
+                {activeFilterCount > 0 ? (
+                  <span className="ml-1.5 flex h-5 w-5 items-center justify-center rounded-[7px] bg-zinc-100 text-[10px] font-bold text-zinc-900 border border-zinc-200">
+                    {activeFilterCount}
+                  </span>
+                ) : null}
               </Button>,
               <DropdownMenu key="new-card">
                 <DropdownMenuTrigger asChild>
@@ -726,169 +762,38 @@ function PipesPageContent() {
               </DropdownMenu>,
             ]}
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
-                      temperatureFilter === "all"
-                        ? "border-zinc-200 bg-white text-zinc-600"
-                        : "border-sky-200 bg-sky-50 text-sky-700"
-                    )}
+            {activeFilters.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtros ativos">
+                {activeFilters.map((f) => (
+                  <span
+                    key={f.id}
+                    className="inline-flex h-[28px] items-center gap-1 rounded-full border border-zinc-200/80 bg-white/70 pl-2.5 pr-1 text-[11.5px] font-medium text-zinc-700 shadow-(--shadow-premium-soft)"
                   >
-                    <Flame className="h-3.5 w-3.5" />
-                    {temperatureFilter === "all"
-                      ? "Temperatura"
-                      : `Temperatura: ${temperatureFilter === "hot" ? "Quente" : temperatureFilter === "warm" ? "Morna" : "Fria"}`}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[220px] rounded-[14px]">
-                  <DropdownMenuLabel>Temperatura</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={temperatureFilter}
-                    onValueChange={(value) =>
-                      setTemperatureFilter(value as Temperature | "all")
-                    }
-                  >
-                    <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="hot">Quente</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="warm">Morna</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="cold">Fria</DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
-                      ownerFilter === "all"
-                        ? "border-zinc-200 bg-white text-zinc-600"
-                        : "border-indigo-200 bg-indigo-50 text-indigo-700"
-                    )}
-                  >
-                    <UserRound className="h-3.5 w-3.5" />
-                    {ownerFilter === "all"
-                      ? "Dono"
-                      : `Dono: ${ownerOptions.find((owner) => owner.id === ownerFilter)?.name ?? "Selecionado"}`}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[250px] rounded-[14px]">
-                  <DropdownMenuLabel>Dono</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={ownerFilter}
-                    onValueChange={(value) => setOwnerFilter(value)}
-                  >
-                    <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
-                    {ownerOptions.map((owner) => (
-                      <DropdownMenuRadioItem key={owner.id} value={owner.id}>
-                        {owner.name}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
-                      segmentFilter === "all"
-                        ? "border-zinc-200 bg-white text-zinc-600"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    )}
-                  >
-                    <Filter className="h-3.5 w-3.5" />
-                    {segmentFilter === "all" ? "Segmento" : `Segmento: ${segmentFilter}`}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[240px] rounded-[14px]">
-                  <DropdownMenuLabel>Segmento</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={segmentFilter}
-                    onValueChange={(value) => setSegmentFilter(value)}
-                  >
-                    <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
-                    {segmentOptions.map((segment) => (
-                      <DropdownMenuRadioItem key={segment} value={segment}>
-                        {segment}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
-                      stageFilter === null
-                        ? "border-zinc-200 bg-white text-zinc-600"
-                        : "border-violet-200 bg-violet-50 text-violet-700"
-                    )}
-                  >
-                    <Columns3 className="h-3.5 w-3.5" />
-                    {stageFilter === null
-                      ? "Status"
-                      : `Status: ${activeFunnel.stages.find((stage) => stage.id === stageFilter)?.label ?? getStageParamLabel(stageFilter)}`}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[230px] rounded-[14px]">
-                  <DropdownMenuLabel>Status da etapa</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={stageFilter ?? "all"}
-                    onValueChange={(value) =>
-                      updateStageFilter(value === "all" ? "all" : (value as PipelineStage))
-                    }
-                  >
-                    <DropdownMenuRadioItem value="all">Todas as etapas</DropdownMenuRadioItem>
-                    {activeFunnel.stages.map((stage) => (
-                      <DropdownMenuRadioItem key={stage.id} value={stage.id}>
-                        {stage.label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <button
-                type="button"
-                onClick={() => setOverdueOnly((prev) => !prev)}
-                className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
-                  overdueOnly
-                    ? "border-red-200 bg-red-50 text-red-700"
-                    : "border-zinc-200 bg-white text-zinc-600"
-                )}
-              >
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Estourado
-              </button>
-
-              {hasQuickFiltersApplied ? (
+                    <span className="truncate max-w-[140px] sm:max-w-[200px]">{f.label}</span>
+                    <button
+                      type="button"
+                      onClick={f.onRemove}
+                      className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-900 focus:outline-none"
+                      aria-label={`Remover filtro ${f.label}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
                 <button
                   type="button"
                   onClick={clearLocalFilters}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-50"
+                  className="ml-2 flex h-[26px] items-center justify-center text-[11.5px] font-semibold text-zinc-500 underline decoration-zinc-300 underline-offset-2 transition-colors hover:text-zinc-900"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Limpar filtros
+                  Limpar tudo
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </ModuleCommandHeader>
         </motion.div>
 
         <div
-          className="premium-ambient premium-grain relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-zinc-200/70 bg-white/72 p-3 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm md:p-4"
+          className="premium-ambient premium-grain relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-zinc-200/70 bg-white/72 p-3 shadow-(--shadow-premium-soft) backdrop-blur-sm md:p-4"
           role="region"
           aria-label="Pipeline de vendas arrastavel"
         >

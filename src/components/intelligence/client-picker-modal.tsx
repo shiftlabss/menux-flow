@@ -206,7 +206,7 @@ export function ClientPickerModal() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              placeholder="Buscar por nome, CNPJ ou contato..."
+              placeholder="Buscar por nome, segmento ou tag..."
               value={clientPickerSearch}
               onChange={(e) => setClientPickerSearch(e.target.value)}
               className="border-white/16 bg-white/7 pl-9 text-sm text-slate-100 placeholder:text-slate-400"

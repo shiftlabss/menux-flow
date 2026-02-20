@@ -17,6 +17,8 @@ import {
   BarChart3,
   Save,
   Bookmark,
+  AlertTriangle,
+  TimerReset,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -211,7 +213,7 @@ function CheckboxGroup({
             <Checkbox
               checked={selected.includes(opt.id)}
               onCheckedChange={() => toggle(opt.id)}
-              className="rounded-[4px]"
+              className="rounded-checkbox"
             />
             {opt.icon && <span>{opt.icon}</span>}
             <span className="font-body text-sm text-zinc-700">{opt.label}</span>
@@ -316,6 +318,35 @@ function PipesFilters({
         selected={filters.tags}
         onChange={(v) => setFilters((f) => ({ ...f, tags: v }))}
       />
+
+      <Separator />
+
+      <div>
+        <div className="mb-2.5 flex items-center gap-2">
+          <span className="text-zinc-400"><AlertTriangle className="h-4 w-4" /></span>
+          <Label className="font-heading text-sm font-semibold text-black">Alertas</Label>
+        </div>
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-zinc-50">
+            <Checkbox
+              checked={filters.overdue}
+              onCheckedChange={(c) => setFilters((f) => ({ ...f, overdue: !!c }))}
+              className="rounded-checkbox"
+            />
+            <Flame className="h-3.5 w-3.5 text-status-danger" />
+            <span className="font-body text-sm text-zinc-700">Somente Estourados</span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-zinc-50">
+            <Checkbox
+              checked={filters.stale}
+              onCheckedChange={(c) => setFilters((f) => ({ ...f, stale: !!c }))}
+              className="rounded-checkbox"
+            />
+            <TimerReset className="h-3.5 w-3.5 text-status-warning" />
+            <span className="font-body text-sm text-zinc-700">Somente Sem Atividade</span>
+          </label>
+        </div>
+      </div>
 
       <Separator />
 
@@ -540,6 +571,8 @@ interface PipesFilterState {
   dateEnd: string;
   valueMin: string;
   valueMax: string;
+  overdue: boolean;
+  stale: boolean;
 }
 
 interface ClientsFilterState {
@@ -575,6 +608,8 @@ const initialPipesFilters: PipesFilterState = {
   dateEnd: "",
   valueMin: "",
   valueMax: "",
+  overdue: false,
+  stale: false,
 };
 
 const initialClientsFilters: ClientsFilterState = {
@@ -833,7 +868,9 @@ export function FiltersPanel({ context, onApplyFilters }: FiltersPanelProps) {
           (f.dateStart ? 1 : 0) +
           (f.dateEnd ? 1 : 0) +
           (f.valueMin ? 1 : 0) +
-          (f.valueMax ? 1 : 0)
+          (f.valueMax ? 1 : 0) +
+          (f.overdue ? 1 : 0) +
+          (f.stale ? 1 : 0)
         );
       }
       case "clients": {
@@ -867,7 +904,7 @@ export function FiltersPanel({ context, onApplyFilters }: FiltersPanelProps) {
     }
   }, [context, pipesFilters, clientsFilters, activitiesFilters, financeFilters]);
 
-  function handleClear() {
+  const handleClear = useCallback(() => {
     switch (context) {
       case "pipes":
         setPipesFilters(initialPipesFilters);
@@ -882,7 +919,7 @@ export function FiltersPanel({ context, onApplyFilters }: FiltersPanelProps) {
         setFinanceFilters(initialFinanceFilters);
         break;
     }
-  }
+  }, [context]);
 
   function handleApply() {
     const currentFilters = getCurrentFilters();
@@ -896,13 +933,40 @@ export function FiltersPanel({ context, onApplyFilters }: FiltersPanelProps) {
     if (typeof window !== "undefined") {
       window.dispatchEvent(
         new CustomEvent(FILTERS_APPLIED_EVENT, {
-          detail: { context, count: filterCount },
+          detail: { context, count: filterCount, filters: currentFilters },
         })
       );
     }
 
     closeDrawer();
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleClearEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ context: string }>;
+      if (customEvent.detail?.context === context) {
+        handleClear();
+        persistActiveFilterCount(context, 0);
+      }
+    };
+    const handleUpdateEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ context: string; filters: Record<string, unknown> }>;
+      if (customEvent.detail?.context === context && customEvent.detail.filters) {
+        if (context === "pipes") setPipesFilters(customEvent.detail.filters as unknown as PipesFilterState);
+        else if (context === "clients") setClientsFilters(customEvent.detail.filters as unknown as ClientsFilterState);
+        else if (context === "activities") setActivitiesFilters(customEvent.detail.filters as unknown as ActivitiesFilterState);
+        else if (context === "finance") setFinanceFilters(customEvent.detail.filters as unknown as FinanceFilterState);
+      }
+    };
+
+    window.addEventListener("flow:filters-clear", handleClearEvent);
+    window.addEventListener("flow:filters-update", handleUpdateEvent);
+    return () => {
+      window.removeEventListener("flow:filters-clear", handleClearEvent);
+      window.removeEventListener("flow:filters-update", handleUpdateEvent);
+    };
+  }, [context, handleClear]);
 
   return (
     <Sheet open={isOpen} onOpenChange={() => closeDrawer()}>
