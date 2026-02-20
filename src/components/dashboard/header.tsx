@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -8,6 +8,8 @@ import {
   ChevronDown,
   LayoutGrid,
   ShieldAlert,
+  User,
+  Users,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,10 +25,10 @@ import {
   type ModuleCommandHeaderChip,
 } from "@/components/shared/module-command-header";
 import { cn } from "@/lib/cn";
-import { useDashboardStore, type Period } from "@/stores/dashboard-store";
+import { useDashboardStore, type Period, type Context } from "@/stores/dashboard-store";
 import { useAuthStore } from "@/stores/auth-store";
-import { mockActivities, mockDashboardMetrics } from "@/lib/mock-data";
-import { formatCurrencyCompact } from "@/components/dashboard/funnel-x-ray/funnel-utils";
+import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
+import { formatCurrencyBRL } from "@/lib/business-rules";
 import { usePathname, useRouter } from "next/navigation";
 
 const periodLabels: Record<Period, string> = {
@@ -34,6 +36,11 @@ const periodLabels: Record<Period, string> = {
   "7d": "7 dias",
   "30d": "30 dias",
   quarter: "Trimestre",
+};
+
+const contextLabels: Record<Context, { label: string; icon: typeof User }> = {
+  me: { label: "Eu", icon: User },
+  team: { label: "Time", icon: Users },
 };
 
 type IndicatorTone = "danger" | "warning" | "info";
@@ -64,36 +71,31 @@ function toPtBrCompactDate(date: Date): string {
   return `${weekdayCapitalized}, ${day} ${month}`;
 }
 
-const REFERENCE_DATE = new Date("2026-02-16T12:00:00.000Z");
-
 export function DashboardHeader() {
   const router = useRouter();
   const pathname = usePathname();
-  const { period, setPeriod, setContext } = useDashboardStore();
+  const { period, setPeriod, context, setContext } = useDashboardStore();
   const { user, isLoading } = useAuthStore();
   const [retryingIndicators, setRetryingIndicators] = useState(false);
 
+  const {
+    filteredActivities,
+    openOpportunities,
+    now,
+  } = useDashboardFilters();
+
   const firstName = user?.name?.trim().split(" ")[0] ?? "Admin";
 
-  useEffect(() => {
-    setContext("me");
-  }, [setContext]);
-
-  const scopedActivities = !user?.id
-    ? mockActivities
-    : mockActivities.filter((activity) => activity.responsibleId === user.id);
-
-  const overdueCount = scopedActivities.filter(
-    (activity) => activity.status === "overdue"
+  // ── Compute indicators from real store data ─────────────────────
+  const overdueCount = filteredActivities.filter(
+    (a) => a.effectiveStatus === "overdue"
   ).length;
 
-  const scopeFactor =
-    scopedActivities.length > 0
-      ? scopedActivities.length / Math.max(mockActivities.length, 1)
-      : 0;
-
-  const slaBreaches = Math.round(mockDashboardMetrics.slaBreaches * scopeFactor);
-  const riskValue = Math.round(45_000 * scopeFactor);
+  const slaBreachedOpps = openOpportunities.filter(
+    (o) => o.slaDeadline && new Date(o.slaDeadline) < now
+  );
+  const slaBreaches = slaBreachedOpps.length;
+  const riskValue = slaBreachedOpps.reduce((sum, o) => sum + (o.value || 0), 0);
 
   const hasIndicatorsError =
     !Number.isFinite(overdueCount) ||
@@ -122,7 +124,7 @@ export function DashboardHeader() {
     riskValue > 0
       ? {
           id: "risk",
-          value: formatCurrencyCompact(riskValue),
+          value: formatCurrencyBRL(riskValue),
           label: "valor em risco",
           icon: Wallet,
           tone: "info",
@@ -130,7 +132,7 @@ export function DashboardHeader() {
       : null,
   ].filter((chip): chip is IndicatorChip => Boolean(chip)).slice(0, 3);
 
-  const compactDateText = `${toPtBrCompactDate(REFERENCE_DATE)} · Olá, ${firstName}`;
+  const compactDateText = `${toPtBrCompactDate(now)} · Olá, ${firstName}`;
 
   const handleIndicatorClick = (id: IndicatorId) => {
     if (id === "overdue") {
@@ -181,6 +183,8 @@ export function DashboardHeader() {
     tone: "neutral",
   };
 
+  const ContextIcon = contextLabels[context].icon;
+
   const actions = (
     <div
       className={cn(
@@ -188,6 +192,42 @@ export function DashboardHeader() {
         isLoading && "pointer-events-none opacity-60"
       )}
     >
+      {/* Context toggle (Eu / Time) */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            className="premium-shine h-8 gap-1.5 rounded-full border-zinc-200 bg-white/90 px-3 text-sm font-medium hover:bg-zinc-100/80 active:scale-[0.99]"
+          >
+            <ContextIcon className="h-3.5 w-3.5 text-zinc-500" />
+            {contextLabels[context].label}
+            <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-36 rounded-xl">
+          {(Object.keys(contextLabels) as Context[]).map((value) => {
+            const Ic = contextLabels[value].icon;
+            return (
+              <DropdownMenuItem
+                key={value}
+                onClick={() => setContext(value)}
+                className="gap-2"
+              >
+                {context === value ? (
+                  <div className="h-1.5 w-1.5 rounded-full bg-brand" />
+                ) : (
+                  <Ic className="h-3.5 w-3.5 text-zinc-400" />
+                )}
+                <span className={context === value ? "font-medium" : ""}>
+                  {contextLabels[value].label}
+                </span>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {/* Period selector */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

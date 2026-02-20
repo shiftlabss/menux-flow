@@ -11,10 +11,8 @@ import {
 } from "react";
 // External
 import {
-  Plus,
   Search,
   Filter,
-  ArrowDownToLine,
   X,
   Palette,
   Check,
@@ -23,6 +21,7 @@ import {
   CircleDollarSign,
   Columns3,
   ChevronDown,
+  Settings2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -321,14 +320,13 @@ function PipesPageContent() {
     dragOverStage,
     dropIndicator,
     columnError,
+    setColumnError,
     successFeedback,
     handleDragStart,
     handleDragOver,
     handleDragLeave,
     handleDrop,
     handleDragEnd,
-    handleWin,
-    handleLose,
   } = usePipelineBoard({
     localOpportunities,
     setLocalOpportunities,
@@ -346,7 +344,6 @@ function PipesPageContent() {
     confirmRename,
     cancelRename,
     setStageColor,
-    getStageColor,
   } = useStageCustomization();
 
   // Toggle search with Ctrl+K / Cmd+K
@@ -444,113 +441,70 @@ function PipesPageContent() {
             }
             description="Execução visual do pipeline comercial."
             chips={metricChips}
-            actions={
-              <div className="flex w-full min-w-0 flex-col gap-2 xl:flex-row xl:items-center xl:justify-end">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => openDrawer("new-opportunity")}
-                    className="h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800 sm:hidden"
+            actions={[
+              <div key="search" className="relative hidden w-[220px] md:block">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  ref={searchInputRef}
+                  value={searchInputValue}
+                  onChange={(e) => setSearchInputValue(e.target.value)}
+                  placeholder="Buscar cards..."
+                  className="h-9 w-full rounded-full pl-8 pr-8 font-body text-sm"
+                />
+                {searchInputValue && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                   >
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                    Novo
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>,
+              <Popover key="mobile-search" open={isMobileSearchOpen} onOpenChange={setIsMobileSearchOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-full md:hidden"
+                  >
+                    <Search className="h-3.5 w-3.5" />
                   </Button>
-                </div>
-
-                <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
-                  <Popover open={isMobileSearchOpen} onOpenChange={setIsMobileSearchOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 rounded-full sm:hidden"
-                      >
-                        <Search className="h-3.5 w-3.5" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      align="end"
-                      side="bottom"
-                      sideOffset={8}
-                      className="w-[min(92vw,320px)] rounded-[16px] border-zinc-200 bg-white p-2"
-                    >
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                        <Input
-                          ref={mobileSearchInputRef}
-                          value={searchInputValue}
-                          onChange={(e) => setSearchInputValue(e.target.value)}
-                          placeholder="Buscar cards..."
-                          className="h-9 w-full rounded-full pl-8 pr-8 font-body text-sm"
-                        />
-                        {searchInputValue && (
-                          <button
-                            type="button"
-                            onClick={clearSearch}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-
-                  <div className="group relative hidden sm:block">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  side="bottom"
+                  sideOffset={8}
+                  className="w-[min(92vw,320px)] rounded-[16px] border-zinc-200 bg-white p-2"
+                >
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     <Input
-                      ref={searchInputRef}
+                      ref={mobileSearchInputRef}
                       value={searchInputValue}
                       onChange={(e) => setSearchInputValue(e.target.value)}
                       placeholder="Buscar cards..."
-                      className="h-9 w-[148px] rounded-full pl-8 pr-8 font-body text-sm md:w-[180px] lg:w-[220px]"
+                      className="h-9 w-full rounded-full pl-8 pr-8 font-body text-sm"
                     />
                     {searchInputValue && (
                       <button
                         type="button"
                         onClick={clearSearch}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 transition-opacity hover:text-zinc-600 sm:opacity-0 sm:group-hover:opacity-100"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openDrawer("filters")}
-                    className="h-9 rounded-full font-heading text-sm"
-                  >
-                    <Filter className="h-3.5 w-3.5" />
-                    <span className="hidden md:inline">
-                      {activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : "Filtros"}
-                    </span>
-                    {activeFilterCount > 0 && (
-                      <span className="ml-1 rounded-full bg-zinc-200 px-1.5 py-0 text-[10px] font-semibold text-zinc-700 md:hidden">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    onClick={() => openDrawer("new-opportunity")}
-                    className="hidden h-9 rounded-full bg-black font-heading text-sm text-white hover:bg-zinc-800 sm:inline-flex"
-                  >
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                    Novo Card
-                  </Button>
-
-                </div>
-              </div>
-            }
+                </PopoverContent>
+              </Popover>
+            ]}
           />
         </motion.div>
 
         {/* Board */}
         <div
-          className="premium-ambient premium-grain relative flex min-h-0 min-w-0 flex-1 items-stretch overflow-hidden rounded-[20px] border border-zinc-200/75 bg-white/68 p-3 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm md:p-4"
+          className="premium-ambient premium-grain relative flex min-h-0 min-w-0 flex-1 items-stretch overflow-hidden rounded-[20px] border border-zinc-200/75 bg-white/68 p-3 shadow-[--shadow-premium-soft)] backdrop-blur-sm md:p-4"
           role="region"
           aria-label="Pipeline de vendas — arraste os cards entre as etapas"
         >
@@ -577,7 +531,7 @@ function PipesPageContent() {
                   key={stageDef.id}
                   custom={index}
                   variants={listItemReveal}
-                  className={`group/col flex w-[85vw] shrink-0 flex-col rounded-[var(--radius-bento-card)] border transition-all duration-200 sm:w-[320px] xl:w-[340px] ${isDropTarget
+                  className={`group/col flex w-[85vw] shrink-0 flex-col rounded-[--radius-bento-card] border transition-all duration-200 sm:w-[320px] xl:w-[340px] ${isDropTarget
                     ? "border-brand/70 bg-brand/5 ring-2 ring-brand/28 shadow-[0_18px_30px_-22px_rgba(37,99,235,0.52)]"
                     : "border-zinc-200/70 bg-white/80"
                     }`}
@@ -585,23 +539,25 @@ function PipesPageContent() {
                   onDragOver={(e) => handleDragOver(e, stageDef.id)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, stageDef.id)}
-                  role="group"
+                  role="list"
                   aria-label={`Etapa: ${stageCustomizations[stageDef.id]?.label || stageDef.label}, ${cards.length} cards, ${formatCurrencyBRL(totalValue)}`}
                 >
                   {/* Column Header (sticky) */}
-                  <div className="sticky top-0 z-10 rounded-t-[var(--radius-bento-card)] bg-inherit px-3 py-3">
+                  <div className="sticky top-0 z-10 rounded-t-[--radius-bento-card] bg-inherit px-3 py-3">
                     <div className="flex items-center justify-between">
                       <div className="flex min-w-0 items-center gap-2">
                         <Popover>
                           <PopoverTrigger asChild>
                             <button
-                              className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full transition-transform hover:scale-125 ${getStageColor(stageDef.id).bg}`}
-                              aria-label={`Cor da etapa: ${getStageColor(stageDef.id).label}`}
-                            />
+                              className="focus-visible:ring-brand flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-200/50 bg-white/50 text-zinc-400 shadow-sm transition-all hover:bg-white hover:text-zinc-600 focus:outline-none focus-visible:ring-2"
+                              aria-label={`Personalizar etapa ${stageDef.label}`}
+                            >
+                              <Settings2 className="h-3.5 w-3.5" />
+                            </button>
                           </PopoverTrigger>
                           <PopoverContent
                             align="start"
-                            className="w-auto rounded-[var(--radius-bento-card)] p-3"
+                            className="w-auto rounded-[--radius-bento-card] p-3"
                           >
                             <span className="mb-2 flex items-center gap-1.5 font-body text-[11px] font-medium text-zinc-500">
                               <Palette className="h-3 w-3" />
@@ -678,26 +634,28 @@ function PipesPageContent() {
 
                     {error && (
                       <div
-                        className={`mt-2 flex items-start gap-1.5 rounded-[var(--radius-bento-inner)] px-2.5 py-2 ${isWarningMessage
-                          ? "bg-[var(--feedback-warning-bg)] text-[var(--feedback-warning-text)]"
-                          : "bg-[var(--feedback-error-bg)] text-[var(--feedback-error-text)]"
+                        className={`mt-2 flex items-start gap-1.5 rounded-[--radius-bento-inner] px-2.5 py-2 ${isWarningMessage
+                          ? "bg-[--feedback-warning-bg] text-[--feedback-warning-text]"
+                          : "bg-[--feedback-error-bg] text-[--feedback-error-text]"
                           }`}
                         role="alert"
                       >
-                        {isWarningMessage ? (
-                          <ArrowDownToLine className="mt-0.5 h-3 w-3 shrink-0" />
-                        ) : (
-                          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                        )}
-                        <span className="font-body text-[11px] leading-tight">
+                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                        <p className="flex-1 font-body text-xs font-medium">
                           {error}
-                        </span>
+                        </p>
+                        <button
+                          onClick={() => setColumnError(null)}
+                          className="ml-auto rounded-md p-1 hover:bg-black/5 focus:outline-none focus-visible:ring-2 disabled:opacity-50"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     )}
 
                     {hasSuccess && (
                       <div
-                        className="mt-2 flex items-start gap-1.5 rounded-[var(--radius-bento-inner)] bg-[var(--feedback-success-bg)] px-2.5 py-2 text-[var(--feedback-success-text)]"
+                        className="mt-2 flex items-start gap-1.5 rounded-[--radius-bento-inner] bg-[--feedback-success-bg] px-2.5 py-2 text-[--feedback-success-text]"
                         role="status"
                       >
                         <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0" />
@@ -771,8 +729,6 @@ function PipesPageContent() {
                                         handleDragStart(e, opportunity)
                                       }
                                       onDragEnd={handleDragEnd}
-                                      onWin={() => handleWin(opportunity.id)}
-                                      onLose={() => handleLose(opportunity.id)}
                                     />
                                   </motion.div>
                                 );
@@ -806,7 +762,7 @@ function PipesPageContent() {
                                   animate={{ opacity: 1, scaleY: 1, height: 102 }}
                                   exit={{ opacity: 0, scaleY: 0.82, height: 0 }}
                                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                                  className="rounded-[var(--radius-bento-card)] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
+                                  className="rounded-(--radius-bento-card) border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
                                 />
                               )}
                             </AnimatePresence>
@@ -814,7 +770,7 @@ function PipesPageContent() {
                         })()}
                       </div>
                     ) : (
-                      <div className="flex h-24 flex-col items-center justify-center gap-1 rounded-[var(--radius-bento-inner)] border-2 border-dashed border-zinc-200 transition-colors">
+                      <div className="flex h-24 flex-col items-center justify-center gap-1 rounded-(--radius-bento-inner) border-2 border-dashed border-zinc-200 transition-colors">
                         <p className="font-body text-xs text-zinc-400">
                           Nenhum card nesta etapa
                         </p>

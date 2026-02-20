@@ -16,8 +16,14 @@ import { useRouter } from "next/navigation";
 import { BentoCard } from "@/components/ui/bento-card";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useActivityStore } from "@/stores/activity-store";
+import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
 import type { FlowStageId, FunnelXRayState, ActionState } from "./funnel-config";
-import { FUNNEL_STAGES, STAGE_TO_PIPELINE, STAGE_INSIGHTS } from "./funnel-config";
+import {
+  STAGE_TO_PIPELINE,
+  buildStagesFromOpportunities,
+  buildInsightsFromData,
+} from "./funnel-config";
 import { buildTransitions, formatCurrencyBRL } from "./funnel-utils";
 import { FlowStepsConnected } from "./flow-steps-connected";
 import { SummaryMiniCard } from "./summary-mini-card";
@@ -25,11 +31,49 @@ import { FunnelXRaySkeleton } from "./funnel-x-ray-skeleton";
 
 export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
   const router = useRouter();
+  const addActivity = useActivityStore((s) => s.addActivity);
   const [viewState, setViewState] = useState<FunnelXRayState>(state);
   const [actionState, setActionState] = useState<ActionState>("idle");
   const [activeStageId, setActiveStageId] = useState<FlowStageId | null>(null);
+  const [createdCount, setCreatedCount] = useState(0);
 
-  const stages = FUNNEL_STAGES;
+  const {
+    filteredOpportunities,
+    openOpportunities,
+    now,
+    userId,
+  } = useDashboardFilters();
+
+  // ── Build stages and insights from real data ──────────────────────
+  const stages = useMemo(
+    () => buildStagesFromOpportunities(filteredOpportunities, now),
+    [filteredOpportunities, now]
+  );
+
+  const insights = useMemo(
+    () => buildInsightsFromData(stages, filteredOpportunities, now),
+    [stages, filteredOpportunities, now]
+  );
+
+  const { riskValue, averageSpeedDays } = useMemo(() => {
+    const openOpps = openOpportunities;
+    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+
+    const stalledOpps = openOpps.filter((o) => new Date(o.updatedAt) < fiveDaysAgo);
+    const computedRiskValue = stalledOpps.reduce((sum, o) => sum + (o.value || 0), 0);
+
+    const wonOpps = filteredOpportunities.filter((o) => o.status === "won");
+    let totalDays = 0;
+    wonOpps.forEach((o) => {
+      const created = new Date(o.createdAt).getTime();
+      const closed = new Date(o.updatedAt).getTime();
+      totalDays += Math.max(1, Math.round((closed - created) / (1000 * 60 * 60 * 24)));
+    });
+    const computedAvgDays = wonOpps.length > 0 ? Math.round(totalDays / wonOpps.length) : 0;
+
+    return { riskValue: computedRiskValue, averageSpeedDays: computedAvgDays };
+  }, [filteredOpportunities, openOpportunities, now]);
+
   const transitions = useMemo(() => buildTransitions(stages), [stages]);
   const hasEnoughData = stages.length >= 2 && stages.some((stage) => stage.volume > 0);
 
@@ -44,15 +88,24 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
   const bottleneckDrop = bottleneck ? Math.max(0, 100 - bottleneck.conversion) : 0;
   const bottleneckStalledCount = bottleneck?.to.stalledCount ?? 0;
   const bottleneckStalledDays = bottleneck?.to.stalledDays ?? 0;
-  const averageSpeedDays = 18;
-  const riskValue = 45000;
 
   const activeStage = stages.find((stage) => stage.id === activeStageId) ?? null;
-  const activeInsight = activeStage ? STAGE_INSIGHTS[activeStage.id] : null;
+  const activeInsight = activeStage ? insights[activeStage.id] : null;
   const highlightText = activeInsight?.highlight ?? "Sem destaque para a etapa selecionada";
   const recommendationText =
     activeInsight?.recommendation ??
     "Sem recomendação disponível para a etapa selecionada.";
+
+  // ── Dynamic highlight card ───────────────────────────────────────
+  const bestStage = useMemo(() => {
+    if (transitions.length === 0) return null;
+    return transitions.reduce((best, current) =>
+      current.conversion > best.conversion ? current : best
+    );
+  }, [transitions]);
+
+  const highlightConversion = bestStage ? bestStage.conversion : 0;
+  const highlightStageName = bestStage?.from.label ?? "—";
 
   useEffect(() => {
     setViewState(state);
@@ -66,7 +119,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
 
   useEffect(() => {
     if (actionState !== "success") return;
-    const timer = window.setTimeout(() => setActionState("idle"), 1200);
+    const timer = window.setTimeout(() => setActionState("idle"), 2400);
     return () => window.clearTimeout(timer);
   }, [actionState]);
 
@@ -79,13 +132,65 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
     router.push(`/pipes?stage=${stageParam}`);
   }
 
-  async function handleRecommendedAction() {
-    if (actionState === "loading") return;
+  function handleRecommendedAction() {
+    if (actionState === "loading" || !activeStage) return;
     setActionState("loading");
-    await new Promise((resolve) => window.setTimeout(resolve, 180));
 
-    const success = Math.random() > 0.14;
-    setActionState(success ? "success" : "error");
+    // Find stalled opportunities in the active stage and create follow-up activities
+    const pipelineStage = STAGE_TO_PIPELINE[activeStage.id];
+    const stalledThreshold = 5 * 24 * 60 * 60 * 1000;
+    const stalledOpps = openOpportunities
+      .filter(
+        (o) =>
+          o.stage === pipelineStage &&
+          now.getTime() - new Date(o.updatedAt).getTime() > stalledThreshold
+      )
+      .slice(0, 3);
+
+    // Create real follow-up activities in the store
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+    let count = 0;
+    for (const opp of stalledOpps) {
+      addActivity({
+        title: `Follow-up: ${opp.title || opp.clientName}`,
+        description: `Cobrar feedback — oportunidade parada há +${Math.round(
+          (now.getTime() - new Date(opp.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+        )} dias`,
+        type: "call",
+        status: "pending",
+        dueDate: tomorrowStr,
+        dueTime: "10:00",
+        opportunityId: opp.id,
+        clientId: opp.clientId || "",
+        responsibleId: userId || opp.responsibleId,
+        responsibleName: opp.responsibleName,
+      });
+      count++;
+    }
+
+    // If no stalled opps, create a general follow-up for the stage
+    if (count === 0 && openOpportunities.some((o) => o.stage === pipelineStage)) {
+      const firstOpp = openOpportunities.find((o) => o.stage === pipelineStage)!;
+      addActivity({
+        title: `Follow-up: ${firstOpp.title || firstOpp.clientName}`,
+        description: `Follow-up gerado automaticamente para etapa ${activeStage.label}`,
+        type: "call",
+        status: "pending",
+        dueDate: tomorrowStr,
+        dueTime: "10:00",
+        opportunityId: firstOpp.id,
+        clientId: firstOpp.clientId || "",
+        responsibleId: userId || firstOpp.responsibleId,
+        responsibleName: firstOpp.responsibleName,
+      });
+      count = 1;
+    }
+
+    setCreatedCount(count);
+    setActionState(count > 0 ? "success" : "error");
   }
 
   function handleRetry() {
@@ -139,7 +244,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
               onClick={handleRetry}
               className="text-xs font-semibold text-red-700 underline underline-offset-4 transition-colors hover:text-red-800"
             >
-              Retry
+              Tentar novamente
             </button>
           </div>
         </div>
@@ -199,7 +304,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                   <SummaryMiniCard
                     icon={<Gauge className="h-3.5 w-3.5 text-brand" />}
                     label="Velocidade média"
-                    value={`${averageSpeedDays} dias`}
+                    value={averageSpeedDays > 0 ? `${averageSpeedDays} dias` : "—"}
                     helper="Da entrada ao fechamento"
                     onClick={() => openPipeline()}
                   />
@@ -233,19 +338,25 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                     </button>
                   </div>
                   <div className="space-y-1.5">
-                    {activeInsight?.riskDeals.slice(0, 3).map((deal) => (
-                      <div
-                        key={deal}
-                        className="flex items-center justify-between rounded-lg border border-zinc-200/70 bg-zinc-50/70 px-2.5 py-2"
-                      >
-                        <span className="truncate text-xs font-medium text-zinc-700">
-                          {deal}
-                        </span>
-                        <span className="ml-3 text-[10px] text-zinc-500">
-                          +{activeStage.stalledDays} dias
-                        </span>
-                      </div>
-                    ))}
+                    {activeInsight && activeInsight.riskDeals.length > 0 ? (
+                      activeInsight.riskDeals.slice(0, 3).map((deal) => (
+                        <div
+                          key={deal}
+                          className="flex items-center justify-between rounded-lg border border-zinc-200/70 bg-zinc-50/70 px-2.5 py-2"
+                        >
+                          <span className="truncate text-xs font-medium text-zinc-700">
+                            {deal}
+                          </span>
+                          <span className="ml-3 text-[10px] text-zinc-500">
+                            +{activeStage.stalledDays} dias
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="py-2 text-center text-xs text-zinc-400">
+                        Nenhuma oportunidade em risco nesta etapa
+                      </p>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -262,11 +373,12 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
               </div>
               <p className="text-[1rem] font-semibold text-zinc-900">
                 Queda de <span className="text-red-600">{bottleneckDrop}%</span> em{" "}
-                {bottleneck?.to.label ?? "Proposta"}
+                {bottleneck?.to.label ?? "—"}
               </p>
               <p className="mt-1 text-xs text-zinc-600">
-                {bottleneckStalledCount} oportunidades paradas há +
-                {bottleneckStalledDays} dias.
+                {bottleneckStalledCount > 0
+                  ? `${bottleneckStalledCount} oportunidades paradas há +${bottleneckStalledDays} dias.`
+                  : "Sem oportunidades paradas nesta etapa."}
               </p>
               <button
                 type="button"
@@ -286,12 +398,20 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                 <ArrowUpRight className="h-4 w-4 text-emerald-600" />
               </div>
               <p className="text-[1rem] font-semibold text-zinc-900">
-                Conversão de Lead subiu <span className="text-emerald-600">+12%</span>
+                {highlightConversion > 0 ? (
+                  <>
+                    Melhor conversão:{" "}
+                    <span className="text-emerald-600">{highlightConversion}%</span> em{" "}
+                    {highlightStageName}
+                  </>
+                ) : (
+                  "Sem dados de conversão suficientes"
+                )}
               </p>
               <p className="mt-1 text-xs text-zinc-600">{highlightText}</p>
               <button
                 type="button"
-                onClick={() => openPipeline("lead")}
+                onClick={() => openPipeline(bestStage?.from.id as FlowStageId | undefined)}
                 className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 underline-offset-4 transition-colors hover:text-emerald-800 hover:underline"
               >
                 Ver motivo
@@ -329,7 +449,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                   {actionState === "loading" ? (
                     <>
                       <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      Executando...
+                      Criando atividades...
                     </>
                   ) : (
                     "Cobrar feedbacks"
@@ -337,10 +457,10 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                 </Button>
                 <button
                   type="button"
-                  onClick={() => openPipeline(activeStage.id)}
+                  onClick={() => router.push("/intelligence")}
                   className="w-full text-center text-xs font-semibold text-zinc-600 underline-offset-4 transition-colors hover:text-zinc-800 hover:underline active:scale-[0.99]"
                 >
-                  Gerar mensagens
+                  Gerar mensagens via IA
                 </button>
               </div>
 
@@ -353,7 +473,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                     transition={{ duration: 0.09 }}
                     className="mt-2 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700"
                   >
-                    Ações criadas
+                    {createdCount} atividade{createdCount !== 1 ? "s" : ""} criada{createdCount !== 1 ? "s" : ""}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -367,13 +487,13 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                     transition={{ duration: 0.12 }}
                     className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-xs text-red-700"
                   >
-                    Não foi possível criar as ações agora.
+                    Nenhuma oportunidade parada encontrada nesta etapa.
                     <button
                       type="button"
-                      onClick={handleRecommendedAction}
+                      onClick={() => openPipeline(activeStage?.id)}
                       className="ml-1.5 font-semibold underline underline-offset-4"
                     >
-                      Tentar novamente
+                      Ver pipeline
                     </button>
                   </motion.div>
                 )}

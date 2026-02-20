@@ -16,9 +16,6 @@ import {
     User,
     Video,
     X,
-    Globe,
-    Phone,
-    MessageSquare,
     AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -98,18 +95,6 @@ const visitStatusClassName = {
     cancelada: "bg-red-100 text-red-700",
 };
 
-const getVisitTypeIcon = (type: string) => {
-    switch (type) {
-        case "presencial":
-            return MapPin;
-        case "remoto":
-            return Video;
-        case "outro":
-        default:
-            return Calendar;
-    }
-};
-
 const formatVisitDateLabel = (date?: Date | string) => {
     if (!date) return "--/--";
     const d = typeof date === "string" ? new Date(date) : date;
@@ -138,8 +123,6 @@ export function VisitCard({
     onFollowUp,
     onDelete,
 }: VisitCardProps) {
-    const VisitIcon = getVisitTypeIcon(visit.type);
-
     // Format metadata
     const locationText =
         visit.type === 'presencial' ? visit.location :
@@ -147,7 +130,6 @@ export function VisitCard({
                 "Outro";
 
     const isAgendada = visit.status === 'agendada';
-    const isRealizada = visit.status === 'realizada';
     const isCancelada = visit.status === 'cancelada';
 
     return (
@@ -173,7 +155,13 @@ export function VisitCard({
                             ? "border-blue-100 bg-blue-50 text-blue-600"
                             : "border-zinc-200 bg-zinc-50 text-zinc-500"
                 )}>
-                    <VisitIcon className="h-6 w-6" />
+                    {visit.type === "presencial" ? (
+                        <MapPin className="h-6 w-6" />
+                    ) : visit.type === "remoto" ? (
+                        <Video className="h-6 w-6" />
+                    ) : (
+                        <Calendar className="h-6 w-6" />
+                    )}
                 </div>
 
                 {/* Content Column */}

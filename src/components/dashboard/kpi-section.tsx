@@ -14,7 +14,8 @@ import {
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDashboardStore } from "@/stores/dashboard-store";
+import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
+import { PIPELINE_STAGE_ORDER } from "@/lib/business-rules";
 import { cardStaggerContainer, listItemReveal } from "@/lib/motion";
 
 type KPIState = "default" | "loading" | "error";
@@ -35,48 +36,88 @@ interface KPIData {
   state?: KPIState;
 }
 
-const getKpiData = (period: string): Record<"pipeline" | "conversion" | "activities" | "sla", KPIData> => {
-  const periodFactor = period === "quarter" ? 3 : period === "30d" ? 1.45 : 1;
+function useKpiData(): Record<"pipeline" | "conversion" | "activities" | "sla", KPIData> {
+  const {
+    filteredOpportunities,
+    filteredActivities,
+    openOpportunities,
+    now,
+  } = useDashboardFilters();
 
-  return {
-    pipeline: {
-      label: "Pipeline Total",
-      value: 3_450_000 * periodFactor,
-      valueFormat: "currency",
-      subtext: "vs período anterior",
-      trend: { value: "+12%", tone: "positive" },
-      targetPath: "/pipes",
-      state: "default",
-    },
-    conversion: {
-      label: "Conversão Global",
-      value: 18.5,
-      valueFormat: "percent",
-      subtext: "Ganhos no período: 42",
-      trend: { value: "+8%", tone: "positive" },
-      targetPath: "/pipes?focus=conversion",
-      state: "default",
-    },
-    activities: {
-      label: "Atividades",
-      value: 12,
-      valueFormat: "integer",
-      subtext: "Hoje",
-      trend: { value: "-3%", tone: "negative" },
-      targetPath: "/activities",
-      state: "default",
-    },
-    sla: {
-      label: "SLA Crítico",
-      value: 2,
-      valueFormat: "sla",
-      subtext: "5 em risco",
-      trend: { value: "+2%", tone: "negative" },
-      targetPath: "/pipes?status=sla-breached",
-      state: "default",
-    },
-  };
-};
+  return useMemo(() => {
+    const openOpps = openOpportunities;
+    const wonOpps = filteredOpportunities.filter((o) => o.status === "won");
+    const lostOpps = filteredOpportunities.filter((o) => o.status === "lost");
+    const closedTotal = wonOpps.length + lostOpps.length;
+
+    const pipelineTotal = openOpps.reduce((sum, o) => sum + (o.value || 0), 0);
+    const conversionRate = closedTotal > 0 ? (wonOpps.length / closedTotal) * 100 : 0;
+
+    const pendingActivities = filteredActivities.filter(
+      (a) => a.effectiveStatus === "pending" || a.effectiveStatus === "overdue"
+    );
+    const overdueActivities = filteredActivities.filter(
+      (a) => a.effectiveStatus === "overdue"
+    );
+
+    const slaBreached = openOpps.filter(
+      (o) => o.slaDeadline && new Date(o.slaDeadline) < now
+    );
+    const slaAtRisk = openOpps.filter((o) => {
+      if (!o.slaDeadline) return false;
+      const deadline = new Date(o.slaDeadline);
+      const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+      return hoursLeft > 0 && hoursLeft <= 24;
+    });
+
+    return {
+      pipeline: {
+        label: "Pipeline Total",
+        value: pipelineTotal,
+        valueFormat: "currency",
+        subtext: `${openOpps.length} oportunidades abertas`,
+        trend: wonOpps.length > 0
+          ? { value: `${wonOpps.length} ganhos`, tone: "positive" as TrendTone }
+          : undefined,
+        targetPath: "/pipes",
+        state: "default",
+      },
+      conversion: {
+        label: "Conversão Global",
+        value: conversionRate,
+        valueFormat: "percent",
+        subtext: `Ganhos no período: ${wonOpps.length}`,
+        trend: conversionRate > 15
+          ? { value: `${conversionRate.toFixed(0)}%`, tone: "positive" as TrendTone }
+          : { value: `${conversionRate.toFixed(0)}%`, tone: "negative" as TrendTone },
+        targetPath: "/pipes",
+        state: "default",
+      },
+      activities: {
+        label: "Atividades",
+        value: pendingActivities.length,
+        valueFormat: "integer",
+        subtext: "Pendentes",
+        trend: overdueActivities.length > 0
+          ? { value: `${overdueActivities.length} atrasadas`, tone: "negative" as TrendTone }
+          : { value: "Em dia", tone: "positive" as TrendTone },
+        targetPath: "/activities",
+        state: "default",
+      },
+      sla: {
+        label: "SLA Crítico",
+        value: slaBreached.length,
+        valueFormat: "sla",
+        subtext: `${slaAtRisk.length} em risco`,
+        trend: slaBreached.length > 0
+          ? { value: `+${slaBreached.length}`, tone: "negative" as TrendTone }
+          : { value: "OK", tone: "positive" as TrendTone },
+        targetPath: "/pipes?status=sla-breached",
+        state: "default",
+      },
+    };
+  }, [filteredOpportunities, filteredActivities, openOpportunities, now]);
+}
 
 function formatKpiValue(value: number, format: KPIData["valueFormat"]): string {
   if (format === "currency") {
@@ -153,8 +194,17 @@ function TrendBadge({ trend }: { trend?: TrendData }) {
   );
 }
 
-function SparklineMini() {
-  const points = "0,26 18,24 36,17 54,20 72,14 90,16 108,8 126,6";
+function SparklineMini({ data }: { data: number[] }) {
+  if (data.length < 2) return null;
+  const maxVal = Math.max(...data, 1);
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * 126;
+      const y = 26 - (v / maxVal) * 24;
+      return `${x.toFixed(0)},${y.toFixed(0)}`;
+    })
+    .join(" ");
+  const isPositive = data[data.length - 1] >= data[0];
   return (
     <svg
       width="126"
@@ -166,7 +216,7 @@ function SparklineMini() {
     >
       <polyline
         points={points}
-        stroke="#10b981"
+        stroke={isPositive ? "#10b981" : "#ef4444"}
         strokeWidth="2"
         fill="none"
         strokeLinecap="round"
@@ -176,8 +226,9 @@ function SparklineMini() {
   );
 }
 
-function ConversionBarsMini() {
-  const bars = [100, 68, 41, 19];
+function ConversionBarsMini({ stages }: { stages: number[] }) {
+  const maxVal = Math.max(...stages, 1);
+  const bars = stages.map((v) => Math.round((v / maxVal) * 100));
   return (
     <div className="flex h-7 w-[126px] items-end gap-1.5" aria-hidden>
       {bars.map((height, index) => (
@@ -194,32 +245,37 @@ function ConversionBarsMini() {
   );
 }
 
-function ActivityMiniChips() {
+function ActivityMiniChips({ overdueCount, pendingCount }: { overdueCount: number; pendingCount: number }) {
+
   return (
     <div className="flex h-9 w-[172px] items-center gap-1.5" aria-hidden>
       <span className="inline-flex h-9 min-w-0 flex-1 items-center justify-between rounded-[11px] border border-red-200/80 bg-red-50 px-2 text-red-700">
         <span className="truncate text-[10px] font-semibold">Atrasadas:</span>
         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/80 px-1.5 text-[10px] font-bold leading-none">
-          4
+          {overdueCount}
         </span>
       </span>
       <span className="inline-flex h-9 min-w-0 flex-1 items-center justify-between rounded-[11px] border border-zinc-200 bg-zinc-50 px-2 text-zinc-700">
-        <span className="truncate text-[10px] font-semibold">Hoje:</span>
+        <span className="truncate text-[10px] font-semibold">Pendentes:</span>
         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/85 px-1.5 text-[10px] font-bold leading-none">
-          8
+          {pendingCount}
         </span>
       </span>
     </div>
   );
 }
 
-function SlaProgressMini() {
+function SlaProgressMini({ riskPct }: { riskPct: number }) {
+
   return (
     <div className="w-[126px]" aria-hidden>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200/80">
-        <div className="h-full w-[35%] rounded-full bg-red-500" />
+        <div
+          className="h-full rounded-full bg-red-500"
+          style={{ width: `${Math.min(riskPct, 100)}%` }}
+        />
       </div>
-      <p className="mt-1 text-right text-[10px] text-zinc-500">35% de risco</p>
+      <p className="mt-1 text-right text-[10px] text-zinc-500">{riskPct}% de risco</p>
     </div>
   );
 }
@@ -276,7 +332,7 @@ function KPITemplateCard({
             }}
             className="w-fit text-xs font-semibold text-brand underline underline-offset-4"
           >
-            Retry
+            Tentar novamente
           </button>
         </div>
       ) : (
@@ -312,13 +368,17 @@ function KPITemplateCard({
 
 export function KpiSection() {
   const router = useRouter();
-  const { period } = useDashboardStore();
-  const baseData = getKpiData(period);
+  const {
+    filteredActivities,
+    openOpportunities,
+    now,
+  } = useDashboardFilters();
+  const baseData = useKpiData();
   const [cardState, setCardState] = useState<Record<keyof typeof baseData, KPIState>>({
-    pipeline: baseData.pipeline.state ?? "default",
-    conversion: baseData.conversion.state ?? "default",
-    activities: baseData.activities.state ?? "default",
-    sla: baseData.sla.state ?? "default",
+    pipeline: "default",
+    conversion: "default",
+    activities: "default",
+    sla: "default",
   });
 
   const kpis = useMemo(
@@ -330,6 +390,61 @@ export function KpiSection() {
     }),
     [baseData, cardState]
   );
+
+  // ── Compute mini-chart data ──────────────────────────────────────
+  const sparklineData = useMemo(() => {
+    // Build 7 time-bucketed pipeline values for the sparkline
+    const openOpps = openOpportunities;
+    const buckets = 7;
+    const msPerBucket = (7 * 24 * 60 * 60 * 1000) / buckets;
+    const end = now.getTime();
+    const start = end - 7 * 24 * 60 * 60 * 1000;
+    const data: number[] = Array.from({ length: buckets }, () => 0);
+
+    for (const opp of openOpps) {
+      const created = new Date(opp.createdAt).getTime();
+      for (let i = 0; i < buckets; i++) {
+        const bucketEnd = start + (i + 1) * msPerBucket;
+        if (created <= bucketEnd) {
+          data[i] += opp.value || 0;
+        }
+      }
+    }
+    // Ensure at least some variation for visual interest
+    return data.length >= 2 ? data : [0, 0];
+  }, [openOpportunities, now]);
+
+  const stageCounts = useMemo(() => {
+    const counts: number[] = PIPELINE_STAGE_ORDER.map(
+      (stage) => openOpportunities.filter((o) => o.stage === stage).length
+    );
+    return counts;
+  }, [openOpportunities]);
+
+  const activityCounts = useMemo(() => {
+    const overdueCount = filteredActivities.filter(
+      (a) => a.effectiveStatus === "overdue"
+    ).length;
+    const pendingCount = filteredActivities.filter(
+      (a) => a.effectiveStatus === "pending"
+    ).length;
+    return { overdueCount, pendingCount };
+  }, [filteredActivities]);
+
+  const slaRiskPct = useMemo(() => {
+    const total = openOpportunities.length;
+    if (total === 0) return 0;
+    const breached = openOpportunities.filter(
+      (o) => o.slaDeadline && new Date(o.slaDeadline) < now
+    ).length;
+    const atRisk = openOpportunities.filter((o) => {
+      if (!o.slaDeadline) return false;
+      const deadline = new Date(o.slaDeadline);
+      const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+      return hoursLeft > 0 && hoursLeft <= 24;
+    }).length;
+    return Math.round(((breached + atRisk) / total) * 100);
+  }, [openOpportunities, now]);
 
   function retryCard(card: keyof typeof kpis) {
     setCardState((prev) => ({ ...prev, [card]: "loading" }));
@@ -349,7 +464,7 @@ export function KpiSection() {
         <KPITemplateCard
           icon={<Gauge className="h-4 w-4" />}
           data={kpis.pipeline}
-          miniVisual={<SparklineMini />}
+          miniVisual={<SparklineMini data={sparklineData} />}
           onClick={() => router.push(kpis.pipeline.targetPath)}
           onRetry={() => retryCard("pipeline")}
         />
@@ -359,7 +474,7 @@ export function KpiSection() {
         <KPITemplateCard
           icon={<TrendingUp className="h-4 w-4" />}
           data={kpis.conversion}
-          miniVisual={<ConversionBarsMini />}
+          miniVisual={<ConversionBarsMini stages={stageCounts} />}
           onClick={() => router.push(kpis.conversion.targetPath)}
           onRetry={() => retryCard("conversion")}
         />
@@ -369,7 +484,12 @@ export function KpiSection() {
         <KPITemplateCard
           icon={<Clock3 className="h-4 w-4" />}
           data={kpis.activities}
-          miniVisual={<ActivityMiniChips />}
+          miniVisual={
+            <ActivityMiniChips
+              overdueCount={activityCounts.overdueCount}
+              pendingCount={activityCounts.pendingCount}
+            />
+          }
           onClick={() => router.push(kpis.activities.targetPath)}
           onRetry={() => retryCard("activities")}
         />
@@ -379,7 +499,7 @@ export function KpiSection() {
         <KPITemplateCard
           icon={<ShieldAlert className="h-4 w-4" />}
           data={kpis.sla}
-          miniVisual={<SlaProgressMini />}
+          miniVisual={<SlaProgressMini riskPct={slaRiskPct} />}
           onClick={() => router.push(kpis.sla.targetPath)}
           onRetry={() => retryCard("sla")}
         />

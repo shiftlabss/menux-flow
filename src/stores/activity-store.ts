@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type { Activity, ActivityStatus } from "@/types";
 import { mockActivities } from "@/lib/mock-data";
+import { getEffectiveActivityStatus } from "@/lib/business-rules";
 
 interface ActivityState {
   activities: Activity[];
@@ -46,7 +47,9 @@ export const useActivityStore = create<ActivityState>()(
       updateActivity: (id, data) =>
         set((state) => ({
           activities: state.activities.map((act) =>
-            act.id === id ? { ...act, ...data } : act
+            act.id === id
+              ? { ...act, ...data, updatedAt: new Date().toISOString() }
+              : act
           ),
         })),
 
@@ -64,6 +67,7 @@ export const useActivityStore = create<ActivityState>()(
                   status: "completed" as ActivityStatus,
                   completedAt: new Date().toISOString().split("T")[0],
                   completionNotes: notes || undefined,
+                  updatedAt: new Date().toISOString(),
                 }
               : act
           ),
@@ -80,16 +84,23 @@ export const useActivityStore = create<ActivityState>()(
 
       postponeActivity: (id, newDueDate, newDueTime) =>
         set((state) => {
-          const todayStr = new Date().toISOString().split("T")[0];
           return {
             activities: state.activities.map((act) => {
               if (act.id !== id) return act;
-              const newStatus: ActivityStatus =
-                newDueDate < todayStr ? "overdue" : "pending";
-              return {
+
+              const candidate = {
                 ...act,
                 dueDate: newDueDate,
                 dueTime: newDueTime ?? act.dueTime,
+                status: "pending" as ActivityStatus,
+              };
+
+              const effectiveStatus = getEffectiveActivityStatus(candidate);
+              const newStatus: ActivityStatus =
+                effectiveStatus === "overdue" ? "overdue" : "pending";
+
+              return {
+                ...candidate,
                 status: newStatus,
               };
             }),

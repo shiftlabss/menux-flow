@@ -91,6 +91,7 @@ export const useOpportunityStore = create<OpportunityState>()(
                   ...opp,
                   status: "lost" as OpportunityStatus,
                   lossReason: reason,
+                  competitor: competitor || opp.competitor,
                   notes: notes || opp.notes,
                   updatedAt: new Date().toISOString(),
                 }

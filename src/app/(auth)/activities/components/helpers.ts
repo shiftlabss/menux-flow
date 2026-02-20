@@ -1,4 +1,5 @@
 import type { Activity } from "@/types";
+import { isActivityOverdueAt, isActivitySlaRiskAt } from "@/lib/business-rules";
 
 // ═══════════════════════════════════════════════════════════════════
 // Date primitives
@@ -113,17 +114,11 @@ export function getDelayText(daysOverdue: number): string {
 }
 
 export function isActivityOverdue(activity: Activity, now: Date): boolean {
-  if (activity.status === "overdue") return true;
-  if (activity.status === "completed" || activity.status === "cancelled") return false;
-  return startOfDay(parseDateISO(activity.dueDate)).getTime() < startOfDay(now).getTime();
+  return isActivityOverdueAt(activity, now);
 }
 
 export function isSlaRisk(activity: Activity, now: Date): boolean {
-  if (activity.status !== "pending") return false;
-  const today = startOfDay(now);
-  const tomorrow = addDays(today, 1);
-  const due = startOfDay(parseDateISO(activity.dueDate));
-  return due.getTime() >= today.getTime() && due.getTime() <= tomorrow.getTime();
+  return isActivitySlaRiskAt(activity, now);
 }
 
 export function getRelativeTimeLabel(activity: Activity, now: Date): string {
@@ -131,7 +126,10 @@ export function getRelativeTimeLabel(activity: Activity, now: Date): string {
   const today = startOfDay(now);
   const diffDays = Math.floor((dueDate.getTime() - today.getTime()) / DAY_MS);
 
-  if (diffDays < 0 || activity.status === "overdue") {
+  if (isActivityOverdue(activity, now)) {
+    if (diffDays === 0) {
+      return activity.dueTime ? `Atrasada desde ${activity.dueTime}` : "Atrasada hoje";
+    }
     return getDelayText(Math.max(1, Math.abs(diffDays)));
   }
 
@@ -148,6 +146,20 @@ export function getStatusChip(activity: Activity, now: Date): {
   label: string;
   className: string;
 } {
+  if (activity.status === "completed") {
+    return {
+      label: "Concluída",
+      className: "bg-status-success-light text-status-success border-status-success/20",
+    };
+  }
+
+  if (activity.status === "cancelled") {
+    return {
+      label: "Cancelada",
+      className: "bg-zinc-100 text-zinc-500 border-zinc-200",
+    };
+  }
+
   if (isActivityOverdue(activity, now)) {
     return {
       label: "Atrasada",
@@ -162,20 +174,6 @@ export function getStatusChip(activity: Activity, now: Date): {
     return {
       label: "Hoje",
       className: "bg-status-warning-light text-status-warning border-status-warning/25",
-    };
-  }
-
-  if (activity.status === "completed") {
-    return {
-      label: "Concluída",
-      className: "bg-status-success-light text-status-success border-status-success/20",
-    };
-  }
-
-  if (activity.status === "cancelled") {
-    return {
-      label: "Cancelada",
-      className: "bg-zinc-100 text-zinc-500 border-zinc-200",
     };
   }
 

@@ -7,10 +7,14 @@ import { DashboardHeader } from "@/components/dashboard/header";
 import { KpiSection } from "@/components/dashboard/kpi-section";
 import { FunnelXRay } from "@/components/dashboard/funnel-x-ray";
 import { CriticalAlerts, TodayActivities } from "@/components/dashboard/execution-section";
-import { PipelineHealth } from "@/components/dashboard/performance-section";
+import { PipelineHealth, TeamPerformance } from "@/components/dashboard/performance-section";
+import { useProactiveEngine } from "@/hooks/use-proactive-engine";
 import { screenContainer, sectionEnter } from "@/lib/motion";
 
 export default function Dashboard() {
+  // Activate proactive engine in background — feeds alerts & suggestions
+  useProactiveEngine();
+
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
 
@@ -74,9 +78,10 @@ export default function Dashboard() {
             <TodayActivities />
          </div>
          
-         {/* Right Column: Health (4 cols) */}
+         {/* Right Column: Health + Performance (4 cols) */}
          <div className="lg:col-span-4 flex flex-col gap-6">
             <PipelineHealth />
+            <TeamPerformance />
          </div>
       </motion.section>
     </motion.div>

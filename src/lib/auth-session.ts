@@ -4,10 +4,36 @@ const FALLBACK_AUTH_SECRET = "flow-dev-auth-secret-change-me";
 
 const ROLE_BY_EMAIL: Record<string, UserRole> = {
   "master@flow.demo": "master",
+  "master@menux.co": "master",
   "admin@flow.demo": "admin",
   "comercial@flow.demo": "comercial",
   "cs@flow.demo": "cs",
   "leitura@flow.demo": "leitura",
+};
+
+const DEFAULT_USER_ID_BY_ROLE: Record<UserRole, string> = {
+  master: "user-1",
+  admin: "user-2",
+  comercial: "user-3",
+  cs: "user-5",
+  leitura: "user-8",
+};
+
+const FIXED_DEMO_PROFILE_BY_EMAIL: Partial<
+  Record<
+    string,
+    {
+      id: string;
+      name: string;
+    }
+  >
+> = {
+  "master@flow.demo": { id: "user-1", name: "Rafael Mendes" },
+  "master@menux.co": { id: "user-1", name: "Master" },
+  "admin@flow.demo": { id: "user-2", name: "Camila Ferreira" },
+  "comercial@flow.demo": { id: "user-3", name: "Lucas Oliveira" },
+  "cs@flow.demo": { id: "user-5", name: "Fernanda Lima" },
+  "leitura@flow.demo": { id: "user-8", name: "Pedro Almeida" },
 };
 
 export interface SessionTokenPayload {
@@ -110,9 +136,13 @@ function normalizeName(email: string): string {
 export function buildDemoUser(email: string): SessionUser {
   const normalizedEmail = email.trim().toLowerCase();
   const role = ROLE_BY_EMAIL[normalizedEmail] ?? "comercial";
+  const fixedProfile = FIXED_DEMO_PROFILE_BY_EMAIL[normalizedEmail];
+  const id = fixedProfile?.id ?? DEFAULT_USER_ID_BY_ROLE[role];
+  const name = fixedProfile?.name ?? normalizeName(normalizedEmail);
+
   return {
-    id: `user-${normalizedEmail.replace(/[^a-z0-9]/g, "-") || "demo"}`,
-    name: normalizeName(normalizedEmail),
+    id,
+    name,
     email: normalizedEmail,
     role,
     unitId: "unit-1",

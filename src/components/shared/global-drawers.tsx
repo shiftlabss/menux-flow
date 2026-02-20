@@ -12,15 +12,20 @@ import { ConfirmDeleteModal } from "@/components/modals/confirm-delete-modal";
 import { ConfirmDeactivateModal } from "@/components/modals/confirm-deactivate-modal";
 import { useUIStore } from "@/stores/ui-store";
 import { useActivityStore } from "@/stores/activity-store";
+import { useAuthStore } from "@/stores/auth-store";
 import type { ActivityFormData } from "@/lib/validations/activity";
 
 export function GlobalDrawers() {
   const { modalData, drawerData, drawerType, closeDrawer } = useUIStore();
   const { addActivity } = useActivityStore();
+  const { user } = useAuthStore();
   const leadDrawerKey = `lead-${String(modalData?.id ?? "default")}`;
   const clientDrawerKey = `client-${String(drawerData?.id ?? "default")}`;
 
   const handleSaveActivity = (data: ActivityFormData) => {
+    const responsibleId = user?.id ?? "user-3";
+    const responsibleName = user?.name ?? "Usuário";
+
     addActivity({
       title: data.title,
       type: data.type,
@@ -28,8 +33,8 @@ export function GlobalDrawers() {
       description: data.description || "",
       dueDate: data.date,
       dueTime: data.time,
-      responsibleId: data.responsible || "user-5",
-      responsibleName: data.responsible || "Eu",
+      responsibleId,
+      responsibleName,
     });
     closeDrawer();
   };

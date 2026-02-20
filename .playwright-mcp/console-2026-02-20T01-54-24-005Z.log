@@ -1,0 +1,272 @@
+[    8921ms] [ERROR] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <AppShell>
+      <div className="flex h-scr...">
+        <Sidebar>
+        <div className="flex min-w..." style={{...}}>
+          <main ref={{current:null}} className="flex-1 ove...">
+            ...
+              <div className="space-y-7 ..." style={{opacity:1, ...}} ref={function useMotionRef.useCallback}>
+                ...
+                  <PopperAnchor asChild={true} __scopePopper={{Popper:[...]}}>
+                    <Primitive.div asChild={true} ref={function}>
+                      <Primitive.div.Slot ref={function}>
+                        <Primitive.div.SlotClone ref={function}>
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button variant="outline" className="rounded-fu..." type="button" aria-haspopup="dialog" ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="outline"
+                                    data-size="default"
+                                    className={"inline-flex items-center justify-center gap-2 whitespace-nowrap text-..."}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_1koqatpetpknelb_"
+-                                   aria-controls="radix-_R_6j39bn5rn6knelb_"
+                                    data-state="closed"
+                                    onClick={function handleEvent}
+                                    ref={function}
+                                  >
+                <div>
+                ...
+                  <AnimatePresence initial={false}>
+                    ...
+                      <div className="mt-4 flex ..." onClick={function onClick}>
+                        <label>
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" className="h-9 rounde..." disabled={false} type="button" ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="default"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    disabled={false}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_1arnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_5bev4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    onClick={function handleEvent}
+                                    ref={function}
+                                  >
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" variant="outline" className="h-9 rounde..." disabled={false} ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="outline"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    disabled={false}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_1qrnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_7bev4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    onClick={function handleEvent}
+                                    ref={function}
+                                  >
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" variant="outline" className="menux-inte..." onClick={function} ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="outline"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    onClick={function}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_2arnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_9bev4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    ref={function}
+                                  >
+                        ...
+                    ...
+                      <div className="mt-4 flex ..." onClick={function onClick}>
+                        <label>
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" className="h-9 rounde..." disabled={false} type="button" ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="default"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    disabled={false}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_1atnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_5bmv4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    onClick={function handleEvent}
+                                    ref={function}
+                                  >
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" variant="outline" className="h-9 rounde..." disabled={false} ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="outline"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    disabled={false}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_1qtnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_7bmv4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    onClick={function handleEvent}
+                                    ref={function}
+                                  >
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" variant="outline" className="menux-inte..." onClick={function} ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="outline"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    onClick={function}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_2atnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_9bmv4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    ref={function}
+                                  >
+                        ...
+                    ...
+                      <div className="mt-4 flex ..." onClick={function onClick}>
+                        <label>
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" className="h-9 rounde..." disabled={false} type="button" ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="default"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    disabled={false}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_1avnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_5buv4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    onClick={function handleEvent}
+                                    ref={function}
+                                  >
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" variant="outline" className="h-9 rounde..." disabled={false} ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="outline"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    disabled={false}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_1qvnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_7buv4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    onClick={function handleEvent}
+                                    ref={function}
+                                  >
+                        ...
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                                <Button size="sm" variant="outline" className="menux-inte..." onClick={function} ...>
+                                  <button
+                                    data-slot="popover-trigger"
+                                    data-variant="outline"
+                                    data-size="sm"
+                                    className={"inline-flex items-center justify-center whitespace-nowrap font-medium..."}
+                                    onClick={function}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    aria-expanded={false}
++                                   aria-controls="radix-_R_2avnp6qatpetpknelb_"
+-                                   aria-controls="radix-_R_9buv4r9bn5rn6knelb_"
+                                    data-state="closed"
+                                    ref={function}
+                                  >
+                        ...
+                ...
+            <GlobalDrawers>
+            <GlobalSearch>
+              <CommandDialog open={false} onOpenChange={function onOpenChange} title="Busca Global" ...>
+                <Dialog open={false} onOpenChange={function onOpenChange}>
+                  <Dialog data-slot="dialog" open={false} onOpenChange={function onOpenChange}>
+                    <DialogProvider scope={undefined} triggerRef={{current:null}} contentRef={{current:null}} ...>
+                      <DialogHeader className="sr-only">
+                        <div data-slot="dialog-header" className="flex flex-...">
+                          <DialogTitle>
+                            <DialogTitle data-slot="dialog-title" className="text-lg le...">
+                              <Primitive.h2 id="radix-_R_3..." data-slot="dialog-title" className="text-lg le..." ...>
+                                <h2
++                                 id="radix-_R_3knelbH1_"
+-                                 id="radix-_R_eknelbH1_"
+                                  data-slot="dialog-title"
+                                  className="text-lg leading-none font-semibold"
+                                  ref={null}
+                                >
++                                 Busca Global
+                          <DialogDescription>
+                            <DialogDescription data-slot="dialog-des..." className="text-muted...">
+                              <Primitive.p id="radix-_R_3..." data-slot="dialog-des..." className="text-muted..." ...>
+                                <p
++                                 id="radix-_R_3knelbH2_"
+-                                 id="radix-_R_eknelbH2_"
+                                  data-slot="dialog-description"
+                                  className="text-muted-foreground text-sm"
+                                  ref={null}
+                                >
++                                 Busque por páginas, oportunidades e clientes
+                      ...
+            ...
+ @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[    8989ms] [WARNING] Image with src "http://localhost:3001/flow-logo.svg" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio. @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[    9793ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3001/icons/icon-192x192.png:0
+[   10649ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:3001/icons/icon-192x192.png (Download error or resource isn't a valid image) @ http://localhost:3001/activities:0

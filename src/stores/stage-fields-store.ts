@@ -7,7 +7,6 @@ import {
   validateFieldValue,
   type StageField,
   type StageFieldValue,
-  type FieldType,
 } from "@/lib/mock-stage-fields";
 
 // ===== Types =====

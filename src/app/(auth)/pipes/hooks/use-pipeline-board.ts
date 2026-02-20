@@ -385,59 +385,18 @@ export function usePipelineBoard({
     stopAutoScroll();
   }, [stopAutoScroll]);
 
-  // Win / Lose handlers
-  const handleWin = useCallback(
-    (opportunityId: string) => {
-      setLocalOpportunities((prev) =>
-        prev.map((o) =>
-          o.id === opportunityId
-            ? { ...o, status: "won" as const, updatedAt: new Date().toISOString() }
-            : o
-        )
-      );
-      const opp = localOpportunities.find((o) => o.id === opportunityId);
-      if (opp) {
-        setSuccessFeedback({
-          stage: opp.stage,
-          message: `${opp.title} — ganho com sucesso.`,
-        });
-        announce(`Oportunidade ${opp.title} marcada como ganha!`);
-        setTimeout(() => setSuccessFeedback(null), 3000);
-      }
-    },
-    [localOpportunities, announce, setLocalOpportunities]
-  );
-
-  const handleLose = useCallback(
-    (opportunityId: string) => {
-      setLocalOpportunities((prev) =>
-        prev.map((o) =>
-          o.id === opportunityId
-            ? { ...o, status: "lost" as const, updatedAt: new Date().toISOString() }
-            : o
-        )
-      );
-      const opp = localOpportunities.find((o) => o.id === opportunityId);
-      if (opp) {
-        announce(`Oportunidade ${opp.title} marcada como perdida.`);
-      }
-    },
-    [localOpportunities, announce, setLocalOpportunities]
-  );
-
   return {
     draggingCardId,
     draggingCardStage,
     dragOverStage,
     dropIndicator,
     columnError,
+    setColumnError,
     successFeedback,
     handleDragStart,
     handleDragOver,
     handleDragLeave,
     handleDrop,
     handleDragEnd,
-    handleWin,
-    handleLose,
   };
 }

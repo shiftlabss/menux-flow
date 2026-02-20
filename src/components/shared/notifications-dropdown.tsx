@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { useUIStore } from "@/stores/ui-store";
 import { mockNotifications } from "@/lib/mock-data";
 import type { NotificationType } from "@/types";
+import { useRouter } from "next/navigation";
 
 const notificationIcons: Record<NotificationType, React.ElementType> = {
   "sla-warning": AlertTriangle,
@@ -63,12 +64,26 @@ function formatRelativeTime(dateString: string): string {
 }
 
 export function NotificationsDropdown() {
+  const router = useRouter();
   const { isNotificationsOpen, setNotificationsOpen } = useUIStore();
   const [notifications, setNotifications] = useState(mockNotifications);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const handleMarkAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
+
+  const handleOpenNotification = (notificationId: string, link?: string) => {
+    setNotifications((prev) =>
+      prev.map((item) =>
+        item.id === notificationId ? { ...item, isRead: true } : item
+      )
+    );
+
+    setNotificationsOpen(false);
+    if (link) {
+      router.push(link);
+    }
   };
 
   return (
@@ -118,9 +133,13 @@ export function NotificationsDropdown() {
                 const iconColor = notificationIconColors[notification.type];
 
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={notification.id}
-                    className="flex gap-3 px-4 py-3 transition-colors hover:bg-zinc-50"
+                    onClick={() =>
+                      handleOpenNotification(notification.id, notification.link)
+                    }
+                    className="flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-50"
                   >
                     {/* Icon */}
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100">
@@ -144,7 +163,7 @@ export function NotificationsDropdown() {
                         {formatRelativeTime(notification.createdAt)}
                       </p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>

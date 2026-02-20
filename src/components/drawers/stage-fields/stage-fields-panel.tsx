@@ -11,7 +11,6 @@ import {
   Eye,
   Activity,
   ChevronDown,
-  ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -153,8 +152,6 @@ export function StageFieldsPanel({
   stages,
   initialValues,
   isLocked,
-  onStageChange,
-  nextStage,
   canCreateFields = false,
   advanceBlockedReason = null,
 }: StageFieldsPanelProps) {
@@ -212,7 +209,6 @@ export function StageFieldsPanel({
   const optionalFields = useMemo(() => fields.filter((f) => !f.required), [fields]);
 
   const isEditable = !isLocked && !isViewingDifferent;
-  const hasPendingSave = Object.values(store.fieldSaveStates).some((s) => s === "saving");
   const hasAdvanceBlockedReason = Boolean(advanceBlockedReason && advanceBlockedReason.trim().length > 0);
 
   return (
@@ -367,33 +363,7 @@ export function StageFieldsPanel({
             )}
           </AnimatePresence>
 
-          {/* ── Checklist progress ── */}
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-medium text-zinc-600">Progresso obrigatório</span>
-              <span className="font-semibold text-zinc-900">
-                {progress.completed}/{progress.total || 0}
-              </span>
-            </div>
-            <div className="mt-2 h-1.5 rounded-full bg-zinc-200">
-              <div
-                className="h-full rounded-full bg-brand transition-all duration-200"
-                style={{
-                  width: `${progress.total === 0
-                      ? 100
-                      : Math.max(8, (progress.completed / progress.total) * 100)
-                    }%`,
-                }}
-              />
-            </div>
-            <p className="mt-2 text-[11px] text-zinc-500">
-              {progress.total === 0
-                ? "Nenhum campo obrigatório nesta etapa."
-                : progress.missing === 0
-                  ? "Checklist completo. Você já pode avançar."
-                  : `Faltam ${progress.missing} item(ns) para avançar etapa.`}
-            </p>
-          </div>
+
 
           {/* ── Missing required fields warning ── */}
           {progress.missingFields.length > 0 && store.viewStage === store.opportunityStage && (

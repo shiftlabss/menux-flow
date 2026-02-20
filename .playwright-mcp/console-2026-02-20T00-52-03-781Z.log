@@ -1,0 +1,456 @@
+[    1558ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3001/icons/icon-192x192.png:0
+[    1602ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:3001/icons/icon-192x192.png (Download error or resource isn't a valid image) @ http://localhost:3001/dashboard:0
+[    1806ms] [WARNING] Image with src "http://localhost:3001/flow-logo.svg" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio. @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[   54056ms] [ERROR] ./src/app/(auth)/pipes/components/deal-card-bento.tsx:185:23
+Parsing ecmascript source code failed
+  183 |       {/* 4. Tags row (conditional) */}
+  184 |       {opportunity.tags.length > 0 && (
+> 185 |           {opportunity.tags.length > 2 && (
+      |                       ^
+  186 |             <Tooltip>
+  187 |               <TooltipTrigger asChild>
+  188 |                 <Badge
+
+Expected a semicolon
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/components/deal-card-bento.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/components/deal-card-bento.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[   55498ms] [ERROR] ./src/app/(auth)/pipes/components/deal-card-bento.tsx:185:23
+Parsing ecmascript source code failed
+  183 |       {/* 4. Tags row (conditional) */}
+  184 |       {opportunity.tags.length > 0 && (
+> 185 |           {opportunity.tags.length > 2 && (
+      |                       ^
+  186 |             <Tooltip>
+  187 |               <TooltipTrigger asChild>
+  188 |                 <Badge
+
+Expected a semicolon
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/components/deal-card-bento.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/components/deal-card-bento.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[   58273ms] [ERROR] ./src/app/(auth)/pipes/components/deal-card-bento.tsx:185:23
+Parsing ecmascript source code failed
+  183 |       {/* 4. Tags row (conditional) */}
+  184 |       {opportunity.tags.length > 0 && (
+> 185 |           {opportunity.tags.length > 2 && (
+      |                       ^
+  186 |             <Tooltip>
+  187 |               <TooltipTrigger asChild>
+  188 |                 <Badge
+
+Expected a semicolon
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/components/deal-card-bento.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/components/deal-card-bento.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[   87288ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3001/icons/icon-192x192.png:0
+[   87317ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:3001/icons/icon-192x192.png (Download error or resource isn't a valid image) @ http://localhost:3001/dashboard:0
+[  115002ms] [ERROR] %o
+
+%s ReferenceError: getKpiData is not defined
+    at KpiSection (http://localhost:3001/_next/static/chunks/src_a7843081._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fdashboard%252Fkpi-section.tsx+%255Bapp-client%255D+%2528ecmascript%2529:607:22)
+    at Object.react_stack_bottom_frame (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performSyncWorkOnRoot (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10238:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10154:316)
+    at flushSyncWork$1 (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9237:86)
+    at Object.scheduleRefresh (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:299:13)
+    at http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:391:33
+    at Set.forEach (<anonymous>)
+    at Object.performReactRefresh (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:384:38)
+    at applyUpdate (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:878:31)
+    at http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:886:13 The above error occurred in the <KpiSection> component. It was handled by the <ErrorBoundary> error boundary. @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_client_17643121._.js:1342
+[  115005ms] [ERROR] [ErrorBoundary: page-content] ReferenceError: getKpiData is not defined
+    at KpiSection (http://localhost:3001/_next/static/chunks/src_a7843081._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252Fdashboard%252Fkpi-section.tsx+%255Bapp-client%255D+%2528ecmascript%2529:607:22)
+    at Object.react_stack_bottom_frame (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:14826:24)
+    at renderWithHooks (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:4651:24)
+    at updateFunctionComponent (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6112:21)
+    at beginWork (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:6708:24)
+    at runWithFiberInDEV (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
+    at performUnitOfWork (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9562:97)
+    at workLoopSync (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9456:40)
+    at renderRootSync (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9440:13)
+    at performWorkOnRoot (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9105:47)
+    at performSyncWorkOnRoot (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10238:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10154:316)
+    at flushSyncWork$1 (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:9237:86)
+    at Object.scheduleRefresh (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:299:13)
+    at http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:391:33
+    at Set.forEach (<anonymous>)
+    at Object.performReactRefresh (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:384:38)
+    at applyUpdate (http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:878:31)
+    at http://localhost:3001/_next/static/chunks/node_modules_next_dist_compiled_a0e4c7b4._.js:886:13 {componentStack: 
+    at KpiSection (http://localhost:3001/_next/st…_modules_next_dist_client_17643121._.js:12602:17)} @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  229643ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:538:22
+Parsing ecmascript source code failed
+  536 |                         {activeFilterCount}
+  537 |                       </span>
+> 538 |                     )}
+      |                      ^
+  539 |                   </Button>
+  540 |
+  541 |                   <Button
+
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  240521ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:538:22
+Parsing ecmascript source code failed
+  536 |                         {activeFilterCount}
+  537 |                       </span>
+> 538 |                     )}
+      |                      ^
+  539 |                   </Button>
+  540 |
+  541 |                   <Button
+
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  248581ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:538:22
+Parsing ecmascript source code failed
+  536 |                         {activeFilterCount}
+  537 |                       </span>
+> 538 |                     )}
+      |                      ^
+  539 |                   </Button>
+  540 |
+  541 |                   <Button
+
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  260445ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:538:22
+Parsing ecmascript source code failed
+  536 |                         {activeFilterCount}
+  537 |                       </span>
+> 538 |                     )}
+      |                      ^
+  539 |                   </Button>
+  540 |
+  541 |                   <Button
+
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  272351ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  277127ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  286951ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  299417ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  302521ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  307666ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  318106ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  329624ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  334858ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  335691ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  340306ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  350705ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  363609ms] [ERROR] ./src/app/(auth)/pipes/page.tsx:563:12
+Parsing ecmascript source code failed
+  561 |               </Button>,
+  562 |             ]}
+> 563 |           />
+      |            ^
+  564 |         </motion.div>
+  565 |
+  566 |         {/* Board */}
+
+Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Import traces:
+  Client Component Browser:
+    ./src/app/(auth)/pipes/page.tsx [Client Component Browser]
+    ./src/app/(auth)/pipes/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/app/(auth)/pipes/page.tsx [Client Component SSR]
+    ./src/app/(auth)/pipes/page.tsx [Server Component] @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:3127
+[  380871ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3001/icons/icon-192x192.png:0
+[  380914ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:3001/icons/icon-192x192.png (Download error or resource isn't a valid image) @ http://localhost:3001/dashboard:0

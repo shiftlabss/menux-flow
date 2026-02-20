@@ -23,6 +23,7 @@ const sellerBlockedPrefixes = ["/audit", "/settings", "/reports"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const requestedPathWithSearch = `${pathname}${request.nextUrl.search}`;
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
@@ -36,7 +37,7 @@ export async function proxy(request: NextRequest) {
 
   if (isProtected && !session) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
+    loginUrl.searchParams.set("redirect", requestedPathWithSearch);
     return NextResponse.redirect(loginUrl);
   }
 

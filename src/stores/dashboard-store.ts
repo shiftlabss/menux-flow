@@ -16,3 +16,38 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setPeriod: (period) => set({ period }),
   setContext: (context) => set({ context }),
 }))
+
+// ─── Pure utility: convert Period into a date range ────────────────────────
+
+export function getPeriodDateRange(
+  period: Period,
+  now: Date
+): { start: Date; end: Date } {
+  const end = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    23, 59, 59, 999,
+  );
+
+  let start: Date;
+
+  switch (period) {
+    case "today":
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      break;
+    case "7d":
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+      break;
+    case "30d":
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+      break;
+    case "quarter": {
+      const quarterMonth = Math.floor(now.getMonth() / 3) * 3;
+      start = new Date(now.getFullYear(), quarterMonth, 1);
+      break;
+    }
+  }
+
+  return { start, end };
+}

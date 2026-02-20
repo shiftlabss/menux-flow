@@ -90,6 +90,27 @@ export const fieldTypeLabels: Record<FieldType, string> = {
   file: "Arquivo",
 };
 
+export const fieldTypeDescriptions: Record<FieldType, string> = {
+  text: "Para nomes, títulos e textos curtos",
+  textarea: "Para descrições e observações longas",
+  number: "Valores numéricos com decimais",
+  integer: "Valores numéricos inteiros exatos",
+  currency: "Valores monetários formatados em R$",
+  percentage: "Valores em porcentagem (%)",
+  url: "Links e endereços de sites",
+  email: "Endereços de e-mail válidos",
+  phone: "Números de telefone ou WhatsApp",
+  date: "Para selecionar uma data específica",
+  time: "Para definir um horário",
+  datetime: "Data e hora combinadas",
+  select: "Escolher uma única opção",
+  multiselect: "Escolher múltiplas opções",
+  boolean: "Verdadeiro ou Falso (Sim/Não)",
+  user: "Vincular a um usuário do sistema",
+  contact: "Vincular a um contato salvo",
+  file: "Anexar documentos ou imagens",
+};
+
 // ===== Backward-compatible config (flat per-stage) =====
 
 export const stageFieldsConfig: Record<PipelineStage, StageField[]> = {

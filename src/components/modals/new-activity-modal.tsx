@@ -1,29 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   X,
   Calendar,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   Sparkles,
-  ChevronRight,
   Phone,
   Mail,
   MessageCircle,
   Users,
   CheckSquare,
-  AlertTriangle,
-  Info,
   Loader2,
   CheckCircle,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -80,20 +73,19 @@ export function NewActivityModal({
       date: format(new Date(), "yyyy-MM-dd"),
       time: format(new Date(), "HH:mm"),
       description: "",
-      responsible: "Eu (Logado)",
     },
   });
 
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     formState: { errors },
     reset,
   } = form;
 
-  const type = watch("type");
+  const type = useWatch({ control, name: "type" });
 
   // Reset form when modal closes
   React.useEffect(() => {
@@ -105,7 +97,6 @@ export function NewActivityModal({
           date: format(new Date(), "yyyy-MM-dd"),
           time: format(new Date(), "HH:mm"),
           description: "",
-          responsible: "Eu (Logado)",
         });
         setSaveSuccess(false);
       }, 300);
@@ -126,8 +117,12 @@ export function NewActivityModal({
   };
 
   const handleSmartSuggestion = () => {
+    const reference = dealId ? ` para a negociação ${dealId}` : "";
     setValue("title", "Follow-up da proposta enviada");
-    setValue("description", "Verificar se o cliente teve alguma dúvida sobre os valores apresentados.");
+    setValue(
+      "description",
+      `Verificar se o cliente teve alguma dúvida sobre os valores apresentados${reference}.`
+    );
   };
 
   const Content = (
@@ -148,7 +143,7 @@ export function NewActivityModal({
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setValue("type", t.id as any)}
+                    onClick={() => setValue("type", t.id as ActivityFormData["type"])}
                     className={cn(
                       "flex flex-col items-center justify-center gap-2 rounded-xl border p-2 transition-all hover:bg-zinc-50",
                       isSelected

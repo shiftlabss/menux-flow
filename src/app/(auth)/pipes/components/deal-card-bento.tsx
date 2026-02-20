@@ -32,26 +32,24 @@ import { getInitials, getSlaStatus, getSlaColors } from "../lib/pipeline-validat
 //
 // Estados: default, hover, focus-visible, dragging (ghost via parent)
 
-export function DealCardBento({
-  opportunity,
-  temp,
-  isDragging = false,
-  onOpen,
-  onDragStart,
-  onDragEnd,
-  onWin,
-  onLose,
-}: {
+interface DealCardBentoProps {
   opportunity: Opportunity;
   temp: { icon: React.ReactNode; label: string; colorClass: string };
   isDragging?: boolean;
   onOpen: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
-  onWin: () => void;
-  onLose: () => void;
-}) {
-  const { openDrawer } = useUIStore();
+}
+
+export function DealCardBento({
+  opportunity,
+  temp,
+  isDragging,
+  onOpen,
+  onDragStart,
+  onDragEnd,
+}: DealCardBentoProps) {
+  const { openDrawer, openModal } = useUIStore();
   const sla = getSlaStatus(opportunity.slaDeadline);
   const slaColors = getSlaColors(sla.status);
 
@@ -122,7 +120,7 @@ export function DealCardBento({
               className="text-status-success"
               onClick={(e) => {
                 e.stopPropagation();
-                onWin();
+                openModal("win-opportunity", { opportunityId: opportunity.id });
               }}
             >
               Marcar como Ganho
@@ -131,7 +129,7 @@ export function DealCardBento({
               className="text-status-danger"
               onClick={(e) => {
                 e.stopPropagation();
-                onLose();
+                openModal("lose-opportunity", { opportunityId: opportunity.id });
               }}
             >
               Marcar como Perdido
@@ -184,12 +182,12 @@ export function DealCardBento({
 
       {/* 4. Tags row (conditional) */}
       {opportunity.tags.length > 0 && (
-        <div className="mt-2 flex items-center gap-1 overflow-hidden">
-          {opportunity.tags.slice(0, 2).map((tag) => (
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {opportunity.tags?.slice(0, 2).map((tag: string, idx: number) => (
             <Badge
-              key={tag}
-              variant="outline"
-              className="max-w-[100px] shrink-0 truncate rounded-[var(--radius-bento-inner)] px-1.5 py-0 font-body text-[10px] leading-5"
+              key={idx}
+              variant="secondary"
+              className="shrink-0 rounded-(--radius-bento-inner) px-1.5 py-0 font-body text-[10px] leading-5"
             >
               {tag}
             </Badge>

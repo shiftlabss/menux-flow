@@ -84,6 +84,69 @@ export function calculateCardPatentScore<T extends PatentContactLike>(contacts: 
   return Math.max(...contacts.map((contact) => getPositionPatentScore(contact.cargo)));
 }
 
+function parseISODateLocal(dateStr: string): Date {
+  const [yearRaw, monthRaw, dayRaw] = dateStr.split("-").map(Number);
+  const year = Number.isFinite(yearRaw) ? yearRaw : 1970;
+  const month = Number.isFinite(monthRaw) ? monthRaw - 1 : 0;
+  const day = Number.isFinite(dayRaw) ? dayRaw : 1;
+  return new Date(year, month, day);
+}
+
+function startOfDayLocal(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+export function getActivityDueAt(
+  activity: Pick<Activity, "dueDate" | "dueTime">
+): Date {
+  const dueDate = parseISODateLocal(activity.dueDate);
+
+  if (activity.dueTime) {
+    const [hoursRaw, minutesRaw] = activity.dueTime.split(":").map(Number);
+    const hours = Number.isFinite(hoursRaw) ? hoursRaw : 23;
+    const minutes = Number.isFinite(minutesRaw) ? minutesRaw : 59;
+    dueDate.setHours(hours, minutes, 0, 0);
+    return dueDate;
+  }
+
+  dueDate.setHours(23, 59, 59, 999);
+  return dueDate;
+}
+
+export function isActivityOverdueAt(
+  activity: Activity,
+  now: Date = new Date()
+): boolean {
+  if (activity.status === "completed" || activity.status === "cancelled") {
+    return false;
+  }
+
+  if (activity.status === "overdue") {
+    return true;
+  }
+
+  if (activity.status !== "pending") {
+    return false;
+  }
+
+  return getActivityDueAt(activity).getTime() < now.getTime();
+}
+
+export function isActivitySlaRiskAt(
+  activity: Activity,
+  now: Date = new Date()
+): boolean {
+  if (activity.status !== "pending" || isActivityOverdueAt(activity, now)) {
+    return false;
+  }
+
+  const today = startOfDayLocal(now);
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const due = startOfDayLocal(parseISODateLocal(activity.dueDate));
+
+  return due.getTime() >= today.getTime() && due.getTime() <= tomorrow.getTime();
+}
+
 // ─── 1. Status Efetivo de Atividade ────────────────────────────────────────
 
 /**
@@ -98,21 +161,8 @@ export function getEffectiveActivityStatus(
     return activity.status;
   }
 
-  if (activity.status === "pending") {
-    const dueDate = new Date(activity.dueDate);
-
-    // Se a atividade tem horario, combinar com a data
-    if (activity.dueTime) {
-      const [hours, minutes] = activity.dueTime.split(":").map(Number);
-      dueDate.setHours(hours, minutes, 0, 0);
-    } else {
-      // Sem horario: considerar o fim do dia
-      dueDate.setHours(23, 59, 59, 999);
-    }
-
-    if (dueDate < now) {
-      return "overdue";
-    }
+  if (activity.status === "pending" && isActivityOverdueAt(activity, now)) {
+    return "overdue";
   }
 
   return activity.status;

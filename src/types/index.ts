@@ -32,6 +32,7 @@ export interface Opportunity {
   expectedCloseDate?: string;
   status: OpportunityStatus;
   lossReason?: string;
+  competitor?: string;
   source?: string;
   notes?: string;
   slaDeadline?: string;

@@ -52,7 +52,6 @@ import {
   ChefHat,
   Wine,
   Clock3,
-  LayoutList,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -1861,10 +1860,10 @@ export default function LeadCardDrawer() {
   const [stageValues, setStageValues] = useState<Record<string, string | number | boolean | null | undefined>>(
     initialStageValuesForLead
   );
-  const [stageFieldSaveState, setStageFieldSaveState] = useState<Record<string, StageFieldSaveState>>({});
-  const [stageFieldErrors, setStageFieldErrors] = useState<Record<string, string>>({});
-  const [stageFieldsBanner, setStageFieldsBanner] = useState<InlineBanner | null>(null);
-  const [isSavingStageFields, setIsSavingStageFields] = useState(false);
+  const [, setStageFieldSaveState] = useState<Record<string, StageFieldSaveState>>({});
+  const [, setStageFieldErrors] = useState<Record<string, string>>({});
+  const [, setStageFieldsBanner] = useState<InlineBanner | null>(null);
+  const [, setIsSavingStageFields] = useState(false);
   const stageSaveTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const [noteDraft, setNoteDraft] = useState("");
@@ -1900,31 +1899,6 @@ export default function LeadCardDrawer() {
     }
     return seed;
   });
-
-  const handleUpdateStageField = useCallback(
-    (fieldId: string, val: string | number | boolean | null | undefined) => {
-      if (isLocked) return;
-      setStageValues((prev) => ({ ...prev, [fieldId]: val }));
-      setStageFieldErrors((prev) => {
-        if (!prev[fieldId]) return prev;
-        const next = { ...prev };
-        delete next[fieldId];
-        return next;
-      });
-      setStageFieldsBanner(null);
-      setStageFieldSaveState((prev) => ({ ...prev, [fieldId]: "saving" }));
-      if (stageSaveTimerRef.current[fieldId]) {
-        clearTimeout(stageSaveTimerRef.current[fieldId]);
-      }
-      stageSaveTimerRef.current[fieldId] = setTimeout(() => {
-        setStageFieldSaveState((prev) => ({ ...prev, [fieldId]: "saved" }));
-        setTimeout(() => {
-          setStageFieldSaveState((prev) => ({ ...prev, [fieldId]: "idle" }));
-        }, 1400);
-      }, 280);
-    },
-    [isLocked],
-  );
 
   // --- Company Refactor State ---
 
@@ -2241,37 +2215,9 @@ export default function LeadCardDrawer() {
     () => stageConfig[currentStageIndex + 1] ?? null,
     [currentStageIndex],
   );
-  const isBlockedByMissingDecisionMaker = useMemo(
-    () => nextStage?.id === PROPOSAL_STAGE_ID && !hasDecisionMaker,
-    [hasDecisionMaker, nextStage],
-  );
   const primaryContact = useMemo(
     () => contacts.find((contact) => contact.isDecisionMaker) ?? sortedContacts[0] ?? null,
     [contacts, sortedContacts],
-  );
-  const currentStageFields = useMemo(
-    () => stageFieldsConfig[stage] || [],
-    [stage],
-  );
-  const requiredCurrentStageFields = useMemo(
-    () => currentStageFields.filter((field) => field.required),
-    [currentStageFields],
-  );
-  const missingCurrentStageFields = useMemo(
-    () =>
-      requiredCurrentStageFields.filter((field) =>
-        isFieldValueEmpty(stageValues[field.id]),
-      ),
-    [requiredCurrentStageFields, stageValues],
-  );
-  const stageChecklistProgress = useMemo(
-    () => ({
-      total: requiredCurrentStageFields.length,
-      completed:
-        requiredCurrentStageFields.length - missingCurrentStageFields.length,
-      missing: missingCurrentStageFields.length,
-    }),
-    [requiredCurrentStageFields.length, missingCurrentStageFields.length],
   );
   const relatedActivities = useMemo(() => dealActivities, [dealActivities]);
   const visibleDealActivities = useMemo(() => {
@@ -2890,48 +2836,6 @@ export default function LeadCardDrawer() {
       variant: "info",
     });
   }, []);
-
-  const handleSaveStageFields = useCallback(() => {
-    if (isLocked) return;
-    setIsSavingStageFields(true);
-    const missingRequired = validateRequiredFieldsForStage(stage);
-    if (missingRequired.length > 0) {
-      setIsSavingStageFields(false);
-      setStageFieldsBanner({
-        message: `Faltam ${missingRequired.length} campo(s) obrigatório(s) para salvar e avançar.`,
-        variant: "warning",
-      });
-      return;
-    }
-    const savingMap: Record<string, StageFieldSaveState> = {};
-    currentStageFields.forEach((field) => {
-      savingMap[field.id] = "saving";
-    });
-    setStageFieldSaveState((prev) => ({ ...prev, ...savingMap }));
-    setTimeout(() => {
-      const savedMap: Record<string, StageFieldSaveState> = {};
-      currentStageFields.forEach((field) => {
-        savedMap[field.id] = "saved";
-      });
-      setStageFieldSaveState((prev) => ({ ...prev, ...savedMap }));
-      setStageFieldsBanner({
-        message: "Campos da etapa salvos com sucesso.",
-        variant: "success",
-      });
-      setIsSavingStageFields(false);
-      trackEvent("stage_fields_saved", {
-        entity_id: resolvedLead.id,
-        stage,
-      });
-      setTimeout(() => {
-        const idleMap: Record<string, StageFieldSaveState> = {};
-        currentStageFields.forEach((field) => {
-          idleMap[field.id] = "idle";
-        });
-        setStageFieldSaveState((prev) => ({ ...prev, ...idleMap }));
-      }, 1400);
-    }, 380);
-  }, [currentStageFields, isLocked, resolvedLead.id, stage, validateRequiredFieldsForStage]);
 
   const handleSaveActivity = useCallback((data: ActivityFormData) => {
     const newActivity: FlowActivity = {

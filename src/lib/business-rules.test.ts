@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { Activity, Opportunity, Client } from "@/types";
 import {
+  getActivityDueAt,
   getEffectiveActivityStatus,
+  isActivityOverdueAt,
+  isActivitySlaRiskAt,
   calculateTemperature,
   calculateHealthScore,
   calculateLeadScore,
@@ -102,12 +105,13 @@ describe("getEffectiveActivityStatus", () => {
   });
 
   it("retorna 'overdue' quando pending, dueDate e hoje mas dueTime ja passou", () => {
+    const nowLocal = new Date(2024, 5, 15, 12, 0, 0, 0);
     const activity = makeActivity({
       status: "pending",
       dueDate: "2024-06-15",
       dueTime: "10:00", // 10h, e NOW e 12h
     });
-    expect(getEffectiveActivityStatus(activity, NOW)).toBe("overdue");
+    expect(getEffectiveActivityStatus(activity, nowLocal)).toBe("overdue");
   });
 
   it("retorna 'pending' quando pending, dueDate e amanha e dueTime e futuro", () => {
@@ -127,6 +131,55 @@ describe("getEffectiveActivityStatus", () => {
       dueDate: "2024-06-16",
     });
     expect(getEffectiveActivityStatus(activity, NOW)).toBe("pending");
+  });
+});
+
+describe("activity due/overdue/sla helpers", () => {
+  it("getActivityDueAt considera fim do dia quando dueTime nao existe", () => {
+    const dueAt = getActivityDueAt(
+      makeActivity({
+        dueDate: "2024-06-20",
+        dueTime: undefined,
+      })
+    );
+
+    expect(dueAt.getFullYear()).toBe(2024);
+    expect(dueAt.getMonth()).toBe(5);
+    expect(dueAt.getDate()).toBe(20);
+    expect(dueAt.getHours()).toBe(23);
+    expect(dueAt.getMinutes()).toBe(59);
+  });
+
+  it("isActivityOverdueAt considera hora quando dueTime esta preenchido", () => {
+    const nowLocal = new Date(2024, 5, 15, 12, 0, 0, 0);
+    const activity = makeActivity({
+      status: "pending",
+      dueDate: "2024-06-15",
+      dueTime: "10:00",
+    });
+
+    expect(isActivityOverdueAt(activity, nowLocal)).toBe(true);
+  });
+
+  it("isActivitySlaRiskAt retorna true para pendente com prazo entre hoje e amanha", () => {
+    const nowLocal = new Date(2024, 5, 15, 9, 0, 0, 0);
+    const activity = makeActivity({
+      status: "pending",
+      dueDate: "2024-06-16",
+      dueTime: "16:00",
+    });
+
+    expect(isActivitySlaRiskAt(activity, nowLocal)).toBe(true);
+  });
+
+  it("isActivitySlaRiskAt retorna false quando atividade nao esta pendente", () => {
+    const nowLocal = new Date(2024, 5, 15, 9, 0, 0, 0);
+    const activity = makeActivity({
+      status: "completed",
+      dueDate: "2024-06-16",
+    });
+
+    expect(isActivitySlaRiskAt(activity, nowLocal)).toBe(false);
   });
 });
 

@@ -1,0 +1,6 @@
+[   10153ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:3001/api/auth/session:0
+[   10390ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3001/icons/icon-192x192.png:0
+[   10528ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:3001/icons/icon-192x192.png (Download error or resource isn't a valid image) @ http://localhost:3001/login:0
+[   37393ms] [WARNING] Image with src "http://localhost:3001/flow-logo.svg" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio. @ http://localhost:3001/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[   45921ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3001/icons/icon-192x192.png:0
+[   47460ms] [WARNING] Error while trying to use the following icon from the Manifest: http://localhost:3001/icons/icon-192x192.png (Download error or resource isn't a valid image) @ http://localhost:3001/dashboard:0

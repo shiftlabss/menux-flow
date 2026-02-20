@@ -326,7 +326,10 @@ export default function LoginPage() {
         return;
       }
 
-      if (!normalizedEmail.endsWith("@menux.co")) {
+      if (
+        !normalizedEmail.endsWith("@menux.co") &&
+        !normalizedEmail.endsWith("@flow.demo")
+      ) {
         setLoginError(loginErrorMessages.noPermission);
         return;
       }
@@ -475,11 +478,11 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.16, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1360px] items-center px-4 py-8 sm:px-6 lg:px-10"
+        className="relative z-10 mx-auto flex min-h-[90vh] w-full max-w-[1080px] items-center px-4 py-8 sm:px-6 lg:px-8"
       >
-        <div className="w-full rounded-[30px] border border-white/70 bg-white/55 p-2.5 shadow-[0_32px_90px_-42px_rgba(15,23,42,0.5)] backdrop-blur-2xl sm:p-3">
-          <div className="grid gap-3 lg:grid-cols-[1.08fr_0.92fr]">
-            <section className="relative hidden overflow-hidden rounded-[24px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-9 lg:flex lg:flex-col">
+        <div className="w-full rounded-[24px] border border-white/70 bg-white/55 p-1.5 shadow-[0_32px_90px_-42px_rgba(15,23,42,0.5)] backdrop-blur-2xl sm:p-2">
+          <div className="grid gap-2 lg:grid-cols-2">
+            <section className="relative hidden overflow-hidden rounded-[20px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-6 lg:flex lg:flex-col xl:p-8">
               <div className="pointer-events-none absolute inset-0">
                 <div className="absolute left-[-120px] top-[-140px] h-[360px] w-[360px] rounded-full bg-cyan-400/30 blur-3xl" />
                 <div className="absolute bottom-[-170px] right-[-100px] h-[320px] w-[320px] rounded-full bg-blue-500/35 blur-3xl" />
@@ -496,20 +499,20 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div className="relative z-10 mt-12 max-w-[520px]">
-                <p className="inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1 font-body text-xs font-medium tracking-wide text-cyan-100">
+              <div className="relative z-10 mt-6 max-w-[520px]">
+                <p className="inline-flex rounded-full border border-white/25 bg-white/10 px-2.5 py-0.5 font-body text-[10px] font-medium tracking-wide text-cyan-100 xl:text-xs xl:px-3 xl:py-1">
                   FLOW • PLATAFORMA INTERNA
                 </p>
-                <h1 className="mt-4 font-heading text-4xl font-semibold leading-[1.08] text-white">
+                <h1 className="mt-3 font-heading text-2xl font-semibold leading-[1.08] text-white xl:text-3xl">
                   Sua central de execução comercial.
                 </h1>
-                <p className="mt-4 max-w-[480px] font-body text-[15px] leading-relaxed text-slate-200/90">
+                <p className="mt-2.5 max-w-[480px] font-body text-[13px] leading-relaxed text-slate-200/90 xl:text-[14px]">
                   Pipeline, atividades e Menux Intelligence em um só lugar, para
                   você priorizar o que fecha e agir rápido.
                 </p>
               </div>
 
-              <div className="relative z-10 mt-10 max-w-[520px] space-y-3.5">
+              <div className="relative z-10 mt-6 max-w-[520px] space-y-2">
                 {brandingBullets.map((bullet, index) => (
                   <motion.div
                     key={bullet.text}
@@ -522,32 +525,32 @@ export default function LoginPage() {
                     }}
                     className="flex items-center gap-3 rounded-[14px] border border-white/15 bg-white/8 px-3.5 py-3 backdrop-blur-sm"
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-white/15">
-                      <bullet.icon className="h-4 w-4 text-cyan-100" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-white/15">
+                      <bullet.icon className="h-3.5 w-3.5 text-cyan-100" />
                     </div>
-                    <span className="font-body text-sm text-slate-100/95">
+                    <span className="font-body text-[13px] text-slate-100/95 xl:text-sm">
                       {bullet.text}
                     </span>
                   </motion.div>
                 ))}
               </div>
 
-              <div className="relative z-10 mt-auto grid gap-3 pt-10 sm:grid-cols-2">
-                <div className="rounded-[14px] border border-white/15 bg-white/10 px-4 py-3">
-                  <p className="font-body text-sm text-slate-100/95">
+              <div className="relative z-10 mt-auto grid gap-2 pt-6 sm:grid-cols-2">
+                <div className="rounded-[12px] border border-white/15 bg-white/10 px-3 py-2.5">
+                  <p className="font-body text-[12px] text-slate-100/95 xl:text-sm">
                     Visão do funil e metas em tempo real
                   </p>
                 </div>
-                <div className="rounded-[14px] border border-white/15 bg-white/10 px-4 py-3">
-                  <p className="font-body text-sm text-slate-100/95">
+                <div className="rounded-[12px] border border-white/15 bg-white/10 px-3 py-2.5">
+                  <p className="font-body text-[12px] text-slate-100/95 xl:text-sm">
                     Rotina guiada por SLAs e prioridades
                   </p>
                 </div>
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-zinc-200/80 bg-white p-6 shadow-[0_26px_64px_-44px_rgba(15,23,42,0.56)] sm:p-8 lg:p-10">
-              <div className="mb-7">
+            <section className="h-full rounded-[20px] border border-zinc-200/80 bg-white p-6 shadow-[0_26px_64px_-44px_rgba(15,23,42,0.56)] flex flex-col justify-center xl:p-8">
+              <div className="mb-5">
                 <div className="mb-4 lg:hidden">
                   <Image
                     src="/flow-logo.svg"
@@ -563,17 +566,17 @@ export default function LoginPage() {
                     priorizar o que fecha.
                   </p>
                 </div>
-                <h2 className="font-heading text-3xl font-semibold leading-tight text-zinc-900">
+                <h2 className="font-heading text-2xl font-semibold leading-tight text-zinc-900 xl:text-3xl">
                   Acesso seguro
                 </h2>
-                <p className="mt-1.5 font-body text-sm text-zinc-500">
+                <p className="mt-1 font-body text-[13px] text-zinc-500 xl:text-sm">
                   Entre com sua conta corporativa do Menux.
                 </p>
               </div>
 
               <form
                 onSubmit={handleSubmit(onSubmit)}
-                className="space-y-4"
+                className="space-y-3"
                 noValidate
               >
                 <div className="space-y-1.5">
@@ -589,7 +592,7 @@ export default function LoginPage() {
                     placeholder="nome@menux.co"
                     autoComplete="email"
                     disabled={isDisabledByLockout}
-                    className="h-12 rounded-[14px] border-zinc-200 bg-white font-body text-sm transition-[border-color,box-shadow] duration-[140ms] ease-out focus:border-brand/45 focus:shadow-[0_0_0_3px_rgba(29,78,216,0.08)]"
+                    className="h-10 rounded-[12px] border-zinc-200 bg-white font-body text-[13px] transition-[border-color,box-shadow] duration-[140ms] ease-out focus:border-brand/45 focus:shadow-[0_0_0_3px_rgba(29,78,216,0.08)]"
                     {...register("email")}
                   />
                   {errors.email && (
@@ -618,7 +621,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       autoComplete="current-password"
                       disabled={isDisabledByLockout}
-                      className="h-12 rounded-[14px] border-zinc-200 bg-white pr-12 font-body text-sm transition-[border-color,box-shadow] duration-[140ms] ease-out focus:border-brand/45 focus:shadow-[0_0_0_3px_rgba(29,78,216,0.08)]"
+                      className="h-10 rounded-[12px] border-zinc-200 bg-white pr-12 font-body text-[13px] transition-[border-color,box-shadow] duration-[140ms] ease-out focus:border-brand/45 focus:shadow-[0_0_0_3px_rgba(29,78,216,0.08)]"
                       {...register("password")}
                     />
                     <button
@@ -649,7 +652,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <Checkbox
                       id="rememberMe"
                       checked={rememberMe}
@@ -659,27 +662,27 @@ export default function LoginPage() {
                     />
                     <label
                       htmlFor="rememberMe"
-                      className="cursor-pointer font-body text-sm text-zinc-600"
+                      className="cursor-pointer font-body text-[12px] text-zinc-600 xl:text-[13px] leading-tight"
                     >
-                      Manter conectado neste dispositivo
+                      Manter conectado
                     </label>
                   </div>
                   <Link
                     href="/forgot-password"
-                    className="font-body text-sm font-medium text-brand hover:underline"
+                    className="font-body text-[12px] font-medium text-brand hover:underline xl:text-[13px]"
                   >
-                    Esqueci minha senha
+                    Esqueci a senha
                   </Link>
                 </div>
 
                 {renderAlert()}
                 {renderCaptcha()}
 
-                <div className="pt-1">
+                <div className="pt-0">
                   <Button
                     type="submit"
                     disabled={isButtonDisabled}
-                    className="h-12 w-full rounded-full bg-gradient-to-r from-zinc-900 to-zinc-700 font-heading text-base font-semibold text-white transition-[transform,box-shadow] duration-[140ms] ease-out hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-14px_rgba(15,23,42,0.68)] active:scale-[0.985] active:duration-[90ms] disabled:pointer-events-none disabled:opacity-50"
+                    className="h-10 w-full rounded-full bg-gradient-to-r from-zinc-900 to-zinc-700 font-heading text-[14px] font-semibold text-white transition-[transform,box-shadow] duration-[140ms] ease-out hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-14px_rgba(15,23,42,0.68)] active:scale-[0.985] active:duration-[90ms] disabled:pointer-events-none disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <span className="flex items-center gap-2">
@@ -692,18 +695,6 @@ export default function LoginPage() {
                   </Button>
                 </div>
 
-                <div className="pt-2 text-center">
-                  <Link
-                    href="/support"
-                    className="font-body text-sm text-zinc-500 transition-colors duration-[120ms] hover:text-zinc-700 hover:underline"
-                  >
-                    Precisa de ajuda? Falar com suporte
-                  </Link>
-                </div>
-
-                <p className="pb-1 text-center font-body text-xs text-zinc-400">
-                  Uso interno Menux. Acesso restrito.
-                </p>
               </form>
 
             </section>

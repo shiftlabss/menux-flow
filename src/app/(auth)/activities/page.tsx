@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useNow } from "@/hooks/use-now";
 import {
   AlertTriangle,
@@ -21,13 +21,15 @@ import {
   List,
   Loader2,
   Plus,
+  Search,
   Sparkles,
   WandSparkles,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useUIStore } from "@/stores/ui-store";
 import { useActivityStore } from "@/stores/activity-store";
 import { useAuthStore } from "@/stores/auth-store";
@@ -49,7 +51,6 @@ import {
   formatDateFull,
   formatCompactDateLabel,
   initials,
-  getDelayText,
   isActivityOverdue,
   isSlaRisk,
   getRelativeTimeLabel,
@@ -100,7 +101,7 @@ interface MenuxIntelligenceRecommendation {
   context: string;
   why: string;
   primaryActionLabel: string;
-  actionKind: "message" | "call" | "reschedule";
+  actionKind: "message" | "call" | "prepare";
 }
 
 interface ActivityFeedback {
@@ -132,6 +133,29 @@ const SLA_OPTIONS: { value: SlaFilter; label: string }[] = [
   { value: "breached", label: "Estourado" },
   { value: "risk", label: "Em risco" },
 ];
+
+const STATUS_VALUES = STATUS_OPTIONS.map((status) => status.value);
+const DATE_PARAM_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseSetParam<T extends string>(
+  rawParam: string | null,
+  allowedValues: readonly T[],
+  fallbackValues: Set<T>
+): Set<T> {
+  if (!rawParam) return new Set(fallbackValues);
+
+  const allowed = new Set(allowedValues);
+  const parsed = rawParam
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value): value is T => allowed.has(value as T));
+
+  if (parsed.length === 0) {
+    return new Set(fallbackValues);
+  }
+
+  return new Set(parsed);
+}
 
 // Utility functions are imported from ./components/helpers
 
@@ -183,7 +207,7 @@ function buildRecommendations(
         activity.type === "call" || activity.type === "whatsapp"
           ? "call"
           : activity.type === "meeting"
-            ? "reschedule"
+            ? "prepare"
             : "message",
     };
   });
@@ -270,6 +294,8 @@ export default function ActivitiesPage() {
   const { openDrawer } = useUIStore();
   const { user } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const {
     activities: storeActivities,
     completeActivity,
@@ -277,9 +303,10 @@ export default function ActivitiesPage() {
     postponeActivity,
   } = useActivityStore();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const isLoading = false;
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [ownerOverrideId, setOwnerOverrideId] = useState<string | null>(null);
 
   const [filterTypes, setFilterTypes] = useState<Set<ActivityType>>(
     () => new Set(allActivityTypes)
@@ -290,6 +317,7 @@ export default function ActivitiesPage() {
   const [filterDateStart, setFilterDateStart] = useState("");
   const [filterDateEnd, setFilterDateEnd] = useState("");
   const [filterSla, setFilterSla] = useState<SlaFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [collapsedSections, setCollapsedSections] = useState<Record<SectionKey, boolean>>({
     intelligence: false,
@@ -313,6 +341,9 @@ export default function ActivitiesPage() {
 
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
   const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
+  const [selectedActivityIds, setSelectedActivityIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [activityFeedback, setActivityFeedback] = useState<Record<string, ActivityFeedback>>(
     {}
   );
@@ -328,28 +359,52 @@ export default function ActivitiesPage() {
   const [detailsModalActivityId, setDetailsModalActivityId] = useState<string | null>(null);
 
   const timeoutRef = useRef<number[]>([]);
+  const appliedQueryRef = useRef<string | null>(null);
   const intelligenceRailRef = useRef<HTMLDivElement | null>(null);
   const now = useNow(60_000);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => startOfMonth(now));
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string>(
     () => toISODate(startOfDay(now))
   );
 
-  const { scopedOwnerId, isFallbackOwner } = useMemo(() => {
+  const { scopedOwnerId, scopeMode } = useMemo(() => {
+    if (
+      ownerOverrideId &&
+      storeActivities.some((activity) => activity.responsibleId === ownerOverrideId)
+    ) {
+      return {
+        scopedOwnerId: ownerOverrideId,
+        scopeMode: "override" as const,
+      };
+    }
+
     const preferredId = user?.id;
     if (
       preferredId &&
       storeActivities.some((activity) => activity.responsibleId === preferredId)
     ) {
-      return { scopedOwnerId: preferredId, isFallbackOwner: false };
+      return { scopedOwnerId: preferredId, scopeMode: "self" as const };
     }
+
+    if ((user?.role === "admin" || user?.role === "master") && storeActivities.length > 0) {
+      return {
+        scopedOwnerId: null,
+        scopeMode: "team" as const,
+      };
+    }
+
     const fallbackId = storeActivities[0]?.responsibleId ?? preferredId ?? "user-5";
-    return { scopedOwnerId: fallbackId, isFallbackOwner: true };
-  }, [storeActivities, user?.id]);
+    return { scopedOwnerId: fallbackId, scopeMode: "fallback" as const };
+  }, [ownerOverrideId, storeActivities, user?.id, user?.role]);
+
+  const isTeamScope = scopeMode === "team";
 
   const activities = useMemo(
     () =>
-      storeActivities.filter((activity) => activity.responsibleId === scopedOwnerId),
+      scopedOwnerId
+        ? storeActivities.filter((activity) => activity.responsibleId === scopedOwnerId)
+        : storeActivities,
     [storeActivities, scopedOwnerId]
   );
 
@@ -376,12 +431,256 @@ export default function ActivitiesPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const applyStatusFromParam = useCallback((statusParam: string) => {
+    const normalized = statusParam.trim().toLowerCase();
+
+    setViewMode("list");
+    setFilterTypes(new Set(allActivityTypes));
+    setFilterDateStart("");
+    setFilterDateEnd("");
+
+    if (normalized === "overdue") {
+      setFilterStatuses(new Set<ActivityStatus>(["pending", "overdue"]));
+      setFilterSla("breached");
+      return;
+    }
+
+    if (normalized === "risk") {
+      setFilterStatuses(new Set<ActivityStatus>(["pending"]));
+      setFilterSla("risk");
+      return;
+    }
+
+    if (normalized === "pace") {
+      setFilterStatuses(new Set<ActivityStatus>(["pending", "overdue"]));
+      setFilterSla("all");
+      return;
+    }
+
+    if (normalized === "achieved") {
+      setFilterStatuses(new Set<ActivityStatus>(["completed"]));
+      setFilterSla("all");
+      return;
+    }
+
+    if (
+      normalized === "pending" ||
+      normalized === "completed" ||
+      normalized === "cancelled"
+    ) {
+      setFilterStatuses(new Set<ActivityStatus>([normalized]));
+      setFilterSla("all");
+      return;
+    }
+
+    setFilterStatuses(new Set(DEFAULT_STATUS_FILTER));
+    setFilterSla("all");
+  }, []);
+
+  const applyExplicitUrlFilters = useCallback(
+    (data: {
+      viewMode: ViewMode;
+      query: string;
+      types: Set<ActivityType>;
+      statuses: Set<ActivityStatus>;
+      sla: SlaFilter;
+      start: string;
+      end: string;
+    }) => {
+      setViewMode(data.viewMode);
+      setSearchQuery(data.query);
+      setFilterTypes(data.types);
+      setFilterStatuses(data.statuses);
+      setFilterSla(data.sla);
+      setFilterDateStart(data.start);
+      setFilterDateEnd(data.end);
+    },
+    []
+  );
+
+  const resetFiltersToDefault = useCallback(() => {
+    setViewMode("list");
+    setSearchQuery("");
+    setFilterTypes(new Set(allActivityTypes));
+    setFilterStatuses(new Set(DEFAULT_STATUS_FILTER));
+    setFilterDateStart("");
+    setFilterDateEnd("");
+    setFilterSla("all");
+  }, []);
+
+  useEffect(() => {
+    const queryString = searchParams.toString();
+    if (appliedQueryRef.current === queryString) return;
+    appliedQueryRef.current = queryString;
+
+    const sourceParam = searchParams.get("source");
+    const statusParam = searchParams.get("status");
+    const focusParam = searchParams.get("focus");
+    const goalParam = searchParams.get("goal");
+    const activityIdParam = searchParams.get("id");
+    const viewParam = searchParams.get("view");
+    const queryParam = searchParams.get("q");
+    const typesParam = searchParams.get("types");
+    const statusesParam = searchParams.get("statuses");
+    const slaParam = searchParams.get("sla");
+    const startParam = searchParams.get("start");
+    const endParam = searchParams.get("end");
+    const hasExplicitUrlFilters =
+      viewParam !== null ||
+      queryParam !== null ||
+      typesParam !== null ||
+      statusesParam !== null ||
+      slaParam !== null ||
+      startParam !== null ||
+      endParam !== null;
+
+    if (hasExplicitUrlFilters) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Query params are the source of truth when hydrating this screen.
+      applyExplicitUrlFilters({
+        viewMode: viewParam === "agenda" ? "agenda" : "list",
+        query: queryParam ?? "",
+        types: parseSetParam(typesParam, allActivityTypes, new Set(allActivityTypes)),
+        statuses: parseSetParam(
+          statusesParam,
+          STATUS_VALUES,
+          new Set(DEFAULT_STATUS_FILTER)
+        ),
+        sla: slaParam === "breached" || slaParam === "risk" ? slaParam : "all",
+        start: startParam && DATE_PARAM_REGEX.test(startParam) ? startParam : "",
+        end: endParam && DATE_PARAM_REGEX.test(endParam) ? endParam : "",
+      });
+    } else if (statusParam) {
+      applyStatusFromParam(statusParam);
+      setSearchQuery("");
+    } else {
+      resetFiltersToDefault();
+    }
+
+    if (sourceParam === "goals" && goalParam) {
+      setCommandResult({
+        status: "success",
+        text: `Filtro aplicado para acompanhar a meta "${goalParam}".`,
+      });
+    } else if (sourceParam === "goals" && focusParam === "metas") {
+      setCommandResult({
+        status: "success",
+        text: "Painel ajustado para apoiar execução de metas.",
+      });
+    }
+
+    if (activityIdParam) {
+      const linkedActivity = storeActivities.find(
+        (activity) => activity.id === activityIdParam
+      );
+
+      if (linkedActivity) {
+        setOwnerOverrideId(linkedActivity.responsibleId);
+        setSelectedActivityId(linkedActivity.id);
+        setExpandedActivityId(linkedActivity.id);
+
+        schedule(() => {
+          const target = document.getElementById(
+            `activity-card-${linkedActivity.id}`
+          );
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 80);
+      } else {
+        setCommandResult({
+          status: "error",
+          text: "Atividade do link não encontrada na sua base atual.",
+        });
+      }
+    } else {
+      setOwnerOverrideId(null);
+    }
+  }, [
+    applyExplicitUrlFilters,
+    applyStatusFromParam,
+    resetFiltersToDefault,
+    schedule,
+    searchParams,
+    storeActivities,
+  ]);
+
+  useEffect(() => {
+    if (appliedQueryRef.current === null) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    const normalizedQuery = searchQuery.trim();
+    const selectedTypes = allActivityTypes.filter((type) => filterTypes.has(type));
+    const selectedStatuses = STATUS_VALUES.filter((status) =>
+      filterStatuses.has(status)
+    );
+
+    if (viewMode !== "list") params.set("view", viewMode);
+    else params.delete("view");
+
+    if (normalizedQuery) params.set("q", normalizedQuery);
+    else params.delete("q");
+
+    if (selectedTypes.length === allActivityTypes.length) params.delete("types");
+    else params.set("types", selectedTypes.join(","));
+
+    if (selectedStatuses.length === STATUS_VALUES.length) params.delete("statuses");
+    else params.set("statuses", selectedStatuses.join(","));
+
+    if (filterSla === "all") params.delete("sla");
+    else params.set("sla", filterSla);
+
+    if (filterDateStart) params.set("start", filterDateStart);
+    else params.delete("start");
+
+    if (filterDateEnd) params.set("end", filterDateEnd);
+    else params.delete("end");
+
+    // Legacy status param can diverge from explicit filters.
+    params.delete("status");
+
+    const nextQuery = params.toString();
+    const currentQuery = searchParams.toString();
+    if (nextQuery === currentQuery) return;
+
+    appliedQueryRef.current = nextQuery;
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    });
+  }, [
+    filterDateEnd,
+    filterDateStart,
+    filterSla,
+    filterStatuses,
+    filterTypes,
+    pathname,
+    router,
+    searchParams,
+    searchQuery,
+    viewMode,
+  ]);
+
   const filteredActivities = useMemo(() => {
+    const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
+
     return activities.filter((activity) => {
       if (!filterTypes.has(activity.type)) return false;
       if (!filterStatuses.has(activity.status)) return false;
       if (filterDateStart && activity.dueDate < filterDateStart) return false;
       if (filterDateEnd && activity.dueDate > filterDateEnd) return false;
+      if (normalizedQuery) {
+        const searchableContent = [
+          activity.title,
+          activity.description || "",
+          activity.clientName || "",
+          activity.opportunityTitle || "",
+          activity.responsibleName,
+          typeLabels[activity.type],
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (!searchableContent.includes(normalizedQuery)) return false;
+      }
 
       if (filterSla === "breached" && !isActivityOverdue(activity, now)) return false;
       if (filterSla === "risk" && !isSlaRisk(activity, now)) return false;
@@ -395,6 +694,7 @@ export default function ActivitiesPage() {
     filterDateStart,
     filterDateEnd,
     filterSla,
+    deferredSearchQuery,
     now,
   ]);
 
@@ -405,6 +705,45 @@ export default function ActivitiesPage() {
       ),
     [filteredActivities]
   );
+
+  const executionActivityIdSet = useMemo(
+    () => new Set(executionActivities.map((activity) => activity.id)),
+    [executionActivities]
+  );
+
+  const selectedExecutionIds = useMemo(
+    () =>
+      Array.from(selectedActivityIds).filter((activityId) =>
+        executionActivityIdSet.has(activityId)
+      ),
+    [selectedActivityIds, executionActivityIdSet]
+  );
+
+  const allVisibleExecutionSelected =
+    executionActivities.length > 0 &&
+    selectedExecutionIds.length === executionActivities.length;
+
+  const toggleActivitySelection = useCallback((activityId: string) => {
+    setSelectedActivityIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(activityId)) next.delete(activityId);
+      else next.add(activityId);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAllVisibleActivities = useCallback((checked: boolean) => {
+    if (!checked) {
+      setSelectedActivityIds(new Set());
+      return;
+    }
+
+    setSelectedActivityIds(new Set(executionActivities.map((activity) => activity.id)));
+  }, [executionActivities]);
+
+  const clearSelectedActivities = useCallback(() => {
+    setSelectedActivityIds(new Set());
+  }, []);
 
   const calendarActivitiesByDate = useMemo(() => {
     const byDate = new Map<string, Activity[]>();
@@ -560,7 +899,8 @@ export default function ActivitiesPage() {
     filterStatuses.size < DEFAULT_STATUS_FILTER.size ||
     filterDateStart !== "" ||
     filterDateEnd !== "" ||
-    filterSla !== "all";
+    filterSla !== "all" ||
+    searchQuery.trim() !== "";
 
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ id: string; label: string; onRemove: () => void }> = [];
@@ -625,6 +965,14 @@ export default function ActivitiesPage() {
       });
     }
 
+    if (searchQuery.trim()) {
+      chips.push({
+        id: "search",
+        label: `Busca: "${searchQuery.trim()}"`,
+        onRemove: () => setSearchQuery(""),
+      });
+    }
+
     return chips;
   }, [
     filterTypes,
@@ -632,6 +980,7 @@ export default function ActivitiesPage() {
     filterDateStart,
     filterDateEnd,
     filterSla,
+    searchQuery,
   ]);
 
   const clearFilters = useCallback(() => {
@@ -640,6 +989,8 @@ export default function ActivitiesPage() {
     setFilterDateStart("");
     setFilterDateEnd("");
     setFilterSla("all");
+    setSearchQuery("");
+    setSelectedActivityIds(new Set());
   }, []);
 
   const toggleSection = useCallback((key: SectionKey) => {
@@ -674,8 +1025,8 @@ export default function ActivitiesPage() {
 
   const handleQuickFilterOverdue = useCallback(() => {
     setViewMode("list");
-    setFilterStatuses(new Set<ActivityStatus>(["overdue"]));
-    setFilterSla("all");
+    setFilterStatuses(new Set<ActivityStatus>(["pending", "overdue"]));
+    setFilterSla("breached");
     setFilterDateStart("");
     setFilterDateEnd("");
   }, []);
@@ -736,7 +1087,7 @@ export default function ActivitiesPage() {
               ? `Mensagem preparada para ${target.clientName || target.opportunityTitle || "atividade"}.`
               : recommendation.actionKind === "call"
                 ? `Roteiro de contato acionado para ${target.clientName || target.opportunityTitle || "atividade"}.`
-                : `Recomendação de reagendamento criada para ${target.clientName || target.opportunityTitle || "atividade"}.`,
+                : `Checklist de preparação gerado para ${target.clientName || target.opportunityTitle || "atividade"}.`,
         });
 
         schedule(() => {
@@ -843,6 +1194,48 @@ export default function ActivitiesPage() {
     [postponeActivity, schedule]
   );
 
+  const handleBulkCompleteActivities = useCallback(() => {
+    if (selectedExecutionIds.length === 0) return;
+
+    selectedExecutionIds.forEach((activityId) => {
+      handleCompleteActivity(activityId);
+    });
+    clearSelectedActivities();
+    setCommandResult({
+      status: "success",
+      text: `${selectedExecutionIds.length} atividades concluídas em lote.`,
+    });
+  }, [clearSelectedActivities, handleCompleteActivity, selectedExecutionIds]);
+
+  const handleBulkCancelActivities = useCallback(() => {
+    if (selectedExecutionIds.length === 0) return;
+
+    selectedExecutionIds.forEach((activityId) => {
+      handleCancelActivity(activityId);
+    });
+    clearSelectedActivities();
+    setCommandResult({
+      status: "success",
+      text: `${selectedExecutionIds.length} atividades canceladas em lote.`,
+    });
+  }, [clearSelectedActivities, handleCancelActivity, selectedExecutionIds]);
+
+  const handleBulkPostponeActivities = useCallback(() => {
+    if (selectedExecutionIds.length === 0) return;
+
+    const tomorrow = toISODate(addDays(startOfDay(now), 1));
+    selectedExecutionIds.forEach((activityId) => {
+      handlePostponeActivity(activityId, tomorrow);
+    });
+    clearSelectedActivities();
+    setCommandResult({
+      status: "success",
+      text: `${selectedExecutionIds.length} atividades reagendadas para ${formatDateBR(
+        tomorrow
+      )}.`,
+    });
+  }, [clearSelectedActivities, handlePostponeActivity, now, selectedExecutionIds]);
+
   const handleOpenIntelligenceFromActivity = useCallback(
     (activity: Activity) => {
       const insight = getActivityInsight(activity, now);
@@ -896,6 +1289,7 @@ export default function ActivitiesPage() {
             text: "Filtro de SLA 'Estourado' aplicado.",
           });
         } else if (commandId === "risk-client") {
+          setCommandLoadingId(null);
           router.push("/clients?filter=risk");
           return; // Navigation handles feedback
         } else if (commandId === "week-summary") {
@@ -909,6 +1303,15 @@ export default function ActivitiesPage() {
             text: "Resumo semanal gerado com foco na sua carteira.",
           });
         } else if (commandId === "bulk-messages") {
+          if (overdueCount === 0) {
+            setCommandResult({
+              status: "error",
+              text: "Sem atividades atrasadas para gerar mensagens no momento.",
+            });
+            setCommandLoadingId(null);
+            return;
+          }
+
           setGeneratedContent({
             title: "Mensagens para Atrasadas",
             content: `Olá [Nome], vi que não conseguimos nos falar na data combinada. Como está sua agenda para retomarmos amanhã?\n\nOi [Nome], tudo bem? Gostaria de reagendar nosso papo sobre [Assunto]. Teria disponibilidade esta tarde?`
@@ -1091,6 +1494,7 @@ export default function ActivitiesPage() {
                           now={now}
                           isExpanded={expandedActivityId === activity.id}
                           isHighlighted={highlightedPostponedId === activity.id}
+                          selected={selectedActivityIds.has(activity.id)}
                           feedback={activityFeedback[activity.id]}
                           onToggleExpand={() => {
                             setExpandedActivityId((prev) =>
@@ -1098,6 +1502,7 @@ export default function ActivitiesPage() {
                             );
                             setSelectedActivityId(activity.id);
                           }}
+                          onToggleSelect={() => toggleActivitySelection(activity.id)}
                           onComplete={(notes) => handleCompleteActivity(activity.id, notes)}
                           onCancel={() => handleCancelActivity(activity.id)}
                           onPostpone={(newDate) => handlePostponeActivity(activity.id, newDate)}
@@ -1115,37 +1520,30 @@ export default function ActivitiesPage() {
       }
 
       return (
-        <div className="space-y-3">
-          <AnimatePresence initial={false}>
-            {items.map((activity) => (
-              <motion.div
-                key={activity.id}
-                layout
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4, scale: 0.995 }}
-                transition={{ duration: 0.16, ease: "easeOut" }}
-              >
-                <ExecutionActivityCard
-                  activity={activity}
-                  now={now}
-                  isExpanded={expandedActivityId === activity.id}
-                  isHighlighted={highlightedPostponedId === activity.id}
-                  feedback={activityFeedback[activity.id]}
-                  onToggleExpand={() => {
-                    setExpandedActivityId((prev) => (prev === activity.id ? null : activity.id));
-                    setSelectedActivityId(activity.id);
-                  }}
-                  onComplete={(notes) => handleCompleteActivity(activity.id, notes)}
-                  onCancel={() => handleCancelActivity(activity.id)}
-                  onPostpone={(newDate) => handlePostponeActivity(activity.id, newDate)}
-                  onSelectIntelligence={() => setSelectedActivityId(activity.id)}
-                  onGenerateFollowup={() => handleGenerateFollowup(activity)}
-                />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+        <VirtualizedActivityList
+          items={items}
+          estimateSize={214}
+          renderItem={(activity) => (
+            <ExecutionActivityCard
+              activity={activity}
+              now={now}
+              isExpanded={expandedActivityId === activity.id}
+              isHighlighted={highlightedPostponedId === activity.id}
+              selected={selectedActivityIds.has(activity.id)}
+              feedback={activityFeedback[activity.id]}
+              onToggleExpand={() => {
+                setExpandedActivityId((prev) => (prev === activity.id ? null : activity.id));
+                setSelectedActivityId(activity.id);
+              }}
+              onToggleSelect={() => toggleActivitySelection(activity.id)}
+              onComplete={(notes) => handleCompleteActivity(activity.id, notes)}
+              onCancel={() => handleCancelActivity(activity.id)}
+              onPostpone={(newDate) => handlePostponeActivity(activity.id, newDate)}
+              onSelectIntelligence={() => setSelectedActivityId(activity.id)}
+              onGenerateFollowup={() => handleGenerateFollowup(activity)}
+            />
+          )}
+        />
       );
     },
     [
@@ -1155,9 +1553,11 @@ export default function ActivitiesPage() {
       now,
       expandedActivityId,
       highlightedPostponedId,
+      selectedActivityIds,
       activityFeedback,
       openDrawer,
       handleGeneratePlan,
+      toggleActivitySelection,
       handleCompleteActivity,
       handleCancelActivity,
       handlePostponeActivity,
@@ -1170,7 +1570,7 @@ export default function ActivitiesPage() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18, ease: [0.22, 0.61, 0.36, 1] }}
-      className="space-y-6"
+      className="space-y-7 lg:space-y-8"
     >
       <ModuleCommandHeader
         title="Atividades"
@@ -1212,216 +1612,313 @@ export default function ActivitiesPage() {
               },
         ]}
         actions={
-          <div className="flex w-full flex-wrap items-center gap-2 xl:justify-end">
-            <div className="flex items-center gap-1 rounded-full border border-zinc-200/90 bg-white/90 p-1 shadow-sm">
-              {[
-                { key: "list" as const, label: "Lista", icon: List },
-                { key: "agenda" as const, label: "Agenda", icon: CalendarDays },
-              ].map((mode) => {
-                const active = viewMode === mode.key;
-                return (
-                  <button
-                    key={mode.key}
-                    onClick={() => setViewMode(mode.key)}
-                    className={cn(
-                      "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-120 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-50",
-                      active
-                        ? "bg-brand text-white shadow-[0_6px_14px_-8px_rgba(29,78,216,0.7)]"
-                        : "text-zinc-600 hover:bg-zinc-100/90"
-                    )}
+          <div className="flex w-full flex-col gap-3">
+            <div className="flex w-full flex-col gap-2.5 min-[1180px]:flex-row min-[1180px]:items-center min-[1180px]:justify-between">
+              <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:items-center min-[1180px]:w-auto min-[1180px]:flex-1">
+                <div className="relative w-full sm:flex-1 min-[1180px]:max-w-[380px]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Buscar atividade, cliente ou responsável..."
+                    className="h-10 rounded-full border-zinc-200 bg-white/90 pl-8 text-sm"
+                  />
+                </div>
+
+                <div className="flex w-full items-center gap-1 rounded-full border border-zinc-200/90 bg-white/90 p-1 shadow-sm sm:w-auto">
+                  {[
+                    { key: "list" as const, label: "Lista", icon: List },
+                    { key: "agenda" as const, label: "Agenda", icon: CalendarDays },
+                  ].map((mode) => {
+                    const active = viewMode === mode.key;
+                    return (
+                      <button
+                        key={mode.key}
+                        onClick={() => setViewMode(mode.key)}
+                        className={cn(
+                          "inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-120 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-50 sm:flex-none",
+                          active
+                            ? "bg-brand text-white shadow-[0_6px_14px_-8px_rgba(29,78,216,0.7)]"
+                            : "text-zinc-600 hover:bg-zinc-100/90"
+                        )}
+                      >
+                        <mode.icon className="h-3.5 w-3.5" />
+                        <span>{mode.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end min-[1180px]:shrink-0">
+                <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="rounded-full border-zinc-200 bg-white/90 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
+                    >
+                      <Filter className="h-4 w-4" />
+                      Filtros
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    side="bottom"
+                    sideOffset={8}
+                    className="w-[min(96vw,430px)] rounded-[18px] border-zinc-200 bg-white p-4 shadow-xl"
                   >
-                    <mode.icon className="h-3.5 w-3.5" />
-                    <span>{mode.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="mb-2 font-heading text-sm font-semibold text-zinc-900">Tipo</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {allActivityTypes.map((type) => {
+                            const Icon = typeIconComponents[type];
+                            const active = filterTypes.has(type);
+                            return (
+                              <label
+                                key={type}
+                                className={cn(
+                                  "flex cursor-pointer items-center gap-2 rounded-[12px] border px-2.5 py-2 text-xs",
+                                  active
+                                    ? "border-brand/35 bg-brand/8 text-brand"
+                                    : "border-zinc-200 bg-white text-zinc-600"
+                                )}
+                              >
+                                <Checkbox
+                                  checked={active}
+                                  onCheckedChange={(checked) => {
+                                    setFilterTypes((prev) => {
+                                      const next = new Set(prev);
+                                      if (checked === true) next.add(type);
+                                      else next.delete(type);
+                                      return next.size === 0 ? new Set(allActivityTypes) : next;
+                                    });
+                                  }}
+                                />
+                                <Icon className="h-3.5 w-3.5" />
+                                <span>{typeLabels[type]}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
 
-            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="rounded-full border-zinc-200 bg-white/90 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
-                >
-                  <Filter className="h-4 w-4" />
-                  Filtros
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                side="bottom"
-                sideOffset={8}
-                className="w-[min(96vw,430px)] rounded-[18px] border-zinc-200 bg-white p-4 shadow-xl"
-              >
-                <div className="space-y-4">
-                  <div>
-                    <p className="mb-2 font-heading text-sm font-semibold text-zinc-900">Tipo</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {allActivityTypes.map((type) => {
-                        const Icon = typeIconComponents[type];
-                        const active = filterTypes.has(type);
-                        return (
-                          <label
-                            key={type}
-                            className={cn(
-                              "flex cursor-pointer items-center gap-2 rounded-[12px] border px-2.5 py-2 text-xs",
-                              active
-                                ? "border-brand/35 bg-brand/8 text-brand"
-                                : "border-zinc-200 bg-white text-zinc-600"
-                            )}
-                          >
-                            <Checkbox
-                              checked={active}
-                              onCheckedChange={(checked) => {
-                                setFilterTypes((prev) => {
-                                  const next = new Set(prev);
-                                  if (checked === true) next.add(type);
-                                  else next.delete(type);
-                                  return next.size === 0 ? new Set(allActivityTypes) : next;
-                                });
-                              }}
-                            />
-                            <Icon className="h-3.5 w-3.5" />
-                            <span>{typeLabels[type]}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
+                      <Separator />
 
-                  <Separator />
+                      <div>
+                        <p className="mb-2 font-heading text-sm font-semibold text-zinc-900">Status</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {STATUS_OPTIONS.map((status) => (
+                            <label
+                              key={status.value}
+                              className="flex cursor-pointer items-center gap-2 rounded-[12px] border border-zinc-200 px-2.5 py-2 text-xs text-zinc-700"
+                            >
+                              <Checkbox
+                                checked={filterStatuses.has(status.value)}
+                                onCheckedChange={(checked) => {
+                                  setFilterStatuses((prev) => {
+                                    const next = new Set(prev);
+                                    if (checked === true) next.add(status.value);
+                                    else next.delete(status.value);
+                                    return next.size === 0 ? new Set(DEFAULT_STATUS_FILTER) : next;
+                                  });
+                                }}
+                              />
+                              <span>{status.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
 
-                  <div>
-                    <p className="mb-2 font-heading text-sm font-semibold text-zinc-900">Status</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {STATUS_OPTIONS.map((status) => (
-                        <label
-                          key={status.value}
-                          className="flex cursor-pointer items-center gap-2 rounded-[12px] border border-zinc-200 px-2.5 py-2 text-xs text-zinc-700"
-                        >
-                          <Checkbox
-                            checked={filterStatuses.has(status.value)}
-                            onCheckedChange={(checked) => {
-                              setFilterStatuses((prev) => {
-                                const next = new Set(prev);
-                                if (checked === true) next.add(status.value);
-                                else next.delete(status.value);
-                                return next.size === 0 ? new Set(DEFAULT_STATUS_FILTER) : next;
-                              });
-                            }}
+                      <Separator />
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <div>
+                          <Label className="mb-1 block text-xs text-zinc-500">SLA</Label>
+                          <div className="flex rounded-[12px] border border-zinc-200 p-1">
+                            {SLA_OPTIONS.map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() => setFilterSla(option.value)}
+                                className={cn(
+                                  "flex-1 rounded-[9px] px-2 py-1.5 text-xs transition-colors",
+                                  filterSla === option.value
+                                    ? "bg-zinc-900 text-white"
+                                    : "text-zinc-500 hover:bg-zinc-100"
+                                )}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="mb-1 block text-xs text-zinc-500">Período de</Label>
+                          <Input
+                            type="date"
+                            value={filterDateStart}
+                            onChange={(event) => setFilterDateStart(event.target.value)}
+                            className="h-9 rounded-[12px]"
                           />
-                          <span>{status.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
+                        </div>
+                        <div>
+                          <Label className="mb-1 block text-xs text-zinc-500">até</Label>
+                          <Input
+                            type="date"
+                            value={filterDateEnd}
+                            onChange={(event) => setFilterDateEnd(event.target.value)}
+                            className="h-9 rounded-[12px]"
+                          />
+                        </div>
+                      </div>
 
-                  <Separator />
-
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <Label className="mb-1 block text-xs text-zinc-500">SLA</Label>
-                      <div className="flex rounded-[12px] border border-zinc-200 p-1">
-                        {SLA_OPTIONS.map((option) => (
-                          <button
-                            key={option.value}
-                            onClick={() => setFilterSla(option.value)}
-                            className={cn(
-                              "flex-1 rounded-[9px] px-2 py-1.5 text-xs transition-colors",
-                              filterSla === option.value
-                                ? "bg-zinc-900 text-white"
-                                : "text-zinc-500 hover:bg-zinc-100"
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="flex-1 rounded-full" onClick={clearFilters}>
+                          Limpar tudo
+                        </Button>
+                        <Button
+                          className="flex-1 rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                          onClick={() => setIsFilterOpen(false)}
+                        >
+                          Fechar
+                        </Button>
                       </div>
                     </div>
-                  </div>
+                  </PopoverContent>
+                </Popover>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="mb-1 block text-xs text-zinc-500">Período de</Label>
-                      <Input
-                        type="date"
-                        value={filterDateStart}
-                        onChange={(event) => setFilterDateStart(event.target.value)}
-                        className="h-9 rounded-[12px]"
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-1 block text-xs text-zinc-500">até</Label>
-                      <Input
-                        type="date"
-                        value={filterDateEnd}
-                        onChange={(event) => setFilterDateEnd(event.target.value)}
-                        className="h-9 rounded-[12px]"
-                      />
-                    </div>
-                  </div>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    className="rounded-full px-3 text-xs text-zinc-500 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
+                    onClick={clearFilters}
+                  >
+                    Limpar tudo
+                  </Button>
+                )}
 
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1 rounded-full" onClick={clearFilters}>
-                      Limpar tudo
-                    </Button>
-                    <Button
-                      className="flex-1 rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
-                      onClick={() => setIsFilterOpen(false)}
-                    >
-                      Aplicar
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+                <Button
+                  variant="outline"
+                  className="h-9 rounded-full border-zinc-200 bg-white/90 px-4 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
+                  onClick={handleGeneratePlan}
+                  disabled={isPlanning}
+                >
+                  {isPlanning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <WandSparkles className="h-4 w-4" />
+                  )}
+                  Pedir plano do dia
+                </Button>
 
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                className="rounded-full px-3 text-xs text-zinc-500 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
-                onClick={clearFilters}
-              >
-                Limpar tudo
-              </Button>
-            )}
-
-            <Button
-              variant="outline"
-              className="rounded-full border-zinc-200 bg-white/90 transition-all duration-120 ease-out hover:bg-zinc-100/90 active:scale-[0.98] focus-visible:ring-zinc-300"
-              onClick={handleGeneratePlan}
-              disabled={isPlanning}
-            >
-              {isPlanning ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <WandSparkles className="h-4 w-4" />
-              )}
-              Pedir plano do dia
-            </Button>
-
-            <Button
-              className="rounded-full bg-zinc-900 text-white transition-all duration-120 ease-out hover:bg-zinc-800 active:scale-[0.98] focus-visible:ring-zinc-300"
-              onClick={() => openDrawer("new-activity")}
-            >
-              <Plus className="h-4 w-4" />
-              Nova atividade
-            </Button>
-
+                <Button
+                  className="h-9 rounded-full bg-zinc-900 px-4 text-white transition-all duration-120 ease-out hover:bg-zinc-800 active:scale-[0.98] focus-visible:ring-zinc-300"
+                  onClick={() => openDrawer("new-activity")}
+                >
+                  <Plus className="h-4 w-4" />
+                  Nova atividade
+                </Button>
+              </div>
+            </div>
           </div>
         }
       />
 
-      {isFallbackOwner && activities.length > 0 && (
-        <div className="rounded-[14px] border border-amber-200 bg-amber-50/80 px-4 py-3">
-          <p className="font-body text-sm text-amber-800">
-            <span className="font-semibold">Atenção:</span> Você está visualizando atividades de outro responsável porque não há atividades atribuídas ao seu usuário.
+      {hasActiveFilters && activeFilterChips.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {activeFilterChips.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={chip.onRemove}
+              className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-50"
+            >
+              <span>{chip.label}</span>
+              <span className="text-zinc-400">×</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isTeamScope && activities.length > 0 && (
+        <div className="rounded-[14px] border border-blue-200 bg-blue-50/80 px-4 py-3">
+          <p className="font-body text-sm text-blue-800">
+            <span className="font-semibold">Visão de equipe:</span> como seu perfil não tem atividades próprias, exibimos toda a carteira do time.
           </p>
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(320px,3fr)]">
-        <div className="space-y-4">
+      {viewMode === "list" && executionActivities.length > 0 && (
+        <div className="space-y-3 rounded-[18px] border border-zinc-200 bg-white px-4 py-3.5 md:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-zinc-600">
+              <Checkbox
+                checked={allVisibleExecutionSelected}
+                onCheckedChange={(checked) =>
+                  handleSelectAllVisibleActivities(Boolean(checked))
+                }
+              />
+              <span>
+                Selecionar todas visíveis ({executionActivities.length})
+              </span>
+            </div>
+            {selectedExecutionIds.length > 0 ? (
+              <span className="text-xs font-medium text-zinc-600">
+                {selectedExecutionIds.length} selecionada(s)
+              </span>
+            ) : (
+              <span className="text-xs text-zinc-500">
+                Selecione atividades para usar ações em lote.
+              </span>
+            )}
+          </div>
+
+          {selectedExecutionIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800"
+                onClick={handleBulkCompleteActivities}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Concluir em lote
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-full px-3 text-xs"
+                onClick={handleBulkPostponeActivities}
+              >
+                <CalendarClock className="h-3.5 w-3.5" />
+                Adiar +1 dia
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-full px-3 text-xs text-red-600 hover:bg-red-50"
+                onClick={handleBulkCancelActivities}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                Cancelar em lote
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-full px-3 text-xs text-zinc-500"
+                onClick={clearSelectedActivities}
+              >
+                Limpar seleção
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,7fr)_minmax(340px,3fr)]">
+        <div className="space-y-5">
           {viewMode === "agenda" ? (
             <ActivitiesCalendarView
               now={now}
@@ -1432,6 +1929,7 @@ export default function ActivitiesPage() {
               selectedDayActivities={selectedCalendarDayActivities}
               expandedActivityId={expandedActivityId}
               highlightedPostponedId={highlightedPostponedId}
+              selectedActivityIds={selectedActivityIds}
               activityFeedback={activityFeedback}
               onPreviousMonth={() =>
                 setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
@@ -1457,6 +1955,7 @@ export default function ActivitiesPage() {
               onComplete={handleCompleteActivity}
               onCancel={handleCancelActivity}
               onPostpone={handlePostponeActivity}
+              onToggleSelectActivity={toggleActivitySelection}
               onSelectIntelligence={setSelectedActivityId}
               onGenerateFollowup={handleGenerateFollowup}
               onOpenActivityDetails={(activity) => {
@@ -1482,14 +1981,14 @@ export default function ActivitiesPage() {
                 }}
               />
             ) : isLoading ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <Skeleton key={`intelligence-skeleton-${index}`} className="h-40 rounded-[18px]" />
+                  <Skeleton key={`intelligence-skeleton-${index}`} className="h-44 rounded-[18px]" />
                 ))}
               </div>
             ) : menuxIntelligenceRecommendations.length === 0 ? (
-              <div className="rounded-[16px] border border-cyan-300/22 bg-slate-900/58 px-4 py-4">
-                <p className="font-body text-sm text-slate-300">
+              <div className="rounded-[18px] border border-cyan-200/20 bg-slate-900/45 px-5 py-5">
+                <p className="font-body text-sm text-slate-200">
                   Sem recomendações no momento.
                 </p>
                 <Button
@@ -1502,37 +2001,37 @@ export default function ActivitiesPage() {
                 </Button>
               </div>
             ) : (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                 {menuxIntelligenceRecommendations.map((recommendation) => {
                   const state = recommendationStates[recommendation.id] || "idle";
 
                   return (
                     <article
                       key={recommendation.id}
-                      className="rounded-[18px] border border-cyan-300/20 bg-slate-900/58 p-4 shadow-[0_14px_30px_-20px_rgba(2,6,23,0.75)] transition-all duration-140 hover:-translate-y-[2px] hover:border-cyan-300/35 hover:shadow-[0_18px_34px_-18px_rgba(34,211,238,0.28)]"
+                      className="rounded-[20px] border border-cyan-200/20 bg-slate-900/52 p-5 shadow-[0_12px_24px_-20px_rgba(2,6,23,0.75)] transition-all duration-140 hover:-translate-y-[1px] hover:border-cyan-200/35"
                     >
-                      <div className="mb-3 flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-cyan-300/25 bg-cyan-500/16 text-cyan-100">
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-cyan-300/25 bg-cyan-500/16 text-cyan-100">
                             <Bot className="h-4 w-4" />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <p className="font-heading text-sm font-semibold text-slate-100">
                               {recommendation.title}
                             </p>
-                            <p className="font-body text-xs text-slate-400">{recommendation.context}</p>
+                            <p className="font-body text-sm leading-snug text-slate-400">{recommendation.context}</p>
                           </div>
                         </div>
                       </div>
 
-                      <p className="min-h-[40px] font-body text-xs leading-relaxed text-slate-300">
+                      <p className="min-h-[62px] font-body text-sm leading-relaxed text-slate-300">
                         <span className="font-medium text-slate-100">Por que:</span> {recommendation.why}
                       </p>
 
-                      <div className="mt-3 flex items-center gap-2">
+                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
                         <Button
                           size="sm"
-                          className="h-8 flex-1 rounded-full border border-cyan-300/24 bg-cyan-500/18 text-xs text-cyan-50 hover:bg-cyan-500/28"
+                          className="h-9 rounded-full border border-cyan-300/24 bg-cyan-500/18 text-xs text-cyan-50 hover:bg-cyan-500/28"
                           disabled={state === "loading"}
                           onClick={() => handleExecuteRecommendation(recommendation)}
                         >
@@ -1553,7 +2052,7 @@ export default function ActivitiesPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 rounded-full border-white/16 bg-white/6 text-xs text-slate-200 hover:bg-white/10"
+                          className="h-9 rounded-full border-white/16 bg-white/6 text-xs text-slate-200 hover:bg-white/10"
                           onClick={() =>
                             handleViewActivityFromRecommendation(recommendation.activityId)
                           }
@@ -1699,12 +2198,12 @@ export default function ActivitiesPage() {
         <aside
           ref={intelligenceRailRef}
           className={cn(
-            "self-start xl:sticky xl:top-6",
+            "self-start 2xl:sticky 2xl:top-6",
             "transition-shadow duration-120 ease-out",
-            isPageScrolled && "xl:drop-shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
+            isPageScrolled && "2xl:drop-shadow-[0_8px_20px_rgba(15,23,42,0.08)]"
           )}
         >
-          <div className="menux-intelligence-theme space-y-4 rounded-[20px] border border-cyan-300/18 p-4 shadow-[0_18px_34px_-20px_rgba(2,6,23,0.8)] md:p-5">
+          <div className="menux-intelligence-theme space-y-5 rounded-[20px] border border-cyan-300/16 p-5 shadow-[0_14px_26px_-22px_rgba(2,6,23,0.8)] md:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-heading text-lg font-semibold text-slate-100">Menux Intelligence</h2>
@@ -1729,7 +2228,7 @@ export default function ActivitiesPage() {
               </Button>
             </div>
 
-            <div className="rounded-[16px] border border-white/14 bg-white/7 p-3.5">
+            <div className="rounded-[16px] border border-white/14 bg-white/7 p-4">
               <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-slate-300">
                 Diagnóstico do dia
               </p>
@@ -1751,7 +2250,7 @@ export default function ActivitiesPage() {
               </div>
             </div>
 
-            <div className="rounded-[16px] border border-white/14 bg-white/7 p-3.5">
+            <div className="rounded-[16px] border border-white/14 bg-white/7 p-4">
               <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-slate-300">
                 Sugestões rápidas
               </p>
@@ -1796,7 +2295,7 @@ export default function ActivitiesPage() {
               </AnimatePresence>
             </div>
 
-            <div className="rounded-[16px] border border-white/14 bg-white/7 p-3.5">
+            <div className="rounded-[16px] border border-white/14 bg-white/7 p-4">
               <p className="mb-2 font-heading text-xs font-semibold uppercase tracking-wide text-slate-300">
                 Mensagens prontas
               </p>
@@ -1842,6 +2341,87 @@ export default function ActivitiesPage() {
   );
 }
 
+function VirtualizedActivityList({
+  items,
+  renderItem,
+  estimateSize = 176,
+}: {
+  items: Activity[];
+  renderItem: (activity: Activity) => React.ReactNode;
+  estimateSize?: number;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const shouldVirtualize = items.length > 14;
+
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual is intentional here for large lists.
+  const rowVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => estimateSize,
+    overscan: 6,
+  });
+
+  if (!shouldVirtualize) {
+    return (
+      <div className="space-y-3">
+        <AnimatePresence initial={false}>
+          {items.map((activity) => (
+            <motion.div
+              key={activity.id}
+              layout
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4, scale: 0.995 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
+            >
+              {renderItem(activity)}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  const viewportHeight = Math.min(720, Math.max(320, Math.round(items.length * estimateSize)));
+
+  return (
+    <div
+      ref={parentRef}
+      className="overflow-auto pr-1"
+      style={{ height: viewportHeight }}
+    >
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const activity = items[virtualRow.index];
+
+          return (
+            <div
+              key={activity.id}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <div className="pb-3">{renderItem(activity)}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ActivitiesCalendarView({
   now,
   monthDate,
@@ -1851,6 +2431,7 @@ function ActivitiesCalendarView({
   selectedDayActivities,
   expandedActivityId,
   highlightedPostponedId,
+  selectedActivityIds,
   activityFeedback,
   onPreviousMonth,
   onNextMonth,
@@ -1860,6 +2441,7 @@ function ActivitiesCalendarView({
   onComplete,
   onCancel,
   onPostpone,
+  onToggleSelectActivity,
   onSelectIntelligence,
   onGenerateFollowup,
   onOpenActivityDetails,
@@ -1872,6 +2454,7 @@ function ActivitiesCalendarView({
   selectedDayActivities: Activity[];
   expandedActivityId: string | null;
   highlightedPostponedId: string | null;
+  selectedActivityIds: Set<string>;
   activityFeedback: Record<string, ActivityFeedback>;
   onPreviousMonth: () => void;
   onNextMonth: () => void;
@@ -1881,6 +2464,7 @@ function ActivitiesCalendarView({
   onComplete: (activityId: string, notes?: string) => void;
   onCancel: (activityId: string) => void;
   onPostpone: (activityId: string, newDate: string) => void;
+  onToggleSelectActivity: (activityId: string) => void;
   onSelectIntelligence: (activityId: string) => void;
   onGenerateFollowup: (activity: Activity) => void;
   onOpenActivityDetails: (activity: Activity) => void;
@@ -2060,8 +2644,10 @@ function ActivitiesCalendarView({
                     now={now}
                     isExpanded={expandedActivityId === activity.id}
                     isHighlighted={highlightedPostponedId === activity.id}
+                    selected={selectedActivityIds.has(activity.id)}
                     feedback={activityFeedback[activity.id]}
                     onToggleExpand={() => onToggleExpand(activity.id)}
+                    onToggleSelect={() => onToggleSelectActivity(activity.id)}
                     onComplete={(notes) => onComplete(activity.id, notes)}
                     onCancel={() => onCancel(activity.id)}
                     onPostpone={(newDate) => onPostpone(activity.id, newDate)}
@@ -2220,10 +2806,10 @@ function ExecutionSection({
   return (
     <section
       className={cn(
-        "rounded-[20px] border p-4 shadow-sm md:p-5",
+        "rounded-[20px] border p-5 shadow-sm md:p-6",
         style.border,
         isIntelligenceTone
-          ? "bg-slate-950/55 shadow-[0_16px_30px_-20px_rgba(2,6,23,0.82)]"
+          ? "bg-slate-900/62 shadow-[0_12px_24px_-20px_rgba(2,6,23,0.82)]"
           : "bg-white"
       )}
     >
@@ -2301,13 +2887,15 @@ function InlineSectionError({
   );
 }
 
-function ExecutionActivityCard({
+const ExecutionActivityCard = memo(function ExecutionActivityCard({
   activity,
   now,
   feedback,
   isExpanded,
   isHighlighted,
+  selected,
   onToggleExpand,
+  onToggleSelect,
   onComplete,
   onCancel,
   onPostpone,
@@ -2319,7 +2907,9 @@ function ExecutionActivityCard({
   feedback?: ActivityFeedback;
   isExpanded: boolean;
   isHighlighted: boolean;
+  selected: boolean;
   onToggleExpand: () => void;
+  onToggleSelect: () => void;
   onComplete: (notes?: string) => void;
   onCancel: () => void;
   onPostpone: (newDate: string) => void;
@@ -2354,18 +2944,18 @@ function ExecutionActivityCard({
     <article
       id={`activity-card-${activity.id}`}
       className={cn(
-        "rounded-[18px] border border-zinc-200 bg-white p-4 transition-all duration-140",
+        "rounded-[20px] border border-zinc-200 bg-white p-5 transition-all duration-140 md:p-6",
         "hover:-translate-y-[2px] hover:shadow-[0_14px_28px_-18px_rgba(15,23,42,0.48)]",
         isHighlighted && "ring-2 ring-brand/35",
         feedback?.state === "complete-success" && "border-emerald-300 bg-emerald-50/40"
       )}
       onClick={onToggleExpand}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex items-start gap-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex items-start gap-3.5">
           <div
             className={cn(
-              "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px]",
+              "mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]",
               typeColors[activity.type].bg,
               typeColors[activity.type].text
             )}
@@ -2383,8 +2973,8 @@ function ExecutionActivityCard({
               </span>
             </div>
 
-            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
-              <span className="truncate max-w-[360px]">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-zinc-500">
+              <span className="truncate max-w-[420px]">
                 {activity.clientId ? (
                   <Link href={`/clients?clientId=${activity.clientId}`} className="hover:text-brand hover:underline">
                     {activity.clientName || "Sem nome"}
@@ -2401,7 +2991,7 @@ function ExecutionActivityCard({
               <span>{typeLabels[activity.type]}</span>
             </div>
 
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-3 flex items-center gap-2">
               <Avatar size="sm">
                 <AvatarFallback className="bg-brand/10 text-[10px] font-semibold text-brand">
                   {initials(activity.responsibleName)}
@@ -2417,20 +3007,25 @@ function ExecutionActivityCard({
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="text-left lg:text-right">
           <p className="text-xs font-medium text-zinc-500">{getRelativeTimeLabel(activity, now)}</p>
         </div>
       </div>
 
       <div
-        className="mt-3 flex flex-wrap items-center gap-2"
+        className="mt-4 flex flex-wrap items-center gap-2.5"
         onClick={(event) => event.stopPropagation()}
       >
+        <label className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600">
+          <Checkbox checked={selected} onCheckedChange={() => onToggleSelect()} />
+          Selecionar
+        </label>
+
         <Popover open={completeOpen} onOpenChange={setCompleteOpen}>
           <PopoverTrigger asChild>
             <Button
               size="sm"
-              className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800"
+              className="h-9 rounded-full bg-zinc-900 px-4 text-xs text-white hover:bg-zinc-800"
               disabled={isBusy}
             >
               {feedback?.state === "loading-complete" ? (
@@ -2490,7 +3085,7 @@ function ExecutionActivityCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-8 rounded-full px-3 text-xs"
+              className="h-9 rounded-full px-4 text-xs"
               disabled={isBusy}
             >
               {feedback?.state === "loading-postpone" ? (
@@ -2555,7 +3150,7 @@ function ExecutionActivityCard({
             <Button
               size="sm"
               variant="outline"
-              className="menux-intelligence-btn-soft h-8 rounded-full px-3 text-xs text-slate-100"
+              className="menux-intelligence-btn-soft h-9 rounded-full px-4 text-xs text-slate-100"
               onClick={onSelectIntelligence}
             >
               <Sparkles className="h-3.5 w-3.5 text-cyan-100" />
@@ -2595,45 +3190,53 @@ function ExecutionActivityCard({
           </PopoverContent>
         </Popover>
 
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 rounded-full px-3 text-xs text-zinc-600 hover:bg-zinc-100"
-          onClick={onToggleExpand}
-        >
-          {isExpanded ? "Ocultar detalhes" : "Ver detalhes"}
-        </Button>
+        <div className="basis-full" />
 
-        {activity.status !== "completed" && activity.status !== "cancelled" && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 rounded-full px-3 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
-            disabled={isBusy}
-            onClick={onCancel}
-          >
-            <XCircle className="h-3.5 w-3.5" />
-            Cancelar
-          </Button>
-        )}
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {feedback?.state === "complete-success" && (
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+                {feedback.message || "Concluída"}
+              </span>
+            )}
 
-        {feedback?.state === "complete-success" && (
-          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-700">
-            {feedback.message || "Concluída"}
-          </span>
-        )}
+            {feedback?.state === "postpone-success" && (
+              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-medium text-blue-700">
+                {feedback.message || "Reagendada"}
+              </span>
+            )}
 
-        {feedback?.state === "postpone-success" && (
-          <span className="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-medium text-blue-700">
-            {feedback.message || "Reagendada"}
-          </span>
-        )}
+            {feedback?.state === "error" && (
+              <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-medium text-red-700">
+                {feedback.message || "Falha ao executar"}
+              </span>
+            )}
+          </div>
 
-        {feedback?.state === "error" && (
-          <span className="rounded-full bg-red-100 px-2 py-1 text-[11px] font-medium text-red-700">
-            {feedback.message || "Falha ao executar"}
-          </span>
-        )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 rounded-full px-3 text-xs text-zinc-600 hover:bg-zinc-100"
+              onClick={onToggleExpand}
+            >
+              {isExpanded ? "Ocultar detalhes" : "Ver detalhes"}
+            </Button>
+
+            {activity.status !== "completed" && activity.status !== "cancelled" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 rounded-full px-3 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
+                disabled={isBusy}
+                onClick={onCancel}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                Cancelar
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       <AnimatePresence initial={false}>
@@ -2722,9 +3325,9 @@ function ExecutionActivityCard({
       </AnimatePresence>
     </article>
   );
-}
+});
 
-function SelectedActivityMessages({
+const SelectedActivityMessages = memo(function SelectedActivityMessages({
   activity,
   now,
 }: {
@@ -2791,7 +3394,7 @@ function SelectedActivityMessages({
       ))}
     </div>
   );
-}
+});
 
 function DiagnosticItem({
   label,
