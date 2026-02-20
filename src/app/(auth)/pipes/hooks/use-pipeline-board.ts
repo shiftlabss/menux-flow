@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { Opportunity, PipelineStage } from "@/types";
-import { calculateSlaDeadline, PIPELINE_STAGE_ORDER } from "@/lib/business-rules";
+import { calculateSlaDeadline } from "@/lib/business-rules";
 import { validateStageTransition } from "../lib/pipeline-validation";
 import type { FunnelDefinition } from "../lib/pipeline-config";
 
@@ -11,6 +11,22 @@ interface UsePipelineBoardOptions {
   setLocalOpportunities: React.Dispatch<React.SetStateAction<Opportunity[]>>;
   activeFunnel: FunnelDefinition;
   announce: (message: string) => void;
+  canMoveCards?: boolean;
+}
+
+interface ColumnErrorState {
+  stage: PipelineStage;
+  message: string;
+  tone: "warning" | "error";
+  cardId?: string;
+  missingFields?: string[];
+  targetStage?: PipelineStage;
+}
+
+interface SuccessFeedbackState {
+  stage: PipelineStage;
+  message: string;
+  cardId?: string;
 }
 
 const AUTO_SCROLL_EDGE_PX = 96;
@@ -71,24 +87,23 @@ export function usePipelineBoard({
   setLocalOpportunities,
   activeFunnel,
   announce,
+  canMoveCards = true,
 }: UsePipelineBoardOptions) {
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
   const [draggingCardStage, setDraggingCardStage] = useState<PipelineStage | null>(null);
+  const [draggingOpportunity, setDraggingOpportunity] = useState<Opportunity | null>(null);
   const [dragOverStage, setDragOverStage] = useState<PipelineStage | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{
     stage: PipelineStage;
     index: number;
   } | null>(null);
-  const [columnError, setColumnError] = useState<{
-    stage: PipelineStage;
-    message: string;
-  } | null>(null);
-  const [successFeedback, setSuccessFeedback] = useState<{
-    stage: PipelineStage;
-    message: string;
-  } | null>(null);
+  const [columnError, setColumnError] = useState<ColumnErrorState | null>(null);
+  const [successFeedback, setSuccessFeedback] = useState<SuccessFeedbackState | null>(null);
+  const [updatingCardId, setUpdatingCardId] = useState<string | null>(null);
+  const [recentlyMovedCardId, setRecentlyMovedCardId] = useState<string | null>(null);
   const dragCardRef = useRef<Opportunity | null>(null);
   const autoScrollFrameRef = useRef<number | null>(null);
+  const timeoutIdsRef = useRef<number[]>([]);
   const autoScrollStateRef = useRef<{
     clientX: number;
     clientY: number;
@@ -102,6 +117,14 @@ export function usePipelineBoard({
       autoScrollFrameRef.current = null;
     }
     autoScrollStateRef.current = null;
+  }, []);
+
+  const runWithTimeout = useCallback((fn: () => void, delayMs: number) => {
+    const timeoutId = window.setTimeout(() => {
+      timeoutIdsRef.current = timeoutIdsRef.current.filter((id) => id !== timeoutId);
+      fn();
+    }, delayMs);
+    timeoutIdsRef.current.push(timeoutId);
   }, []);
 
   const runAutoScroll = useCallback(() => {
@@ -147,13 +170,22 @@ export function usePipelineBoard({
   useEffect(() => {
     return () => {
       stopAutoScroll();
+      timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      timeoutIdsRef.current = [];
     };
   }, [stopAutoScroll]);
 
   const handleDragStart = useCallback(
     (e: React.DragEvent, opportunity: Opportunity) => {
+      if (!canMoveCards) {
+        e.preventDefault();
+        announce("Voce nao tem permissao para mover oportunidades.");
+        return;
+      }
+
       setDraggingCardId(opportunity.id);
       setDraggingCardStage(opportunity.stage);
+      setDraggingOpportunity(opportunity);
       dragCardRef.current = opportunity;
       autoScrollStateRef.current = null;
       e.dataTransfer.effectAllowed = "move";
@@ -163,11 +195,12 @@ export function usePipelineBoard({
         `Arrastando card ${opportunity.title}. Solte em uma etapa para mover.`
       );
     },
-    [announce]
+    [announce, canMoveCards]
   );
 
   const handleDragOver = useCallback(
     (e: React.DragEvent, stage: PipelineStage) => {
+      if (!canMoveCards) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       setDragOverStage(stage);
@@ -202,7 +235,7 @@ export function usePipelineBoard({
         autoScrollFrameRef.current = window.requestAnimationFrame(runAutoScroll);
       }
     },
-    [runAutoScroll]
+    [canMoveCards, runAutoScroll]
   );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -217,6 +250,12 @@ export function usePipelineBoard({
 
   const handleDrop = useCallback(
     (e: React.DragEvent, targetStage: PipelineStage) => {
+      if (!canMoveCards) {
+        e.preventDefault();
+        announce("Voce nao tem permissao para mover oportunidades.");
+        return;
+      }
+
       e.preventDefault();
       setDragOverStage(null);
       setDropIndicator(null);
@@ -226,6 +265,7 @@ export function usePipelineBoard({
 
       const card = dragCardRef.current;
       if (!card) return;
+      setUpdatingCardId(card.id);
       const stageOrder = activeFunnel.stages.map((stage) => stage.id);
       const sourceStageCards = localOpportunities.filter(
         (opportunity) => opportunity.stage === card.stage
@@ -260,36 +300,44 @@ export function usePipelineBoard({
         card,
         targetStage
       );
+      const targetStageDef = activeFunnel.stages.find(
+        (stage) => stage.id === targetStage
+      );
+      const targetStageLabel = targetStageDef?.label ?? targetStage.replace(/-/g, " ");
 
       if (missing.length > 0) {
         setColumnError({
           stage: targetStage,
-          message: `Atenção: pendências em ${missing.join(", ")}`,
+          tone: "error",
+          cardId: card.id,
+          missingFields: missing,
+          targetStage,
+          message: `Para mover para ${targetStageLabel}, preencha: ${missing.join(", ")}.`,
         });
         announce(`Aviso: campos pendentes — ${missing.join(", ")}`);
-        setTimeout(() => setColumnError(null), 4200);
+        setDraggingCardId(null);
+        setDraggingCardStage(null);
+        setDraggingOpportunity(null);
+        dragCardRef.current = null;
+        setUpdatingCardId(null);
+        runWithTimeout(() => setColumnError(null), 4200);
+        return;
       }
 
       if (isRegression) {
-        const fromLabel =
-          PIPELINE_STAGE_ORDER[PIPELINE_STAGE_ORDER.indexOf(card.stage)]
-            ?.replace(/-/g, " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase()) || card.stage;
-        const toLabel =
-          PIPELINE_STAGE_ORDER[PIPELINE_STAGE_ORDER.indexOf(targetStage)]
-            ?.replace(/-/g, " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase()) || targetStage;
+        const fromLabel = activeFunnel.stages.find(
+          (stage) => stage.id === card.stage
+        )?.label ?? card.stage;
+        const toLabel = targetStageLabel;
         setColumnError({
           stage: targetStage,
+          tone: "warning",
           message: `Card retrocedido de ${fromLabel} para ${toLabel}`,
         });
         announce(`Aviso: card retrocedido de ${fromLabel} para ${toLabel}`);
-        setTimeout(() => setColumnError(null), 4000);
+        runWithTimeout(() => setColumnError(null), 4000);
       }
 
-      const targetStageDef = activeFunnel.stages.find(
-        (s) => s.id === targetStage
-      );
       const newSlaDeadline = targetStageDef
         ? calculateSlaDeadline(targetStageDef.slaHours)
         : undefined;
@@ -342,42 +390,54 @@ export function usePipelineBoard({
         setSuccessFeedback({
           stage: targetStage,
           message: `${card.title} reordenado na etapa.`,
+          cardId: card.id,
         });
         announce(`Card ${card.title} reordenado dentro da etapa.`);
-        setTimeout(() => setSuccessFeedback(null), 1800);
+        runWithTimeout(() => setSuccessFeedback(null), 1800);
       } else if (!isRegression) {
         setSuccessFeedback({
           stage: targetStage,
-          message:
-            missing.length > 0
-              ? `${card.title} movido para ${targetStage.replace(/-/g, " ")} com pendências.`
-              : `${card.title} movido para ${targetStage.replace(/-/g, " ")}.`,
+          message: `${card.title} movido para ${targetStageLabel} agora.`,
+          cardId: card.id,
         });
         announce(
-          `Card ${card.title} movido com sucesso para ${targetStage.replace(/-/g, " ")}`
+          `Card ${card.title} movido com sucesso para ${targetStageLabel}`
         );
-        setTimeout(() => setSuccessFeedback(null), 2500);
+        runWithTimeout(() => setSuccessFeedback(null), 2500);
       } else {
         setSuccessFeedback({
           stage: targetStage,
-          message:
-            missing.length > 0
-              ? `${card.title} retrocedido com pendências.`
-              : `${card.title} retrocedido para ${targetStage.replace(/-/g, " ")}.`,
+          message: `${card.title} retrocedido para ${targetStageLabel}.`,
+          cardId: card.id,
         });
-        setTimeout(() => setSuccessFeedback(null), 2300);
+        runWithTimeout(() => setSuccessFeedback(null), 2300);
       }
+
+      setRecentlyMovedCardId(card.id);
+      runWithTimeout(() => setRecentlyMovedCardId((prev) => (prev === card.id ? null : prev)), 2600);
+      runWithTimeout(() => setUpdatingCardId((prev) => (prev === card.id ? null : prev)), 850);
 
       setDraggingCardId(null);
       setDraggingCardStage(null);
+      setDraggingOpportunity(null);
       dragCardRef.current = null;
     },
-    [activeFunnel, announce, dropIndicator, localOpportunities, setLocalOpportunities, stopAutoScroll]
+    [
+      activeFunnel,
+      announce,
+      canMoveCards,
+      dropIndicator,
+      localOpportunities,
+      runWithTimeout,
+      setLocalOpportunities,
+      stopAutoScroll,
+    ]
   );
 
   const handleDragEnd = useCallback(() => {
     setDraggingCardId(null);
     setDraggingCardStage(null);
+    setDraggingOpportunity(null);
     setDragOverStage(null);
     setDropIndicator(null);
     dragCardRef.current = null;
@@ -388,11 +448,14 @@ export function usePipelineBoard({
   return {
     draggingCardId,
     draggingCardStage,
+    draggingOpportunity,
     dragOverStage,
     dropIndicator,
     columnError,
     setColumnError,
     successFeedback,
+    updatingCardId,
+    recentlyMovedCardId,
     handleDragStart,
     handleDragOver,
     handleDragLeave,

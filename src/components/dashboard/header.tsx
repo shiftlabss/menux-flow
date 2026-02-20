@@ -85,6 +85,8 @@ export function DashboardHeader() {
   } = useDashboardFilters();
 
   const firstName = user?.name?.trim().split(" ")[0] ?? "Admin";
+  const userRole = user?.role ?? "comercial";
+  const isBroadRole = userRole === "master" || userRole === "admin";
 
   // ── Compute indicators from real store data ─────────────────────
   const overdueCount = filteredActivities.filter(
@@ -193,39 +195,41 @@ export function DashboardHeader() {
       )}
     >
       {/* Context toggle (Eu / Time) */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            className="premium-shine h-8 gap-1.5 rounded-full border-zinc-200 bg-white/90 px-3 text-sm font-medium hover:bg-zinc-100/80 active:scale-[0.99]"
-          >
-            <ContextIcon className="h-3.5 w-3.5 text-zinc-500" />
-            {contextLabels[context].label}
-            <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36 rounded-xl">
-          {(Object.keys(contextLabels) as Context[]).map((value) => {
-            const Ic = contextLabels[value].icon;
-            return (
-              <DropdownMenuItem
-                key={value}
-                onClick={() => setContext(value)}
-                className="gap-2"
-              >
-                {context === value ? (
-                  <div className="h-1.5 w-1.5 rounded-full bg-brand" />
-                ) : (
-                  <Ic className="h-3.5 w-3.5 text-zinc-400" />
-                )}
-                <span className={context === value ? "font-medium" : ""}>
-                  {contextLabels[value].label}
-                </span>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {isBroadRole && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="premium-shine h-8 gap-1.5 rounded-full border-zinc-200 bg-white/90 px-3 text-sm font-medium hover:bg-zinc-100/80 active:scale-[0.99]"
+            >
+              <ContextIcon className="h-3.5 w-3.5 text-zinc-500" />
+              {contextLabels[context].label}
+              <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36 rounded-xl">
+            {(Object.keys(contextLabels) as Context[]).map((value) => {
+              const Ic = contextLabels[value].icon;
+              return (
+                <DropdownMenuItem
+                  key={value}
+                  onClick={() => setContext(value)}
+                  className="gap-2"
+                >
+                  {context === value ? (
+                    <div className="h-1.5 w-1.5 rounded-full bg-brand" />
+                  ) : (
+                    <Ic className="h-3.5 w-3.5 text-zinc-400" />
+                  )}
+                  <span className={context === value ? "font-medium" : ""}>
+                    {contextLabels[value].label}
+                  </span>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
       {/* Period selector */}
       <DropdownMenu>

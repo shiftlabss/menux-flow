@@ -192,12 +192,13 @@ export function TeamPerformance() {
   const router = useRouter();
   const { filteredOpportunities, context, userId, userRole } = useDashboardFilters();
 
+  const isBroadRole = userRole === "master" || userRole === "admin";
+
   const teamData = useMemo(() => {
     // filteredOpportunities already respects context via useDashboardFilters:
     // - context "me" + role master/admin → returns ALL items
     // - context "me" + role comercial → returns only own items
     // So we only need the extra responsibleId filter for non-admin roles
-    const isBroadRole = userRole === "master" || userRole === "admin";
     const allOpps = filteredOpportunities.filter(
       (o) => o.status === "won" || o.status === "lost"
     );
@@ -246,11 +247,13 @@ export function TeamPerformance() {
           commission: commission.commissionValue,
           conversion:
             data.total > 0 ? Math.round((data.won / data.total) * 100) : 0,
+          won: data.won,
+          isMe: id === userId,
         };
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 3);
-  }, [filteredOpportunities, context, userId, userRole]);
+  }, [filteredOpportunities, context, userId, isBroadRole]);
 
   return (
     <BentoCard className="premium-panel flex flex-col gap-4 border-zinc-200/80 bg-white/86 p-5 shadow-[0_16px_28px_-24px_rgba(15,23,42,0.45)] md:p-6">
@@ -310,13 +313,15 @@ export function TeamPerformance() {
 
               <div className="text-right">
                 <p className="text-xs font-bold text-zinc-900">
-                  {formatCurrencyBRL(member.revenue)}
+                  {member.isMe || isBroadRole
+                    ? formatCurrencyBRL(member.revenue)
+                    : `${member.won} ganhos`}
                 </p>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center justify-end gap-1.5">
                   <span className="text-[10px] text-zinc-500">
                     {member.conversion}% conv.
                   </span>
-                  {member.commission > 0 && (
+                  {(member.isMe || isBroadRole) && member.commission > 0 && (
                     <span className="text-[10px] font-medium text-emerald-600">
                       +{formatCurrencyBRL(member.commission)}
                     </span>

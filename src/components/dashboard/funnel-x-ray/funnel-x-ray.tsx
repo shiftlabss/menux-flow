@@ -277,9 +277,9 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-12"
+          className="flex flex-col gap-5 p-5"
         >
-          <div className="space-y-3 lg:col-span-7">
+          <div className="space-y-4 w-full">
             <TooltipProvider delayDuration={80}>
               <FlowStepsConnected
                 stages={stages}
@@ -363,8 +363,8 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
             </AnimatePresence>
           </div>
 
-          <div className="space-y-3 lg:col-span-5">
-            <div className="rounded-xl border border-red-200/75 bg-red-50/60 p-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className="rounded-xl border border-red-200/75 bg-red-50/60 p-4 flex flex-col">
               <div className="mb-2 flex items-start justify-between gap-2">
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-red-700">
                   TOP GARGALO
@@ -390,7 +390,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
               </button>
             </div>
 
-            <div className="rounded-xl border border-emerald-200/75 bg-emerald-50/65 p-4">
+            <div className="rounded-xl border border-emerald-200/75 bg-emerald-50/65 p-4 flex flex-col">
               <div className="mb-2 flex items-start justify-between gap-2">
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700">
                   DESTAQUE
@@ -419,7 +419,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
               </button>
             </div>
 
-            <div className="rounded-xl border border-zinc-200/80 bg-white/85 p-4">
+            <div className="rounded-xl border border-zinc-200/80 bg-white/85 p-4 flex flex-col">
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-zinc-900">
                   Ação recomendada

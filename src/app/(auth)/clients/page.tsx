@@ -285,13 +285,7 @@ function ClientsPageContent() {
   const [commandResult, setCommandResult] = useState<string | null>(null);
 
   const allClients = storeClients.length > 0 ? storeClients : mockClients;
-  const scopedOwnerId = useMemo(() => {
-    const preferredId = user?.id;
-    if (preferredId && allClients.some((client) => client.responsibleId === preferredId)) {
-      return preferredId;
-    }
-    return allClients[0]?.responsibleId ?? preferredId ?? "user-5";
-  }, [allClients, user?.id]);
+  const scopedOwnerId = useMemo(() => user?.id ?? "", [user?.id]);
 
   const scopedClients = useMemo(
     () => allClients.filter((client) => client.responsibleId === scopedOwnerId),
@@ -302,13 +296,26 @@ function ClientsPageContent() {
   useEffect(() => {
     const clientId = searchParams.get("clientId");
     if (clientId) {
-      openDrawer("client-card", { id: clientId });
+      const linkedClient = allClients.find((client) => client.id === clientId);
+      const canAccessClient = linkedClient?.responsibleId === scopedOwnerId;
+
+      if (canAccessClient) {
+        openDrawer("client-card", { id: clientId });
+      } else {
+        window.setTimeout(() => {
+          setFeedback({
+            type: "error",
+            message: "Esse cliente não pertence à sua carteira.",
+          });
+        }, 0);
+      }
+
       // Remove param from URL without reload to avoid re-opening on refresh
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("clientId");
       router.replace(`/clients?${newParams.toString()}`, { scroll: false });
     }
-  }, [searchParams, openDrawer, router]);
+  }, [allClients, openDrawer, router, scopedOwnerId, searchParams]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 700);

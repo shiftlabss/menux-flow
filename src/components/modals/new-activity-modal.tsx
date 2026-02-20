@@ -41,7 +41,7 @@ import { activitySchema, type ActivityFormData } from "@/lib/validations/activit
 export interface NewActivityModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: ActivityFormData) => void;
+  onSave: (data: ActivityFormData) => Promise<void> | void;
   dealId?: string;
   initialType?: "call" | "email" | "meeting" | "visit" | "task" | "follow-up" | "whatsapp";
 }
@@ -64,6 +64,7 @@ export function NewActivityModal({
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveSuccess, setSaveSuccess] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const form = useForm<ActivityFormData>({
     resolver: zodResolver(activitySchema),
@@ -99,21 +100,27 @@ export function NewActivityModal({
           description: "",
         });
         setSaveSuccess(false);
+        setSubmitError(null);
       }, 300);
     }
   }, [isOpen, reset, initialType]);
 
   const onSubmit = async (data: ActivityFormData) => {
     setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    setSaveSuccess(true);
+    setSubmitError(null);
 
-    setTimeout(() => {
-      onSave(data);
+    try {
+      await Promise.resolve(onSave(data));
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setIsSaving(false);
+        onClose();
+      }, 320);
+    } catch {
       setIsSaving(false);
-      onClose();
-    }, 600);
+      setSaveSuccess(false);
+      setSubmitError("Não foi possível criar a atividade. Tente novamente.");
+    }
   };
 
   const handleSmartSuggestion = () => {
@@ -248,6 +255,12 @@ export function NewActivityModal({
               </div>
             </div>
           </div>
+
+          {submitError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+              <p className="text-xs text-red-700">{submitError}</p>
+            </div>
+          )}
 
         </form>
       </div>

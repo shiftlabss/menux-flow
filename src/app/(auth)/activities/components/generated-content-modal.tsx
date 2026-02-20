@@ -29,19 +29,29 @@ export function GeneratedContentModal({
     content,
 }: GeneratedContentModalProps) {
     const [copied, setCopied] = useState(false);
+    const [copyError, setCopyError] = useState<string | null>(null);
+
+    const handleOpenChange = (nextOpen: boolean) => {
+        if (nextOpen) {
+            setCopied(false);
+            setCopyError(null);
+        }
+        onOpenChange(nextOpen);
+    };
 
     const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(content);
             setCopied(true);
+            setCopyError(null);
             setTimeout(() => setCopied(false), 2000);
-        } catch (err) {
-            console.error("Failed to copy text: ", err);
+        } catch {
+            setCopyError("Não foi possível copiar agora. Tente novamente.");
         }
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <div className="flex items-center gap-2">
@@ -70,6 +80,10 @@ export function GeneratedContentModal({
                         )}
                     </Button>
                 </div>
+
+                {copyError ? (
+                    <p className="mt-2 text-xs text-red-600">{copyError}</p>
+                ) : null}
 
                 <DialogFooter className="gap-2 sm:gap-0">
                     <DialogClose asChild>

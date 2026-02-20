@@ -57,6 +57,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { PermissionsGuard } from "@/components/shared/permissions-guard";
 import type { CommissionStatus } from "@/types";
 
 type StatusScope = "all" | "projected" | "confirmed" | "paid";
@@ -399,9 +400,17 @@ function useAnimatedNumber(target: number, duration = 220): number {
 }
 
 export default function FinancePage() {
+  return (
+    <PermissionsGuard permission="canViewFinance">
+      <FinancePageContent />
+    </PermissionsGuard>
+  );
+}
+
+function FinancePageContent() {
   const router = useRouter();
   const railAutoOpenedRef = useRef(false);
-  const { user } = useAuthStore();
+  const { user, permissions } = useAuthStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [commissions, setCommissions] = useState<FinanceCommission[]>(commissionsSeed);
@@ -411,7 +420,7 @@ export default function FinancePage() {
   const [listMode, setListMode] = useState<"group-status" | "list" | "group-competence">(
     "group-status"
   );
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(["paid"]));
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(["status-paid"]));
   const [highlightedCommissionIds, setHighlightedCommissionIds] = useState<Set<string>>(
     new Set()
   );
@@ -427,6 +436,7 @@ export default function FinancePage() {
   const [isDesktopXL, setIsDesktopXL] = useState(false);
   const [rowFeedback, setRowFeedback] = useState<Record<string, FeedbackState>>({});
   const [calcOpenRowId, setCalcOpenRowId] = useState<string | null>(null);
+  const [contestConfirmId, setContestConfirmId] = useState<string | null>(null);
   const [pageFeedback, setPageFeedback] = useState<FeedbackState | null>(null);
   const [intelRunningAction, setIntelRunningAction] = useState<string | null>(null);
   const [intelResult, setIntelResult] = useState<string | null>(null);
@@ -486,7 +496,19 @@ export default function FinancePage() {
     ) {
       return preferredName;
     }
-    return "Ana Oliveira";
+    const sellerTotals = new Map<string, number>();
+    for (const c of commissions) {
+      sellerTotals.set(c.sellerName, (sellerTotals.get(c.sellerName) ?? 0) + 1);
+    }
+    let bestSeller = commissions[0]?.sellerName ?? "Maria Silva";
+    let bestCount = 0;
+    for (const [name, count] of sellerTotals) {
+      if (count > bestCount) {
+        bestSeller = name;
+        bestCount = count;
+      }
+    }
+    return bestSeller;
   }, [commissions, user?.name]);
   const sellerInitials = getInitials(currentSellerName);
 
@@ -733,7 +755,7 @@ export default function FinancePage() {
     [setRowInlineFeedback]
   );
 
-  const handleMarkContested = useCallback(
+  const handleRequestContest = useCallback(
     (commission: FinanceCommission) => {
       if (commission.status !== "confirmed") {
         setRowInlineFeedback(
@@ -743,37 +765,65 @@ export default function FinancePage() {
         );
         return;
       }
+      setContestConfirmId(commission.id);
+    },
+    [setRowInlineFeedback]
+  );
 
+  const handleConfirmContest = useCallback(
+    (commissionId: string) => {
       setCommissions((prev) =>
         prev.map((current) =>
-          current.id === commission.id
+          current.id === commissionId
             ? {
                 ...current,
-                status: "contested",
+                status: "contested" as CommissionStatus,
                 contestationReason:
                   "Contestação registrada para revisão financeira interna.",
               }
             : current
         )
       );
-      setRowInlineFeedback(commission.id, "success", "Contestação registrada");
+      setContestConfirmId(null);
+      setRowInlineFeedback(commissionId, "success", "Contestação registrada");
     },
     [setRowInlineFeedback]
   );
 
+  const handleCancelContest = useCallback(() => {
+    setContestConfirmId(null);
+  }, []);
+
   const handleExport = useCallback(
     (format: "csv" | "pdf" | "excel") => {
+      if (filteredCommissions.length === 0) {
+        setPageFeedback({
+          type: "error",
+          message: "Nenhum dado para exportar. Ajuste os filtros ou período.",
+        });
+        return;
+      }
+
       const data = filteredCommissions.map((commission) => ({
         Oportunidade: commission.opportunityTitle,
+        Vendedor: commission.sellerName,
+        "Valor Base": commission.baseValue,
         Percentual: `${commission.percentage}%`,
-        Valor: commission.value,
+        "Valor Comissão": commission.value,
         Competencia: formatMonthLabel(commission.competenceMonth),
         Status: statusConfig[commission.status].label,
+        Fechamento: formatDate(commission.closeDate),
+        "Pago em": commission.paidAt ? formatDate(commission.paidAt) : "-",
       }));
-      const fileName = `financeiro-${periodKey}`;
+      const sellerSlug = currentSellerName
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "-");
+      const fileName = `financeiro-${sellerSlug}-${periodKey}`;
 
       if (format === "csv") exportToCSV(data, fileName);
-      if (format === "pdf") exportToPDF(data, fileName, "Resumo financeiro");
+      if (format === "pdf") exportToPDF(data, fileName, `Resumo financeiro · ${currentSellerName} · ${periodLabel}`);
       if (format === "excel") exportToExcel(data, fileName);
 
       setPageFeedback({
@@ -781,7 +831,7 @@ export default function FinancePage() {
         message: `Exportação ${format.toUpperCase()} iniciada.`,
       });
     },
-    [filteredCommissions, periodKey]
+    [filteredCommissions, periodKey, currentSellerName, periodLabel]
   );
 
   const runIntelligenceAction = useCallback(
@@ -892,6 +942,19 @@ export default function FinancePage() {
       .slice(0, 3);
   }, [periodCommissions]);
 
+  const miniChartBars = useMemo(() => {
+    const values = periodCommissions.map((c) => c.value);
+    if (values.length === 0) return [0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+    const maxVal = Math.max(...values);
+    if (maxVal === 0) return values.slice(0, 6).map(() => 0.1);
+    const normalized = values
+      .sort((a, b) => a - b)
+      .slice(0, 6)
+      .map((v) => Math.max(0.1, v / maxVal));
+    while (normalized.length < 6) normalized.push(0.1);
+    return normalized;
+  }, [periodCommissions]);
+
   const topRiskCommissions = useMemo(
     () =>
       periodCommissions
@@ -978,28 +1041,30 @@ export default function FinancePage() {
                   </div>
                 </div>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 rounded-full">
-                      <Download className="h-3.5 w-3.5" />
-                      Exportar
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52 rounded-[14px]">
-                    <DropdownMenuItem onClick={() => handleExport("csv")}>
-                      <FileText className="mr-2 h-4 w-4" />
-                      Exportar CSV
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport("pdf")}>
-                      <FileDown className="mr-2 h-4 w-4" />
-                      Exportar PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExport("excel")}>
-                      <FileSpreadsheet className="mr-2 h-4 w-4" />
-                      Exportar Excel
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {permissions?.canExportData ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 rounded-full">
+                        <Download className="h-3.5 w-3.5" />
+                        Exportar
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52 rounded-[14px]">
+                      <DropdownMenuItem onClick={() => handleExport("csv")}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Exportar CSV
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport("pdf")}>
+                        <FileDown className="mr-2 h-4 w-4" />
+                        Exportar PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport("excel")}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        Exportar Excel
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
 
               </div>
             }
@@ -1139,23 +1204,31 @@ export default function FinancePage() {
                           active={extraFilters.riskOnly}
                           label="Somente em risco (>7 dias projetada)"
                           tone="warning"
-                          onClick={() =>
+                          onClick={() => {
+                            const newVal = !extraFilters.riskOnly;
                             setExtraFilters((prev) => ({
                               ...prev,
-                              riskOnly: !prev.riskOnly,
-                            }))
-                          }
+                              riskOnly: newVal,
+                            }));
+                            if (newVal) {
+                              setStatusScope("projected");
+                            }
+                          }}
                         />
                         <FilterOptionButton
                           active={extraFilters.contestedOnly}
                           label="Somente contestadas"
                           tone="danger"
-                          onClick={() =>
+                          onClick={() => {
+                            const newVal = !extraFilters.contestedOnly;
                             setExtraFilters((prev) => ({
                               ...prev,
-                              contestedOnly: !prev.contestedOnly,
-                            }))
-                          }
+                              contestedOnly: newVal,
+                            }));
+                            if (newVal) {
+                              setStatusScope("confirmed");
+                            }
+                          }}
                         />
 
                         <div className="flex items-center justify-between border-t border-zinc-200 pt-2">
@@ -1172,7 +1245,7 @@ export default function FinancePage() {
                             className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
                             onClick={() => setIsFiltersOpen(false)}
                           >
-                            Aplicar
+                            Pronto
                           </Button>
                         </div>
                       </div>
@@ -1221,7 +1294,6 @@ export default function FinancePage() {
             {!hasPeriodData ? (
               <FinanceEmptyState
                 periodLabel={periodLabel}
-                onClearFilters={clearAllFilters}
                 onChangePeriod={goPrevMonth}
               />
             ) : (
@@ -1242,7 +1314,7 @@ export default function FinancePage() {
                         trend={`${summary.totalCount} minhas comissões`}
                         miniVisual={
                           <div className="flex h-8 items-end gap-1">
-                            {[0.4, 0.56, 0.52, 0.68, 0.61, 0.74].map((height, index) => (
+                            {miniChartBars.map((height, index) => (
                               <span
                                 key={index}
                                 className="w-1.5 rounded bg-zinc-300/85"
@@ -1310,7 +1382,7 @@ export default function FinancePage() {
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <h3 className="font-heading text-base font-semibold text-zinc-900">
-                        Status Funnel
+                        Funil de Status
                       </h3>
                       <p className="text-xs text-zinc-500">
                         Projetado, confirmado e pago sincronizados com minhas comissões.
@@ -1452,27 +1524,43 @@ export default function FinancePage() {
                       />
                     ) : !hasRows ? (
                       <div className="flex min-h-[220px] flex-col items-center justify-center rounded-[14px] border border-dashed border-zinc-200 bg-zinc-50/70 p-6 text-center">
-                        <p className="font-heading text-lg font-semibold text-zinc-900">
-                          Você ainda não tem comissões neste mês
-                        </p>
-                        <p className="mt-1 text-sm text-zinc-500">
-                          Ajuste filtros ou volte ao pipeline para acelerar novas oportunidades.
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Button
-                            variant="outline"
-                            className="rounded-full"
-                            onClick={() => router.push("/pipes")}
-                          >
-                            Ver pipeline
-                          </Button>
-                          <Button
-                            className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
-                            onClick={() => setIsIntelligenceOpen(true)}
-                          >
-                            Pedir plano do mês
-                          </Button>
-                        </div>
+                        {filterCount > 0 ? (
+                          <>
+                            <p className="font-heading text-lg font-semibold text-zinc-900">
+                              Nenhuma comissão encontrada com esses filtros
+                            </p>
+                            <p className="mt-1 text-sm text-zinc-500">
+                              Remova ou ajuste os filtros para ver suas comissões do período.
+                            </p>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <Button
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={clearAllFilters}
+                              >
+                                Limpar filtros
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-heading text-lg font-semibold text-zinc-900">
+                              Você ainda não tem comissões neste mês
+                            </p>
+                            <p className="mt-1 text-sm text-zinc-500">
+                              Volte ao pipeline para acelerar novas oportunidades.
+                            </p>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <Button
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={() => router.push("/pipes")}
+                              >
+                                Ver pipeline
+                              </Button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ) : listMode === "list" ? (
                       <div className="space-y-2">
@@ -1489,8 +1577,11 @@ export default function FinancePage() {
                             onViewOpportunity={() =>
                               router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                             }
+                            isContestPending={contestConfirmId === commission.id}
                             onCopySummary={() => void handleCopySummary(commission)}
-                            onMarkContested={() => handleMarkContested(commission)}
+                            onRequestContest={() => handleRequestContest(commission)}
+                            onConfirmContest={() => handleConfirmContest(commission.id)}
+                            onCancelContest={handleCancelContest}
                             onOpenIntelligence={() => {
                               setIsIntelligenceOpen(true);
                               setRowInlineFeedback(commission.id, "info", "Dica aberta no painel");
@@ -1523,7 +1614,7 @@ export default function FinancePage() {
                                   <ChevronDown
                                     className={cn(
                                       "h-4 w-4 text-zinc-500 transition-transform duration-180",
-                                      !collapsed && "rotate-180"
+                                      collapsed && "-rotate-90"
                                     )}
                                   />
                                 </div>
@@ -1543,8 +1634,11 @@ export default function FinancePage() {
                                       onViewOpportunity={() =>
                                         router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                                       }
+                                      isContestPending={contestConfirmId === commission.id}
                                       onCopySummary={() => void handleCopySummary(commission)}
-                                      onMarkContested={() => handleMarkContested(commission)}
+                                      onRequestContest={() => handleRequestContest(commission)}
+                                      onConfirmContest={() => handleConfirmContest(commission.id)}
+                                      onCancelContest={handleCancelContest}
                                       onOpenIntelligence={() => {
                                         setIsIntelligenceOpen(true);
                                         setRowInlineFeedback(commission.id, "info", "Dica aberta no painel");
@@ -1580,7 +1674,7 @@ export default function FinancePage() {
                                   <ChevronDown
                                     className={cn(
                                       "h-4 w-4 text-zinc-500 transition-transform duration-180",
-                                      !collapsed && "rotate-180"
+                                      collapsed && "-rotate-90"
                                     )}
                                   />
                                 </div>
@@ -1600,8 +1694,11 @@ export default function FinancePage() {
                                       onViewOpportunity={() =>
                                         router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                                       }
+                                      isContestPending={contestConfirmId === commission.id}
                                       onCopySummary={() => void handleCopySummary(commission)}
-                                      onMarkContested={() => handleMarkContested(commission)}
+                                      onRequestContest={() => handleRequestContest(commission)}
+                                      onConfirmContest={() => handleConfirmContest(commission.id)}
+                                      onCancelContest={handleCancelContest}
                                       onOpenIntelligence={() => {
                                         setIsIntelligenceOpen(true);
                                         setRowInlineFeedback(commission.id, "info", "Dica aberta no painel");
@@ -1750,7 +1847,16 @@ export default function FinancePage() {
         {!isDesktopXL ? (
           <>
             <div
+              role="button"
+              tabIndex={isIntelligenceOpen ? 0 : -1}
+              aria-label="Fechar painel de inteligência"
               onClick={() => setIsIntelligenceOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
+                  e.preventDefault();
+                  setIsIntelligenceOpen(false);
+                }
+              }}
               className={cn(
                 "fixed inset-0 z-40 bg-black/25 transition-opacity duration-200 xl:hidden",
                 isIntelligenceOpen ? "opacity-100" : "pointer-events-none opacity-0"
@@ -1982,20 +2088,26 @@ function FinanceCommissionItem({
   highlighted,
   inlineFeedback,
   isDetailsOpen,
+  isContestPending,
   onToggleDetails,
   onViewOpportunity,
   onCopySummary,
-  onMarkContested,
+  onRequestContest,
+  onConfirmContest,
+  onCancelContest,
   onOpenIntelligence,
 }: {
   commission: FinanceCommission;
   highlighted: boolean;
   inlineFeedback?: FeedbackState;
   isDetailsOpen: boolean;
+  isContestPending: boolean;
   onToggleDetails: () => void;
   onViewOpportunity: () => void;
   onCopySummary: () => void;
-  onMarkContested: () => void;
+  onRequestContest: () => void;
+  onConfirmContest: () => void;
+  onCancelContest: () => void;
   onOpenIntelligence: () => void;
 }) {
   const status = statusConfig[commission.status];
@@ -2051,7 +2163,7 @@ function FinanceCommissionItem({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={onMarkContested}
+              onClick={onRequestContest}
               disabled={commission.status !== "confirmed"}
               className={cn(commission.status === "confirmed" ? "text-red-700" : "")}
             >
@@ -2138,6 +2250,35 @@ function FinanceCommissionItem({
             >
               Abrir oportunidade
               <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {isContestPending ? (
+        <div className="mt-2 rounded-[12px] border border-red-200 bg-red-50/80 p-2.5">
+          <p className="text-xs font-medium text-red-800">
+            Confirmar contestação de &ldquo;{commission.opportunityTitle}&rdquo;?
+          </p>
+          <p className="mt-0.5 text-[11px] text-red-600">
+            A comissão será marcada para revisão pelo financeiro. Essa ação não pode ser desfeita.
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 rounded-full border-red-200 px-2.5 text-[11px] text-red-700 hover:bg-red-100"
+              onClick={onConfirmContest}
+            >
+              Confirmar contestação
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 rounded-full px-2.5 text-[11px] text-zinc-600 hover:bg-zinc-100"
+              onClick={onCancelContest}
+            >
+              Cancelar
             </Button>
           </div>
         </div>
@@ -2231,7 +2372,7 @@ function FinanceIntelligenceRail({
         <Button
           className="mt-3 h-8 w-full rounded-full border border-white/15 bg-white/10 text-xs text-slate-100 hover:bg-white/15"
           onClick={() =>
-            onRunAction("plan", "Plano de follow-up financeiro gerado.", applyConfirmedFilter)
+            onRunAction("plan", "Plano de follow-up financeiro gerado.")
           }
           disabled={runningAction === "plan"}
         >
@@ -2298,12 +2439,12 @@ function FinanceIntelligenceRail({
             />
             <IntelligenceAction
               label={`${inconsistentCount} itens com status inconsistente`}
-              actionLabel="Filtrar confirmadas"
+              actionLabel="Filtrar pagas"
               onClick={() =>
                 onRunAction(
                   "inconsistent",
                   "Filtro aplicado: itens para revisão.",
-                  applyConfirmedFilter
+                  applyPaidFilter
                 )
               }
               loading={runningAction === "inconsistent"}
@@ -2319,7 +2460,7 @@ function FinanceIntelligenceRail({
             <IntelligenceQuickAction
               label="Cobrar confirmação de itens pendentes"
               onClick={() =>
-                onRunAction("confirm", "Checklist de cobrança gerado.", applyConfirmedFilter)
+                onRunAction("confirm", "Checklist de cobrança gerado.", applyProjectedFilter)
               }
               loading={runningAction === "confirm"}
             />
@@ -2464,11 +2605,9 @@ function SectionError({
 
 function FinanceEmptyState({
   periodLabel,
-  onClearFilters,
   onChangePeriod,
 }: {
   periodLabel: string;
-  onClearFilters: () => void;
   onChangePeriod: () => void;
 }) {
   return (
@@ -2477,17 +2616,14 @@ function FinanceEmptyState({
         Sem comissões em {periodLabel}
       </p>
       <p className="mt-2 max-w-[420px] text-sm text-zinc-500">
-        Troque o período ou remova filtros para visualizar os dados financeiros.
+        Você não possui comissões registradas neste período. Navegue para outro mês para visualizar seus dados financeiros.
       </p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
-        <Button variant="outline" className="rounded-full" onClick={onClearFilters}>
-          Limpar filtros
-        </Button>
         <Button
           className="rounded-full bg-black text-white hover:bg-zinc-800"
           onClick={onChangePeriod}
         >
-          Mudar período
+          Ir para mês anterior
         </Button>
       </div>
     </div>

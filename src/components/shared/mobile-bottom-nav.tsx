@@ -53,7 +53,9 @@ export function MobileBottomNav() {
   const isIntelligencePage = pathname.startsWith("/intelligence");
 
   const moreNavItems = useMemo(() => {
-    const items: NavItem[] = [...moreNavItemsBase];
+    const items: NavItem[] = permissions?.canViewFinance
+      ? [...moreNavItemsBase]
+      : moreNavItemsBase.filter((item) => item.href !== "/finance");
     if (permissions?.canManageSettings) {
       items.splice(1, 0, {
         label: "Configurações",
@@ -63,7 +65,7 @@ export function MobileBottomNav() {
       });
     }
     return items;
-  }, [permissions?.canManageSettings]);
+  }, [permissions?.canManageSettings, permissions?.canViewFinance]);
 
   const isActive = (item: NavItem) => {
     const target = item.matchPrefix ?? item.href;

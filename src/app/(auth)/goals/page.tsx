@@ -28,7 +28,6 @@ import type { Goal } from "@/types";
 import { cn } from "@/lib/cn";
 import { useGoalStore } from "@/stores/goal-store";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
-import { GeneratedContentModal } from "../activities/components/generated-content-modal";
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
@@ -202,13 +201,18 @@ export default function GoalsPage() {
   const [isAchievedCollapsed, setIsAchievedCollapsed] = useState(true);
   const [expandedPlans, setExpandedPlans] = useState<Set<string>>(new Set());
   const [cardFeedback, setCardFeedback] = useState<Record<string, FeedbackState>>({});
-  const [cardLoadingId, setCardLoadingId] = useState<string | null>(null);
+  const [cardLoadingId] = useState<string | null>(null);
   const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
   const [isDesktopXL, setIsDesktopXL] = useState(false);
   const [headerHighlight, setHeaderHighlight] = useState(false);
   const [pageFeedback, setPageFeedback] = useState<FeedbackState | null>(null);
   const [runningIntelAction, setRunningIntelAction] = useState<string | null>(null);
-  const [intelResult, setIntelResult] = useState<string | null>(null);
+  const [intelResult, setIntelResult] = useState<{
+    type: "info" | "success" | "plan";
+    title?: string;
+    text: string;
+    action?: { label: string; onClick: () => void };
+  } | null>(null);
   const [kpiError, setKpiError] = useState(false);
 
   const refreshTimerRef = useRef<number | null>(null);
@@ -248,7 +252,8 @@ export default function GoalsPage() {
 
   useEffect(() => {
     if (!intelResult) return;
-    const timer = window.setTimeout(() => setIntelResult(null), 1200);
+    if (intelResult.type === "plan") return; // Mantem plano de ação aberto
+    const timer = window.setTimeout(() => setIntelResult(null), 2500);
     return () => window.clearTimeout(timer);
   }, [intelResult]);
 
@@ -314,9 +319,8 @@ export default function GoalsPage() {
     };
   }, [periodGoals, selectedPeriod]);
 
-  // Modal State
-  const [generatedModalOpen, setGeneratedModalOpen] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState({ title: "", content: "" });
+  // Removed: Modal State
+  // const [generatedModalOpen, setGeneratedModalOpen] = useState(false);
 
   const filteredGoals = useMemo(() => {
     return periodGoals.filter((goal) => {
@@ -400,17 +404,7 @@ export default function GoalsPage() {
     });
   }, []);
 
-  const runCardAction = useCallback(
-    (goalId: string, action: () => void, successMessage: string) => {
-      setCardLoadingId(goalId);
-      window.setTimeout(() => {
-        action();
-        setCardLoadingId(null);
-        setGoalFeedback(goalId, { type: "success", message: successMessage });
-      }, 180);
-    },
-    [setGoalFeedback]
-  );
+  // runCardAction foi removida pois não possuía utilidade verdadeira (falsa promise de success)
 
   const runIntelAction = useCallback(
     (actionId: string, resultMessage: string, callback?: () => void) => {
@@ -419,67 +413,52 @@ export default function GoalsPage() {
         callback?.();
         setRunningIntelAction(null);
 
-        // Define content based on actionId
-        let title = "Conteúdo Gerado";
-        let content = resultMessage;
-
-        if (actionId === "weekly-plan") {
-          title = "Plano Semanal de Metas";
-          content = `### Plano Semanal Focado em Resultados
-1. **Segunda-feira**: Revisão de Pipeline - Identificar oportunidades estagnadas há +5 dias.
-2. **Terça-feira**: Prospecção Ativa - Focar em perfis semelhantes aos clientes fechados no último mês.
-3. **Quarta-feira**: Follow-up de Propostas - Contatar todos os leads em fase de negociação.
-4. **Quinta-feira**: Recuperação de Clientes - Reativar contatos frios da base.
-5. **Sexta-feira**: Fechamento e Relatório - Garantir assinaturas pendentes e preparar próxima semana.
-
-*Dica: Utilize o filtro de "Em Risco" para priorizar ações.*
-`;
-        } else if (actionId === "risk-plan") {
-          title = "Plano de Recuperação de Risco";
-          content = `### Estratégia de Recuperação Acelerada
-**Diagnóstico**: Metas marcadas como "Em Risco" indicam desvio significativo da projeção ideal.
-
-**Ações Imediatas:**
-1. **Auditoria de Oportunidades**: Verifique se os valores e datas de fechamento no CRM estão realistas.
-2. **Campanha Relâmpago**: Ofereça uma condição especial (ex: consultoria extra) para fechamentos até sexta-feira.
-3. **Aumento de Volume**: Dobre a meta de ligações/mensagens diárias pelos próximos 3 dias.
-
-**Mensagem Sugerida para Clientes:**
-"Olá [Nome], identifiquei uma oportunidade de acelerar seu projeto. Tenho uma condição exclusiva válida apenas esta semana..."
-`;
-        } else if (actionId === "daily-actions") {
-          title = "Sugestões de Atividades Diárias";
-          content = `### Foco do Dia: Alta Performance
-- [ ] Enviar 10 mensagens de introdução para novos leads.
-- [ ] Realizar 5 ligações de qualificação.
-- [ ] Fazer follow-up em 3 propostas enviadas na semana passada.
-- [ ] Postar conteúdo relevante no LinkedIn para atrair inbound.
-- [ ] Revisar tarefas atrasadas no CRM.
-`;
-        } else if (actionId === "speech") {
-          title = "Mensagem de Foco Pessoal";
-          content = `### Foco para os próximos dias
-"Estou em uma fase decisiva do meu ciclo comercial. Meu objetivo agora é manter disciplina diária, atacar metas em risco primeiro e proteger o que já foi conquistado.
-Hoje vou priorizar as ações com maior impacto de conversão e encerrar o dia com o funil limpo, sem pendências críticas."
-`;
-        } else if (actionId === "export-summary") {
-          title = "Resumo de Performance Exportado";
-          content = `### Resumo de Performance - ${new Date().toLocaleDateString()}
-**Status Geral:**
-- Metas Ativas: ${counts.active}
-- Metas Batidas: ${counts.achieved}
-- Metas em Risco: ${counts.risk}
-
-*Este resumo está pronto para ser copiado e enviado por e-mail ou Slack.*
-`;
+        if (actionId === "export-summary") {
+          const exportText = `Resumo de Performance - ${new Date().toLocaleDateString()}\nStatus Geral:\n- Metas Ativas: ${counts.active}\n- Metas Batidas: ${counts.achieved}\n- Metas em Risco: ${counts.risk}`;
+          navigator.clipboard.writeText(exportText).catch(() => {});
+          setIntelResult({
+            type: "success",
+            text: "Resumo copiado para sua área de transferência.",
+          });
+          return;
         }
 
-        setGeneratedContent({ title, content });
-        setGeneratedModalOpen(true);
-        // setIntelResult(resultMessage); // Optional: keep small feedback or remove
+        if (actionId === "speech") {
+          setIntelResult({
+            type: "info",
+            title: "Foco do dia",
+            text: '"Estou numa fase decisiva. Hoje vou priorizar as ações com maior impacto de conversão e encerrar o dia com o funil limpo, sem pendências críticas."',
+          });
+          return;
+        }
+
+        if (actionId === "weekly-plan" || actionId === "risk-plan" || actionId === "daily-actions") {
+          let preContext = "";
+          const labelText = "Ações criadas";
+          if (actionId === "weekly-plan") preContext = "Plano da Semana: focar oportunidades antigas e prospectos quentes.";
+          if (actionId === "risk-plan") preContext = "Plano de Risco: auditar pipeline e ativar campanha relâmpago urgente.";
+          if (actionId === "daily-actions") preContext = "Atividades Diárias: 10 calls, 5 cold emails, reativar conversões frias.";
+
+          setIntelResult({
+            type: "plan",
+            title: "Ações sugeridas",
+            text: preContext,
+            action: {
+              label: "Aplicar como tarefeas",
+              onClick: () => {
+                openDrawer("new-activity", { initialNote: preContext });
+                setIntelResult(null);
+                setGoalFeedback("intel", { type: "success", message: labelText });
+              },
+            },
+          });
+          return;
+        }
+
+        setIntelResult({ type: "info", text: resultMessage });
       }, 700);
     },
-    [counts]
+    [counts, openDrawer, setGoalFeedback]
   );
 
   if (isLoading) {
@@ -766,11 +745,9 @@ Hoje vou priorizar as ações com maior impacto de conversão e encerrar o dia c
                               return;
                             }
                             if (status === "pace") {
-                              runCardAction(
-                                goal.id,
-                                () => { },
-                                "Plano de ações criado"
-                              );
+                              openDrawer("new-activity", {
+                                initialNote: `Plano de ação para acelerar a meta: ${goal.title}`,
+                              });
                               return;
                             }
                             setGoalFeedback(goal.id, {
@@ -856,18 +833,10 @@ Hoje vou priorizar as ações com maior impacto de conversão e encerrar o dia c
                                 inlineFeedback={cardFeedback[goal.id]}
                                 onTogglePlan={() => togglePlan(goal.id)}
                                 onPrimaryAction={() => {
-                                  setGeneratedContent({
-                                    title: "Meta Batida! 🚀",
-                                    content: `### Parabéns pela Conquista!
-A meta **${goal.title}** foi superada com sucesso.
-
-**Destaques:**
-- Execução consistente durante todo o período.
-- Superação do alvo em **${Math.round(getProgress(goal) - 100)}%**.
-
-*Continue assim no próximo ciclo!*`,
+                                  setGoalFeedback(goal.id, {
+                                    type: "success",
+                                    message: "Relatório da meta batida pronto (feature em dev).",
                                   });
-                                  setGeneratedModalOpen(true);
                                 }}
                                 onCreateActivities={() =>
                                   openDrawer("new-activity", {
@@ -936,7 +905,7 @@ A meta **${goal.title}** foi superada com sucesso.
             />
             <aside
               className={cn(
-                "fixed right-0 top-0 z-50 h-full w-[min(92vw,360px)] p-2 transition-transform duration-[220ms] ease-out xl:hidden",
+                "fixed right-0 top-0 z-50 h-full w-[min(92vw,360px)] p-2 transition-transform duration-220 ease-out xl:hidden",
                 isIntelligenceOpen ? "translate-x-0" : "translate-x-full"
               )}
             >
@@ -981,13 +950,6 @@ A meta **${goal.title}** foi superada com sucesso.
           </>
         ) : null}
       </motion.div>
-
-      <GeneratedContentModal
-        open={generatedModalOpen}
-        onOpenChange={setGeneratedModalOpen}
-        title={generatedContent.title}
-        content={generatedContent.content}
-      />
     </TooltipProvider >
   );
 }
@@ -1248,7 +1210,12 @@ function GoalsIntelligenceRail({
   paceCount: number;
   achievedCount: number;
   runningAction: string | null;
-  result: string | null;
+  result: {
+    type: "info" | "success" | "plan";
+    title?: string;
+    text: string;
+    action?: { label: string; onClick: () => void };
+  } | null;
   onRunAction: (actionId: string, resultMessage: string, callback?: () => void) => void;
   onClose?: () => void;
   onFilterRisk: () => void;
@@ -1391,8 +1358,19 @@ function GoalsIntelligenceRail({
         </div>
 
         {result ? (
-          <div className="rounded-[12px] border border-cyan-300/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
-            {result}
+          <div className="rounded-[12px] border border-cyan-300/30 bg-cyan-500/10 p-3 text-xs text-cyan-100">
+            {result.title ? <p className="mb-1 font-semibold text-white">{result.title}</p> : null}
+            <p className="whitespace-pre-wrap leading-relaxed">{result.text}</p>
+            {result.action ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 h-8 w-full rounded-full border-cyan-500/30 bg-cyan-500/20 text-cyan-50 hover:bg-cyan-500/30 hover:text-white"
+                onClick={result.action.onClick}
+              >
+                {result.action.label}
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>

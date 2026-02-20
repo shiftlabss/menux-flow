@@ -1,6 +1,5 @@
 "use client";
 
-// React
 import {
   useState,
   useCallback,
@@ -9,7 +8,6 @@ import {
   useEffect,
   Suspense,
 } from "react";
-// External
 import {
   Search,
   Filter,
@@ -22,10 +20,15 @@ import {
   Columns3,
   ChevronDown,
   Settings2,
+  Plus,
+  Sparkles,
+  RotateCcw,
+  UserRound,
+  Flame,
+  TimerReset,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-// UI
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,87 +40,107 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-// Stores
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
-// Business logic
 import {
   calculateTemperature,
   formatCurrencyBRL,
 } from "@/lib/business-rules";
 import { generateDynamicMockData } from "@/lib/mock-data";
 import { screenContainer, sectionEnter, listItemReveal } from "@/lib/motion";
-// Local modules
-import { funnels, stageColorPalette, temperatureConfig } from "./lib/pipeline-config";
-import type { PipelineStage, Opportunity } from "@/types";
+import { cn } from "@/lib/cn";
+import {
+  funnels,
+  stageColorPalette,
+  temperatureConfig,
+} from "./lib/pipeline-config";
+import type { PipelineStage, Opportunity, Temperature } from "@/types";
+import { getSlaStatus, validateStageTransition } from "./lib/pipeline-validation";
 import { usePipelineBoard } from "./hooks/use-pipeline-board";
 import { useStageCustomization } from "./hooks/use-stage-customization";
 import { DealCardBento } from "./components/deal-card-bento";
 import { PipelineSkeleton } from "./components/pipeline-skeleton";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
-// ===================================================================
-// Main Page Component
-// ===================================================================
-
 const FILTERS_APPLIED_EVENT = "flow:filters-applied";
+const STALE_ACTIVITY_DAYS = 5;
+
+const WIP_LIMIT_BY_STAGE: Record<PipelineStage, number> = {
+  "lead-in": 9,
+  "contato-feito": 8,
+  "reuniao-agendada": 7,
+  "proposta-enviada": 7,
+  negociacao: 6,
+  fechamento: 5,
+};
+
+function isStaleOpportunity(opportunity: Opportunity): boolean {
+  const updatedAt = new Date(opportunity.updatedAt).getTime();
+  const staleThreshold = Date.now() - STALE_ACTIVITY_DAYS * 24 * 60 * 60 * 1000;
+  return updatedAt < staleThreshold;
+}
+
+function getStageParamLabel(stage: PipelineStage) {
+  return stage.replace(/-/g, " ");
+}
 
 function PipesPageContent() {
   const { openDrawer, openModal } = useUIStore();
-  const { user } = useAuthStore();
+  const { user, permissions } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const canCreateOpportunity = permissions?.canCreateOpportunity ?? true;
+  const canMoveCards = permissions?.canEditOpportunity ?? true;
+  const canConfigureStages = permissions?.canManageSettings ?? false;
+
   const currentUserId = user?.id ?? "demo-user";
-  const currentUserName = user?.name ?? "Usuário Demo";
+  const currentUserName = user?.name ?? "Usuario Demo";
+
   const [selectedFunnel, setSelectedFunnel] = useState("comercial");
   const [localOpportunities, setLocalOpportunities] = useState<Opportunity[]>(
     () => generateDynamicMockData(currentUserId, currentUserName)
   );
   const opportunities = localOpportunities;
 
-  // Deep linking for opportunityId
   useEffect(() => {
     const opportunityId = searchParams.get("opportunityId");
-    if (opportunityId) {
-      // Assuming "opportunity-card" or similar drawer exists. 
-      // Based on available drawers in other files, "update-opportunity" or similar might be used.
-      // Checking usage in other files, "new-opportunity" is used. 
-      // If "update-opportunity" isn't standard, we might need to check how edits are handled.
-      // Actually, looking at `DealCardBento` (not visible here but standard pattern), usually it opens a drawer.
-      // Let's assume there is a drawer for viewing/editing. 
-      // If not, we'll default to "new-opportunity" with data (standard edit pattern) or similar.
-      // However, usually "kanban-card-details" or similar is used. 
-      // Let's use "opportunity-details" or just check what DealCard uses.
-      // Retrospective: In `DealCardBento`, it likely calls `openDrawer`.
-      // Let's assume "update-opportunity" or similar for now, or just generic "drawer".
-      // SAFEST BET: The user audit didn't specify the drawer name, but `DealCardBento` usually opens `update-opportunity` or `deal-details`.
-      // Let's try `openDrawer("update-opportunity", { id: opportunityId })` based on common patterns or just `openDrawer("opportunity-card", ...)`
-      // NOTE: I'll use `update-opportunity` as a reasonable guess for editing/viewing.
+    if (!opportunityId) return;
 
-      openDrawer("new-opportunity", { id: opportunityId });
+    openModal("lead-card", { id: opportunityId });
 
-      const newParams = new URLSearchParams(searchParams.toString());
-      newParams.delete("opportunityId");
-      router.replace(`/pipes?${newParams.toString()}`, { scroll: false });
-    }
-  }, [searchParams, openDrawer, router]);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("opportunityId");
+    const serialized = nextParams.toString();
+    router.replace(serialized ? `/pipes?${serialized}` : "/pipes", {
+      scroll: false,
+    });
+  }, [openModal, router, searchParams]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInputValue, setSearchInputValue] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [appliedFiltersCount, setAppliedFiltersCount] = useState(0);
   const [recentFiltersCount, setRecentFiltersCount] = useState<number | null>(null);
+  const [temperatureFilter, setTemperatureFilter] = useState<Temperature | "all">("all");
+  const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [segmentFilter, setSegmentFilter] = useState<string>("all");
+  const [overdueOnly, setOverdueOnly] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const liveRegionRef = useRef<HTMLDivElement>(null);
 
-  const activeFunnel =
-    funnels.find((f) => f.id === selectedFunnel) ?? funnels[0];
+  const activeFunnel = funnels.find((funnel) => funnel.id === selectedFunnel) ?? funnels[0];
 
   const activeStageIds = useMemo(
-    () => activeFunnel.stages.map((s) => s.id),
+    () => activeFunnel.stages.map((stage) => stage.id),
     [activeFunnel]
   );
 
@@ -141,17 +164,24 @@ function PipesPageContent() {
     [stageFilter, activeStageIds]
   );
 
-  // Simulate loading
+  const announce = useCallback((message: string) => {
+    if (liveRegionRef.current) {
+      liveRegionRef.current.textContent = message;
+    }
+  }, []);
+
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(timer);
+    const timer = window.setTimeout(() => setIsLoading(false), 600);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const handleFiltersApplied = (event: Event) => {
       const customEvent = event as CustomEvent<{ context?: string; count?: number }>;
       if (customEvent.detail?.context !== "pipes") return;
+
       const count = Number(customEvent.detail?.count ?? 0);
       const safeCount = Number.isFinite(count) && count >= 0 ? count : 0;
       setAppliedFiltersCount(safeCount);
@@ -172,13 +202,6 @@ function PipesPageContent() {
     return () => window.clearTimeout(timer);
   }, [recentFiltersCount]);
 
-  // Announce to screen readers
-  const announce = useCallback((message: string) => {
-    if (liveRegionRef.current) {
-      liveRegionRef.current.textContent = message;
-    }
-  }, []);
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setSearchQuery(searchInputValue);
@@ -186,10 +209,45 @@ function PipesPageContent() {
     return () => window.clearTimeout(timer);
   }, [searchInputValue]);
 
-  // Normalize search query
   const normalizedSearch = useMemo(
     () => searchQuery.toLowerCase().trim(),
     [searchQuery]
+  );
+
+  const activeCards = useMemo(
+    () => opportunities.filter((opportunity) => effectiveStageIds.includes(opportunity.stage)),
+    [effectiveStageIds, opportunities]
+  );
+
+  const ownerOptions = useMemo(
+    () =>
+      Array.from(
+        new Map(activeCards.map((opportunity) => [opportunity.responsibleId, opportunity.responsibleName]))
+      ).map(([id, name]) => ({ id, name })),
+    [activeCards]
+  );
+
+  const segmentOptions = useMemo(() => {
+    const uniqueTags = new Set<string>();
+    activeCards.forEach((opportunity) => {
+      opportunity.tags.forEach((tag) => uniqueTags.add(tag));
+    });
+    return Array.from(uniqueTags).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [activeCards]);
+
+  const averageDealValue = useMemo(() => {
+    if (activeCards.length === 0) return 10000;
+    return activeCards.reduce((acc, opportunity) => acc + opportunity.value, 0) / activeCards.length;
+  }, [activeCards]);
+
+  const resolveTemperature = useCallback(
+    (opportunity: Opportunity) => calculateTemperature(opportunity, averageDealValue),
+    [averageDealValue]
+  );
+
+  const getTemp = useCallback(
+    (opportunity: Opportunity) => temperatureConfig[resolveTemperature(opportunity)],
+    [resolveTemperature]
   );
 
   const opportunitiesByStage = useMemo(() => {
@@ -201,49 +259,76 @@ function PipesPageContent() {
       negociacao: [],
       fechamento: [],
     };
-    for (const opp of opportunities) {
-      if (!effectiveStageIds.includes(opp.stage)) continue;
+
+    for (const opportunity of opportunities) {
+      if (!effectiveStageIds.includes(opportunity.stage)) continue;
+
       if (
         normalizedSearch &&
-        !opp.title.toLowerCase().includes(normalizedSearch) &&
-        !opp.clientName.toLowerCase().includes(normalizedSearch) &&
-        !opp.tags.some((t) => t.toLowerCase().includes(normalizedSearch))
+        !opportunity.title.toLowerCase().includes(normalizedSearch) &&
+        !opportunity.clientName.toLowerCase().includes(normalizedSearch) &&
+        !opportunity.tags.some((tag) => tag.toLowerCase().includes(normalizedSearch))
       ) {
         continue;
       }
-      grouped[opp.stage].push(opp);
+
+      const computedTemperature = resolveTemperature(opportunity);
+      if (temperatureFilter !== "all" && computedTemperature !== temperatureFilter) {
+        continue;
+      }
+
+      if (ownerFilter !== "all" && opportunity.responsibleId !== ownerFilter) {
+        continue;
+      }
+
+      if (segmentFilter !== "all" && !opportunity.tags.includes(segmentFilter)) {
+        continue;
+      }
+
+      if (overdueOnly && getSlaStatus(opportunity.slaDeadline).status !== "breached") {
+        continue;
+      }
+
+      grouped[opportunity.stage].push(opportunity);
     }
+
     return grouped;
-  }, [opportunities, effectiveStageIds, normalizedSearch]);
+  }, [
+    opportunities,
+    effectiveStageIds,
+    normalizedSearch,
+    resolveTemperature,
+    temperatureFilter,
+    ownerFilter,
+    segmentFilter,
+    overdueOnly,
+  ]);
 
-  const { boardTotal } = useMemo(() => {
-    const active = opportunities.filter((o) =>
-      effectiveStageIds.includes(o.stage)
-    );
+  const boardMetrics = useMemo(() => {
+    const allVisibleCards = Object.values(opportunitiesByStage).flat();
+
     return {
-      boardTotal: active.reduce((acc, o) => acc + o.value, 0),
+      totalCards: allVisibleCards.length,
+      boardTotal: allVisibleCards.reduce((acc, opportunity) => acc + opportunity.value, 0),
+      overdueCards: allVisibleCards.filter(
+        (opportunity) => getSlaStatus(opportunity.slaDeadline).status === "breached"
+      ).length,
+      staleCards: allVisibleCards.filter((opportunity) => isStaleOpportunity(opportunity)).length,
     };
-  }, [opportunities, effectiveStageIds]);
+  }, [opportunitiesByStage]);
 
-  const averageDealValue = useMemo(() => {
-    const active = opportunities.filter((o) =>
-      effectiveStageIds.includes(o.stage)
-    );
-    if (active.length === 0) return 10000;
-    return active.reduce((acc, o) => acc + o.value, 0) / active.length;
-  }, [opportunities, effectiveStageIds]);
-
-  const getTemp = useCallback(
-    (opp: Opportunity) => {
-      const computed = calculateTemperature(opp, averageDealValue);
-      return temperatureConfig[computed];
-    },
-    [averageDealValue]
-  );
+  const localFilterCount = useMemo(() => {
+    let count = 0;
+    if (temperatureFilter !== "all") count += 1;
+    if (ownerFilter !== "all") count += 1;
+    if (segmentFilter !== "all") count += 1;
+    if (overdueOnly) count += 1;
+    return count;
+  }, [ownerFilter, overdueOnly, segmentFilter, temperatureFilter]);
 
   const activeFilterCount = useMemo(
-    () => appliedFiltersCount + (stageFilter ? 1 : 0),
-    [appliedFiltersCount, stageFilter]
+    () => appliedFiltersCount + localFilterCount + (stageFilter ? 1 : 0),
+    [appliedFiltersCount, localFilterCount, stageFilter]
   );
 
   const clearSearch = useCallback(() => {
@@ -252,14 +337,41 @@ function PipesPageContent() {
     setIsMobileSearchOpen(false);
   }, []);
 
+  const updateStageFilter = useCallback(
+    (next: PipelineStage | "all") => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "all") {
+        params.delete("stage");
+      } else {
+        params.set("stage", next);
+      }
+      const serialized = params.toString();
+      router.replace(serialized ? `/pipes?${serialized}` : "/pipes", {
+        scroll: false,
+      });
+    },
+    [router, searchParams]
+  );
+
+  const clearLocalFilters = useCallback(() => {
+    setTemperatureFilter("all");
+    setOwnerFilter("all");
+    setSegmentFilter("all");
+    setOverdueOnly(false);
+    if (stageFilter) {
+      updateStageFilter("all");
+    }
+  }, [stageFilter, updateStageFilter]);
+
   const handleFunnelChange = useCallback(
     (pipelineId: string) => {
       setSelectedFunnel(pipelineId);
       if (searchInputValue) {
         clearSearch();
       }
+      updateStageFilter("all");
     },
-    [clearSearch, searchInputValue]
+    [clearSearch, searchInputValue, updateStageFilter]
   );
 
   const metricChips = useMemo(() => {
@@ -270,24 +382,43 @@ function PipesPageContent() {
       tone: "neutral" | "info" | "warning" | "danger" | "success";
       onClick?: () => void;
     }> = [
-        {
-          id: "pipeline-total",
-          label: `Pipeline: ${formatCurrencyBRL(boardTotal)}`,
-          icon: <CircleDollarSign className="h-3.5 w-3.5" />,
-          tone: "info",
-        },
-        {
-          id: "stages-visible",
-          label: `Etapas: ${visibleStages.length}`,
-          icon: <Columns3 className="h-3.5 w-3.5" />,
-          tone: "neutral",
-        },
-      ];
+      {
+        id: "pipeline-total",
+        label: `Pipeline: ${formatCurrencyBRL(boardMetrics.boardTotal)}`,
+        icon: <CircleDollarSign className="h-3.5 w-3.5" />,
+        tone: "info",
+      },
+      {
+        id: "stages-visible",
+        label: `Etapas: ${visibleStages.length}`,
+        icon: <Columns3 className="h-3.5 w-3.5" />,
+        tone: "neutral",
+      },
+      {
+        id: "cards-total",
+        label: `Cards: ${boardMetrics.totalCards}`,
+        icon: <Filter className="h-3.5 w-3.5" />,
+        tone: "neutral",
+      },
+      {
+        id: "cards-overdue",
+        label: `Estourados: ${boardMetrics.overdueCards}`,
+        icon: <Flame className="h-3.5 w-3.5" />,
+        tone: boardMetrics.overdueCards > 0 ? "danger" : "neutral",
+        onClick: () => setOverdueOnly((prev) => !prev),
+      },
+      {
+        id: "cards-stale",
+        label: `Sem atividade: ${boardMetrics.staleCards}`,
+        icon: <TimerReset className="h-3.5 w-3.5" />,
+        tone: boardMetrics.staleCards > 0 ? "warning" : "neutral",
+      },
+    ];
 
     if (recentFiltersCount !== null) {
       chips.push({
         id: "filters-feedback",
-        label: `Filtros: ${activeFilterCount}`,
+        label: `Filtros ativos: ${activeFilterCount}`,
         icon: <Filter className="h-3.5 w-3.5" />,
         tone: activeFilterCount > 0 ? "warning" : "neutral",
         onClick: () => openDrawer("filters"),
@@ -296,32 +427,35 @@ function PipesPageContent() {
 
     return chips;
   }, [
-    boardTotal,
-    visibleStages.length,
-    recentFiltersCount,
     activeFilterCount,
+    boardMetrics.boardTotal,
+    boardMetrics.overdueCards,
+    boardMetrics.staleCards,
+    boardMetrics.totalCards,
     openDrawer,
+    recentFiltersCount,
+    visibleStages.length,
   ]);
 
-  // Announce search results to screen readers
   useEffect(() => {
-    if (normalizedSearch) {
-      const total = Object.values(opportunitiesByStage).reduce(
-        (acc, cards) => acc + cards.length,
-        0
-      );
-      announce(`${total} cards encontrados para "${searchQuery}"`);
-    }
-  }, [normalizedSearch, opportunitiesByStage, announce, searchQuery]);
+    if (!normalizedSearch) return;
+    const total = Object.values(opportunitiesByStage).reduce(
+      (acc, cards) => acc + cards.length,
+      0
+    );
+    announce(`${total} cards encontrados para "${searchQuery}"`);
+  }, [announce, normalizedSearch, opportunitiesByStage, searchQuery]);
 
-  // Custom hooks
   const {
     draggingCardId,
+    draggingOpportunity,
     dragOverStage,
     dropIndicator,
     columnError,
     setColumnError,
     successFeedback,
+    updatingCardId,
+    recentlyMovedCardId,
     handleDragStart,
     handleDragOver,
     handleDragLeave,
@@ -332,6 +466,7 @@ function PipesPageContent() {
     setLocalOpportunities,
     activeFunnel,
     announce,
+    canMoveCards,
   });
 
   const {
@@ -344,22 +479,64 @@ function PipesPageContent() {
     confirmRename,
     cancelRename,
     setStageColor,
+    getStageColor,
   } = useStageCustomization();
 
-  // Toggle search with Ctrl+K / Cmd+K
+  const getDropPreview = useCallback(
+    (targetStage: PipelineStage) => {
+      if (!draggingOpportunity || dragOverStage !== targetStage) return null;
+
+      const targetLabel =
+        activeFunnel.stages.find((stage) => stage.id === targetStage)?.label ??
+        getStageParamLabel(targetStage);
+      const validation = validateStageTransition(draggingOpportunity, targetStage);
+
+      if (validation.missing.length > 0) {
+        return {
+          tone: "error" as const,
+          message: `Bloqueado: faltam ${validation.missing.join(", ")} para mover para ${targetLabel}.`,
+        };
+      }
+
+      if (validation.isRegression) {
+        return {
+          tone: "warning" as const,
+          message: `Retrocesso detectado. Solte para mover para ${targetLabel}.`,
+        };
+      }
+
+      return {
+        tone: "success" as const,
+        message: `Solte para mover para ${targetLabel}.`,
+      };
+    },
+    [activeFunnel.stages, dragOverStage, draggingOpportunity]
+  );
+
+  const handleOpenBlockedMove = useCallback(() => {
+    if (!columnError?.cardId) return;
+    openModal("lead-card", {
+      id: columnError.cardId,
+      focusFields: columnError.missingFields,
+      pendingStage: columnError.targetStage,
+    });
+  }, [columnError, openModal]);
+
   useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setTimeout(() => searchInputRef.current?.focus(), 50);
-      } else if (e.key === "Escape") {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        window.setTimeout(() => searchInputRef.current?.focus(), 50);
+        return;
+      }
+
+      if (event.key === "Escape") {
         setIsMobileSearchOpen(false);
-        setSearchInputValue("");
-        setSearchQuery("");
         searchInputRef.current?.blur();
         mobileSearchInputRef.current?.blur();
       }
     }
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
@@ -372,13 +549,11 @@ function PipesPageContent() {
     return () => window.clearTimeout(timer);
   }, [isMobileSearchOpen]);
 
-  // ===================================================================
-  // Render
-  // ===================================================================
-
   if (isLoading) {
     return <PipelineSkeleton stageCount={visibleStages.length} />;
   }
+
+  const hasQuickFiltersApplied = localFilterCount > 0 || stageFilter !== null;
 
   return (
     <>
@@ -396,7 +571,6 @@ function PipesPageContent() {
         variants={screenContainer}
         className="flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-full flex-col gap-4"
       >
-        {/* Header & Toolbar */}
         <motion.div variants={sectionEnter} className="shrink-0">
           <ModuleCommandHeader
             title={activeFunnel.label}
@@ -413,14 +587,14 @@ function PipesPageContent() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="w-[260px] rounded-[16px] border-zinc-200 bg-white/95 p-1.5 shadow-[0_18px_30px_-24px_rgba(15,23,42,0.45)]"
+                  className="w-[270px] rounded-[16px] border-zinc-200 bg-white/95 p-1.5 shadow-[0_18px_30px_-24px_rgba(15,23,42,0.45)]"
                 >
                   <div className="px-2.5 pb-2 pt-1.5">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
                       Selecionar funil
                     </p>
                     <p className="mt-0.5 text-xs text-zinc-500">
-                      Troque o contexto do board rapidamente.
+                      Troque o contexto do board e mantenha o foco operacional.
                     </p>
                   </div>
 
@@ -439,34 +613,43 @@ function PipesPageContent() {
                 </DropdownMenuContent>
               </DropdownMenu>
             }
-            description="Execução visual do pipeline comercial."
+            description="Mesa de controle do pipeline comercial com prioridade operacional clara."
             chips={metricChips}
+            actionsClassName="gap-2.5 p-2"
             actions={[
-              <div key="search" className="relative hidden w-[220px] md:block">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <div key="search" className="relative hidden w-[min(38vw,360px)] md:block">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 <Input
                   ref={searchInputRef}
                   value={searchInputValue}
-                  onChange={(e) => setSearchInputValue(e.target.value)}
-                  placeholder="Buscar cards..."
-                  className="h-9 w-full rounded-full pl-8 pr-8 font-body text-sm"
+                  onChange={(event) => setSearchInputValue(event.target.value)}
+                  placeholder="Buscar atividade, cliente, valor ou segmento"
+                  className="h-10 rounded-full border-zinc-200 pl-9 pr-16 font-body text-sm"
                 />
-                {searchInputValue && (
+                <span className="pointer-events-none absolute right-8 top-1/2 hidden -translate-y-1/2 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 lg:inline-flex">
+                  Ctrl K
+                </span>
+                {searchInputValue ? (
                   <button
                     type="button"
                     onClick={clearSearch}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+                    aria-label="Limpar busca"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
-                )}
+                ) : null}
               </div>,
-              <Popover key="mobile-search" open={isMobileSearchOpen} onOpenChange={setIsMobileSearchOpen}>
+              <Popover
+                key="mobile-search"
+                open={isMobileSearchOpen}
+                onOpenChange={setIsMobileSearchOpen}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 rounded-full md:hidden"
+                    className="h-10 rounded-full px-3 md:hidden"
                   >
                     <Search className="h-3.5 w-3.5" />
                   </Button>
@@ -475,206 +658,470 @@ function PipesPageContent() {
                   align="end"
                   side="bottom"
                   sideOffset={8}
-                  className="w-[min(92vw,320px)] rounded-[16px] border-zinc-200 bg-white p-2"
+                  className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-2"
                 >
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                     <Input
                       ref={mobileSearchInputRef}
                       value={searchInputValue}
-                      onChange={(e) => setSearchInputValue(e.target.value)}
+                      onChange={(event) => setSearchInputValue(event.target.value)}
                       placeholder="Buscar cards..."
-                      className="h-9 w-full rounded-full pl-8 pr-8 font-body text-sm"
+                      className="h-10 w-full rounded-full pl-8 pr-8 font-body text-sm"
                     />
-                    {searchInputValue && (
+                    {searchInputValue ? (
                       <button
                         type="button"
                         onClick={clearSearch}
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                        aria-label="Limpar busca"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 </PopoverContent>
-              </Popover>
+              </Popover>,
+              <Button
+                key="filters"
+                variant="outline"
+                size="sm"
+                className="h-10 rounded-full px-4"
+                onClick={() => openDrawer("filters")}
+              >
+                <Filter className="h-4 w-4" />
+                Filtros
+              </Button>,
+              <DropdownMenu key="new-card">
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="sm"
+                    className="h-10 rounded-full px-5"
+                    disabled={!canCreateOpportunity}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Novo
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[220px] rounded-[16px]">
+                  <DropdownMenuItem
+                    onClick={() => openDrawer("new-opportunity")}
+                    disabled={!canCreateOpportunity}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Novo card
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      openDrawer("new-opportunity", {
+                        source: "captura-rapida",
+                      })
+                    }
+                    disabled={!canCreateOpportunity}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Capturar lead
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>,
             ]}
-          />
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
+                      temperatureFilter === "all"
+                        ? "border-zinc-200 bg-white text-zinc-600"
+                        : "border-sky-200 bg-sky-50 text-sky-700"
+                    )}
+                  >
+                    <Flame className="h-3.5 w-3.5" />
+                    {temperatureFilter === "all"
+                      ? "Temperatura"
+                      : `Temperatura: ${temperatureFilter === "hot" ? "Quente" : temperatureFilter === "warm" ? "Morna" : "Fria"}`}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[220px] rounded-[14px]">
+                  <DropdownMenuLabel>Temperatura</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={temperatureFilter}
+                    onValueChange={(value) =>
+                      setTemperatureFilter(value as Temperature | "all")
+                    }
+                  >
+                    <DropdownMenuRadioItem value="all">Todas</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="hot">Quente</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="warm">Morna</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="cold">Fria</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
+                      ownerFilter === "all"
+                        ? "border-zinc-200 bg-white text-zinc-600"
+                        : "border-indigo-200 bg-indigo-50 text-indigo-700"
+                    )}
+                  >
+                    <UserRound className="h-3.5 w-3.5" />
+                    {ownerFilter === "all"
+                      ? "Dono"
+                      : `Dono: ${ownerOptions.find((owner) => owner.id === ownerFilter)?.name ?? "Selecionado"}`}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[250px] rounded-[14px]">
+                  <DropdownMenuLabel>Dono</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={ownerFilter}
+                    onValueChange={(value) => setOwnerFilter(value)}
+                  >
+                    <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+                    {ownerOptions.map((owner) => (
+                      <DropdownMenuRadioItem key={owner.id} value={owner.id}>
+                        {owner.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
+                      segmentFilter === "all"
+                        ? "border-zinc-200 bg-white text-zinc-600"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    )}
+                  >
+                    <Filter className="h-3.5 w-3.5" />
+                    {segmentFilter === "all" ? "Segmento" : `Segmento: ${segmentFilter}`}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[240px] rounded-[14px]">
+                  <DropdownMenuLabel>Segmento</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={segmentFilter}
+                    onValueChange={(value) => setSegmentFilter(value)}
+                  >
+                    <DropdownMenuRadioItem value="all">Todos</DropdownMenuRadioItem>
+                    {segmentOptions.map((segment) => (
+                      <DropdownMenuRadioItem key={segment} value={segment}>
+                        {segment}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
+                      stageFilter === null
+                        ? "border-zinc-200 bg-white text-zinc-600"
+                        : "border-violet-200 bg-violet-50 text-violet-700"
+                    )}
+                  >
+                    <Columns3 className="h-3.5 w-3.5" />
+                    {stageFilter === null
+                      ? "Status"
+                      : `Status: ${activeFunnel.stages.find((stage) => stage.id === stageFilter)?.label ?? getStageParamLabel(stageFilter)}`}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[230px] rounded-[14px]">
+                  <DropdownMenuLabel>Status da etapa</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={stageFilter ?? "all"}
+                    onValueChange={(value) =>
+                      updateStageFilter(value === "all" ? "all" : (value as PipelineStage))
+                    }
+                  >
+                    <DropdownMenuRadioItem value="all">Todas as etapas</DropdownMenuRadioItem>
+                    {activeFunnel.stages.map((stage) => (
+                      <DropdownMenuRadioItem key={stage.id} value={stage.id}>
+                        {stage.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <button
+                type="button"
+                onClick={() => setOverdueOnly((prev) => !prev)}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all",
+                  overdueOnly
+                    ? "border-red-200 bg-red-50 text-red-700"
+                    : "border-zinc-200 bg-white text-zinc-600"
+                )}
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Estourado
+              </button>
+
+              {hasQuickFiltersApplied ? (
+                <button
+                  type="button"
+                  onClick={clearLocalFilters}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:border-zinc-300 hover:bg-zinc-50"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Limpar filtros
+                </button>
+              ) : null}
+            </div>
+          </ModuleCommandHeader>
         </motion.div>
 
-        {/* Board */}
         <div
-          className="premium-ambient premium-grain relative flex min-h-0 min-w-0 flex-1 items-stretch overflow-hidden rounded-[20px] border border-zinc-200/75 bg-white/68 p-3 shadow-[--shadow-premium-soft)] backdrop-blur-sm md:p-4"
+          className="premium-ambient premium-grain relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-zinc-200/70 bg-white/72 p-3 shadow-[var(--shadow-premium-soft)] backdrop-blur-sm md:p-4"
           role="region"
-          aria-label="Pipeline de vendas — arraste os cards entre as etapas"
+          aria-label="Pipeline de vendas arrastavel"
         >
+          <div className="mb-2 flex items-center justify-between px-1 text-[11px] text-zinc-500 md:hidden">
+            <span>Deslize para ver as etapas</span>
+            <span>{visibleStages.length} colunas</span>
+          </div>
+
           <div
             data-pipe-board-scroll
-            className="flex min-w-0 flex-1 gap-4 overflow-x-auto scroll-smooth px-1 pb-1 md:px-2"
+            className="flex min-w-0 flex-1 gap-4 overflow-x-auto scroll-smooth px-1 pb-1 md:gap-5 md:px-2"
             style={{ scrollSnapType: "x proximity" }}
           >
             {visibleStages.map((stageDef, index) => {
               const cards = opportunitiesByStage[stageDef.id] || [];
-              const totalValue = cards.reduce((acc, o) => acc + o.value, 0);
+              const stageLabel = stageCustomizations[stageDef.id]?.label || stageDef.label;
+              const stageColor = getStageColor(stageDef.id);
+              const totalValue = cards.reduce((acc, opportunity) => acc + opportunity.value, 0);
               const isDropTarget = dragOverStage === stageDef.id;
-              const error =
-                columnError?.stage === stageDef.id
-                  ? columnError.message
-                  : null;
-              const isWarningMessage =
-                error?.startsWith("Card retrocedido") ||
-                error?.startsWith("Atenção:");
-              const hasSuccess = successFeedback?.stage === stageDef.id;
+              const stageError = columnError?.stage === stageDef.id ? columnError : null;
+              const stageSuccess = successFeedback?.stage === stageDef.id ? successFeedback : null;
+              const dropPreview = getDropPreview(stageDef.id);
+              const stageBreachedCount = cards.filter(
+                (opportunity) => getSlaStatus(opportunity.slaDeadline).status === "breached"
+              ).length;
+              const wipLimit = WIP_LIMIT_BY_STAGE[stageDef.id] ?? 7;
+              const isWipExceeded = cards.length > wipLimit;
 
               return (
                 <motion.div
                   key={stageDef.id}
                   custom={index}
                   variants={listItemReveal}
-                  className={`group/col flex w-[85vw] shrink-0 flex-col rounded-[--radius-bento-card] border transition-all duration-200 sm:w-[320px] xl:w-[340px] ${isDropTarget
-                    ? "border-brand/70 bg-brand/5 ring-2 ring-brand/28 shadow-[0_18px_30px_-22px_rgba(37,99,235,0.52)]"
-                    : "border-zinc-200/70 bg-white/80"
-                    }`}
+                  className={cn(
+                    "group/col flex w-[min(88vw,372px)] shrink-0 flex-col rounded-[22px] border transition-all duration-200 sm:w-[352px]",
+                    isDropTarget
+                      ? "border-brand/70 bg-brand/5 ring-2 ring-brand/26 shadow-[0_18px_30px_-22px_rgba(37,99,235,0.52)]"
+                      : "border-zinc-200/80 bg-white/88"
+                  )}
                   style={{ scrollSnapAlign: "start" }}
-                  onDragOver={(e) => handleDragOver(e, stageDef.id)}
+                  onDragOver={(event) => handleDragOver(event, stageDef.id)}
                   onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, stageDef.id)}
+                  onDrop={(event) => handleDrop(event, stageDef.id)}
                   role="list"
-                  aria-label={`Etapa: ${stageCustomizations[stageDef.id]?.label || stageDef.label}, ${cards.length} cards, ${formatCurrencyBRL(totalValue)}`}
+                  aria-label={`Etapa ${stageLabel}, ${cards.length} cards, total ${formatCurrencyBRL(totalValue)}`}
                 >
-                  {/* Column Header (sticky) */}
-                  <div className="sticky top-0 z-10 rounded-t-[--radius-bento-card] bg-inherit px-3 py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button
-                              className="focus-visible:ring-brand flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-zinc-200/50 bg-white/50 text-zinc-400 shadow-sm transition-all hover:bg-white hover:text-zinc-600 focus:outline-none focus-visible:ring-2"
-                              aria-label={`Personalizar etapa ${stageDef.label}`}
-                            >
-                              <Settings2 className="h-3.5 w-3.5" />
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent
-                            align="start"
-                            className="w-auto rounded-[--radius-bento-card] p-3"
-                          >
-                            <span className="mb-2 flex items-center gap-1.5 font-body text-[11px] font-medium text-zinc-500">
-                              <Palette className="h-3 w-3" />
-                              Cor da etapa
-                            </span>
-                            <div className="grid grid-cols-5 gap-1.5">
-                              {stageColorPalette.map((color) => {
-                                const isActive =
-                                  (stageCustomizations[stageDef.id]
-                                    ?.colorId || "default") === color.id;
-                                return (
-                                  <button
-                                    key={color.id}
-                                    onClick={() =>
-                                      setStageColor(stageDef.id, color.id)
-                                    }
-                                    className={`flex h-6 w-6 items-center justify-center rounded-full transition-all ${color.bg} ${isActive
-                                      ? "ring-2 ring-zinc-900 ring-offset-2"
-                                      : "hover:ring-2 hover:ring-zinc-300 hover:ring-offset-1"
-                                      }`}
-                                    title={color.label}
-                                    aria-label={color.label}
-                                  >
-                                    {isActive && (
-                                      <Check className="h-3 w-3 text-white" />
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </PopoverContent>
-                        </Popover>
+                  <div className="sticky top-0 z-10 rounded-t-[22px] bg-inherit px-3.5 pb-3 pt-3 backdrop-blur-sm">
+                    <div className="mb-2 h-1 w-full rounded-full bg-zinc-200/70">
+                      <div className={cn("h-1 rounded-full", stageColor.bg)} />
+                    </div>
 
-                        {renamingStage === stageDef.id ? (
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        {canConfigureStages ? (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-400 shadow-sm transition-all hover:bg-zinc-50 hover:text-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                aria-label={`Personalizar etapa ${stageLabel}`}
+                              >
+                                <Settings2 className="h-3.5 w-3.5" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="w-auto rounded-[16px] p-3">
+                              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-zinc-600">
+                                <Palette className="h-3 w-3" />
+                                Cor da etapa
+                              </div>
+                              <div className="grid grid-cols-5 gap-1.5">
+                                {stageColorPalette.map((color) => {
+                                  const isActive =
+                                    (stageCustomizations[stageDef.id]?.colorId || "default") ===
+                                    color.id;
+                                  return (
+                                    <button
+                                      key={color.id}
+                                      onClick={() => setStageColor(stageDef.id, color.id)}
+                                      className={cn(
+                                        "flex h-6 w-6 items-center justify-center rounded-full transition-all",
+                                        color.bg,
+                                        isActive
+                                          ? "ring-2 ring-zinc-900 ring-offset-2"
+                                          : "hover:ring-2 hover:ring-zinc-300 hover:ring-offset-1"
+                                      )}
+                                      title={color.label}
+                                      aria-label={color.label}
+                                    >
+                                      {isActive ? <Check className="h-3 w-3 text-white" /> : null}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        ) : null}
+
+                        {renamingStage === stageDef.id && canConfigureStages ? (
                           <input
                             ref={renameInputRef}
                             value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
+                            onChange={(event) => setRenameValue(event.target.value)}
                             onBlur={confirmRename}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") confirmRename();
-                              if (e.key === "Escape") cancelRename();
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") confirmRename();
+                              if (event.key === "Escape") cancelRename();
                             }}
-                            className="min-w-0 flex-1 truncate rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 font-heading text-[13px] font-semibold text-black outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+                            className="min-w-0 flex-1 truncate rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 font-heading text-[14px] font-semibold text-zinc-900 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
                             aria-label="Renomear etapa"
                           />
-                        ) : (
+                        ) : canConfigureStages ? (
                           <button
-                            onClick={() =>
-                              startRename(
-                                stageDef.id,
-                                stageCustomizations[stageDef.id]?.label ||
-                                stageDef.label
-                              )
-                            }
-                            className="truncate font-heading text-[13px] font-semibold text-black hover:text-brand transition-colors"
+                            onClick={() => startRename(stageDef.id, stageLabel)}
+                            className="truncate font-heading text-[15px] font-semibold text-zinc-900 transition-colors hover:text-brand"
                             title="Clique para renomear"
                           >
-                            {stageCustomizations[stageDef.id]?.label ||
-                              stageDef.label}
+                            {stageLabel}
                           </button>
+                        ) : (
+                          <span className="truncate font-heading text-[15px] font-semibold text-zinc-900">
+                            {stageLabel}
+                          </span>
                         )}
 
-                        <span className="shrink-0 rounded-md bg-zinc-200/70 px-1.5 py-0.5 font-body text-[11px] font-medium text-zinc-600">
+                        <span className="shrink-0 rounded-md bg-zinc-200/80 px-1.5 py-0.5 font-body text-[11px] font-semibold text-zinc-700">
                           {cards.length}
                         </span>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        <span className="font-body text-[11px] font-medium text-zinc-400">
-                          {formatCurrencyBRL(totalValue)}
-                        </span>
-                      </div>
+
+                      <span className="shrink-0 text-[11px] font-semibold text-zinc-500">
+                        {formatCurrencyBRL(totalValue)}
+                      </span>
                     </div>
 
-                    {error && (
-                      <div
-                        className={`mt-2 flex items-start gap-1.5 rounded-[--radius-bento-inner] px-2.5 py-2 ${isWarningMessage
-                          ? "bg-[--feedback-warning-bg] text-[--feedback-warning-text]"
-                          : "bg-[--feedback-error-bg] text-[--feedback-error-text]"
-                          }`}
-                        role="alert"
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[10px] font-semibold text-zinc-600">
+                        SLA {stageDef.slaHours}h
+                      </span>
+                      <span
+                        className={cn(
+                          "rounded-full border px-2 py-1 text-[10px] font-semibold",
+                          isWipExceeded
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        )}
                       >
-                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                        <p className="flex-1 font-body text-xs font-medium">
-                          {error}
-                        </p>
-                        <button
-                          onClick={() => setColumnError(null)}
-                          className="ml-auto rounded-md p-1 hover:bg-black/5 focus:outline-none focus-visible:ring-2 disabled:opacity-50"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    )}
+                        WIP {cards.length}/{wipLimit}
+                      </span>
+                      <span
+                        className={cn(
+                          "rounded-full border px-2 py-1 text-[10px] font-semibold",
+                          stageBreachedCount > 0
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-zinc-200 bg-zinc-50 text-zinc-600"
+                        )}
+                      >
+                        Estourados {stageBreachedCount}
+                      </span>
+                    </div>
 
-                    {hasSuccess && (
+                    {dropPreview ? (
                       <div
-                        className="mt-2 flex items-start gap-1.5 rounded-[--radius-bento-inner] bg-[--feedback-success-bg] px-2.5 py-2 text-[--feedback-success-text]"
+                        className={cn(
+                          "mt-2 rounded-[14px] border px-2.5 py-2 text-[11px] font-medium",
+                          dropPreview.tone === "error"
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : dropPreview.tone === "warning"
+                              ? "border-amber-200 bg-amber-50 text-amber-700"
+                              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        )}
                         role="status"
                       >
-                        <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0" />
-                        <span className="font-body text-[11px] leading-tight">
-                          {successFeedback!.message}
-                        </span>
+                        {dropPreview.message}
                       </div>
-                    )}
+                    ) : null}
+
+                    {stageError ? (
+                      <div
+                        className={cn(
+                          "mt-2 rounded-[14px] border px-2.5 py-2",
+                          stageError.tone === "warning"
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-red-200 bg-red-50 text-red-700"
+                        )}
+                        role="alert"
+                      >
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-medium leading-relaxed">{stageError.message}</p>
+                            {stageError.missingFields?.length ? (
+                              <button
+                                type="button"
+                                onClick={handleOpenBlockedMove}
+                                className="mt-1 text-[11px] font-semibold underline underline-offset-2"
+                              >
+                                Preencher agora
+                              </button>
+                            ) : null}
+                          </div>
+                          <button
+                            onClick={() => setColumnError(null)}
+                            className="rounded-md p-1 transition hover:bg-black/5 focus:outline-none focus-visible:ring-2"
+                            aria-label="Fechar aviso"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {stageSuccess ? (
+                      <div
+                        className="mt-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-emerald-700"
+                        role="status"
+                      >
+                        <div className="flex items-start gap-1.5">
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          <span className="text-[11px] font-medium leading-relaxed">
+                            {stageSuccess.message}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
-                  {/* Column Cards */}
                   <div
                     data-pipe-column-scroll
-                    className="flex-1 overflow-y-auto px-3 pb-3"
-                    onDragOver={(e) => handleDragOver(e, stageDef.id)}
-                    onDrop={(e) => handleDrop(e, stageDef.id)}
+                    className="flex-1 overflow-y-auto px-3.5 pb-3.5"
+                    onDragOver={(event) => handleDragOver(event, stageDef.id)}
+                    onDrop={(event) => handleDrop(event, stageDef.id)}
                   >
                     {cards.length > 0 || isDropTarget ? (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {(() => {
                           const showPlaceholder = Boolean(
                             draggingCardId && dropIndicator?.stage === stageDef.id
@@ -688,6 +1135,24 @@ function PipesPageContent() {
                               {cards.flatMap((opportunity, idx) => {
                                 const nodes: React.ReactNode[] = [];
                                 const isDraggingCurrentCard = draggingCardId === opportunity.id;
+                                const cardInlineFeedback =
+                                  stageError?.cardId === opportunity.id
+                                    ? ({
+                                        tone: stageError.tone === "error" ? "error" : "warning",
+                                        message: stageError.message,
+                                        actionLabel: stageError.missingFields?.length
+                                          ? "Preencher agora"
+                                          : undefined,
+                                        onAction: stageError.missingFields?.length
+                                          ? handleOpenBlockedMove
+                                          : undefined,
+                                      } as const)
+                                    : stageSuccess?.cardId === opportunity.id
+                                      ? ({
+                                          tone: "success",
+                                          message: stageSuccess.message,
+                                        } as const)
+                                      : null;
 
                                 if (showPlaceholder && placeholderIndex === idx) {
                                   nodes.push(
@@ -695,10 +1160,10 @@ function PipesPageContent() {
                                       key={`drop-placeholder-${stageDef.id}-${idx}`}
                                       layout
                                       initial={{ opacity: 0, scaleY: 0.82, height: 0 }}
-                                      animate={{ opacity: 1, scaleY: 1, height: 102 }}
+                                      animate={{ opacity: 1, scaleY: 1, height: 190 }}
                                       exit={{ opacity: 0, scaleY: 0.82, height: 0 }}
                                       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                                      className="rounded-[var(--radius-bento-card)] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
+                                      className="rounded-[22px] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
                                     />
                                   );
                                 }
@@ -711,22 +1176,27 @@ function PipesPageContent() {
                                     transition={{
                                       layout: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
                                     }}
-                                    className={`transition-[transform,opacity,filter] duration-180 ease-out ${isDraggingCurrentCard
-                                      ? "scale-[0.985] opacity-30 saturate-50"
-                                      : ""
-                                      }`}
+                                    className={cn(
+                                      "transition-[transform,opacity,filter] duration-180 ease-out",
+                                      isDraggingCurrentCard ? "scale-[0.985] opacity-30 saturate-50" : ""
+                                    )}
                                   >
                                     <DealCardBento
                                       opportunity={opportunity}
                                       temp={getTemp(opportunity)}
                                       isDragging={isDraggingCurrentCard}
+                                      isUpdating={updatingCardId === opportunity.id}
+                                      isHighlighted={recentlyMovedCardId === opportunity.id}
+                                      canMove={canMoveCards}
+                                      canEdit={canMoveCards}
+                                      inlineFeedback={cardInlineFeedback}
                                       onOpen={() =>
                                         openModal("lead-card", {
                                           id: opportunity.id,
                                         })
                                       }
-                                      onDragStart={(e) =>
-                                        handleDragStart(e, opportunity)
+                                      onDragStart={(event) =>
+                                        handleDragStart(event, opportunity)
                                       }
                                       onDragEnd={handleDragEnd}
                                     />
@@ -743,10 +1213,10 @@ function PipesPageContent() {
                                       key={`drop-placeholder-${stageDef.id}-end`}
                                       layout
                                       initial={{ opacity: 0, scaleY: 0.82, height: 0 }}
-                                      animate={{ opacity: 1, scaleY: 1, height: 102 }}
+                                      animate={{ opacity: 1, scaleY: 1, height: 190 }}
                                       exit={{ opacity: 0, scaleY: 0.82, height: 0 }}
                                       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                                      className="rounded-[var(--radius-bento-card)] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
+                                      className="rounded-[22px] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
                                     />
                                   );
                                 }
@@ -754,36 +1224,53 @@ function PipesPageContent() {
                                 return nodes;
                               })}
 
-                              {cards.length === 0 && isDropTarget && (
+                              {cards.length === 0 && isDropTarget ? (
                                 <motion.div
                                   key={`drop-placeholder-empty-${stageDef.id}`}
                                   layout
                                   initial={{ opacity: 0, scaleY: 0.82, height: 0 }}
-                                  animate={{ opacity: 1, scaleY: 1, height: 102 }}
+                                  animate={{ opacity: 1, scaleY: 1, height: 190 }}
                                   exit={{ opacity: 0, scaleY: 0.82, height: 0 }}
                                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                                  className="rounded-(--radius-bento-card) border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
+                                  className="rounded-[22px] border border-dashed border-brand/45 bg-brand/5 shadow-[inset_0_0_0_1px_rgba(37,99,235,0.16)]"
                                 />
-                              )}
+                              ) : null}
                             </AnimatePresence>
                           );
                         })()}
                       </div>
                     ) : (
-                      <div className="flex h-24 flex-col items-center justify-center gap-1 rounded-(--radius-bento-inner) border-2 border-dashed border-zinc-200 transition-colors">
-                        <p className="font-body text-xs text-zinc-400">
-                          Nenhum card nesta etapa
+                      <div className="mt-1 flex min-h-[180px] flex-col items-center justify-center rounded-[16px] border-2 border-dashed border-zinc-200 bg-zinc-50/40 px-4 text-center">
+                        <p className="text-sm font-semibold text-zinc-700">Sem cards nesta etapa</p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Crie um novo card aqui ou mova um card de outra coluna.
                         </p>
-                        <button
-                          onClick={() =>
-                            openDrawer("new-opportunity", {
-                              initialStage: stageDef.id,
-                            })
-                          }
-                          className="font-body text-[11px] font-medium text-brand hover:underline"
-                        >
-                          + Criar novo
-                        </button>
+                        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                          <Button
+                            size="sm"
+                            className="h-8 rounded-full px-3 text-xs"
+                            onClick={() =>
+                              openDrawer("new-opportunity", {
+                                initialStage: stageDef.id,
+                              })
+                            }
+                            disabled={!canCreateOpportunity}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Criar card nesta etapa
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              announce(
+                                `Arraste um card de outra etapa e solte em ${stageLabel}.`
+                              )
+                            }
+                            className="inline-flex h-8 items-center rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                          >
+                            Mover um card para ca
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -792,7 +1279,6 @@ function PipesPageContent() {
             })}
           </div>
         </div>
-
       </motion.div>
     </>
   );

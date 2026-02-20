@@ -23,8 +23,20 @@ export function GlobalDrawers() {
   const clientDrawerKey = `client-${String(drawerData?.id ?? "default")}`;
 
   const handleSaveActivity = (data: ActivityFormData) => {
-    const responsibleId = user?.id ?? "user-3";
-    const responsibleName = user?.name ?? "Usuário";
+    if (!user?.id) {
+      throw new Error("Usuário não autenticado para criar atividade.");
+    }
+
+    const contextOpportunityId =
+      typeof drawerData?.opportunityId === "string" ? drawerData.opportunityId : undefined;
+    const contextOpportunityTitle =
+      typeof drawerData?.opportunityTitle === "string"
+        ? drawerData.opportunityTitle
+        : undefined;
+    const contextClientId =
+      typeof drawerData?.clientId === "string" ? drawerData.clientId : undefined;
+    const contextClientName =
+      typeof drawerData?.clientName === "string" ? drawerData.clientName : undefined;
 
     addActivity({
       title: data.title,
@@ -33,10 +45,13 @@ export function GlobalDrawers() {
       description: data.description || "",
       dueDate: data.date,
       dueTime: data.time,
-      responsibleId,
-      responsibleName,
+      responsibleId: user.id,
+      responsibleName: user.name,
+      opportunityId: contextOpportunityId,
+      opportunityTitle: contextOpportunityTitle,
+      clientId: contextClientId,
+      clientName: contextClientName,
     });
-    closeDrawer();
   };
 
   return (

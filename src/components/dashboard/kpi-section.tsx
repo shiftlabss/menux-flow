@@ -182,10 +182,10 @@ function TrendBadge({ trend }: { trend?: TrendData }) {
   return (
     <div
       className={cn(
-        "inline-flex h-6 min-w-[68px] items-center justify-center gap-1 rounded-full px-2 text-[12px] font-semibold",
-        trend.tone === "positive" && "bg-emerald-100 text-emerald-700",
-        trend.tone === "negative" && "bg-red-100 text-red-700",
-        trend.tone === "neutral" && "bg-zinc-100 text-zinc-700"
+        "inline-flex h-[26px] min-w-fit items-center justify-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold tracking-tight whitespace-nowrap",
+        trend.tone === "positive" && "bg-emerald-100/80 text-emerald-700",
+        trend.tone === "negative" && "bg-red-100/80 text-red-700",
+        trend.tone === "neutral" && "bg-zinc-100/80 text-zinc-700"
       )}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -248,17 +248,19 @@ function ConversionBarsMini({ stages }: { stages: number[] }) {
 function ActivityMiniChips({ overdueCount, pendingCount }: { overdueCount: number; pendingCount: number }) {
 
   return (
-    <div className="flex h-9 w-[172px] items-center gap-1.5" aria-hidden>
-      <span className="inline-flex h-9 min-w-0 flex-1 items-center justify-between rounded-[11px] border border-red-200/80 bg-red-50 px-2 text-red-700">
-        <span className="truncate text-[10px] font-semibold">Atrasadas:</span>
-        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/80 px-1.5 text-[10px] font-bold leading-none">
-          {overdueCount}
+    <div className="flex flex-col items-end gap-1.5 w-full flex-wrap" aria-hidden>
+      {overdueCount > 0 && (
+        <span className="inline-flex h-[26px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-red-200/60 bg-red-50/80 px-2.5 text-red-700 w-full max-w-[126px]">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+          <span className="text-[11px] font-semibold whitespace-nowrap truncate text-left w-full max-w-full">
+            {overdueCount} atrasad{overdueCount !== 1 ? "as" : "a"}
+          </span>
         </span>
-      </span>
-      <span className="inline-flex h-9 min-w-0 flex-1 items-center justify-between rounded-[11px] border border-zinc-200 bg-zinc-50 px-2 text-zinc-700">
-        <span className="truncate text-[10px] font-semibold">Pendentes:</span>
-        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/85 px-1.5 text-[10px] font-bold leading-none">
-          {pendingCount}
+      )}
+      <span className="inline-flex h-[26px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/80 px-2.5 text-zinc-700 w-full max-w-[126px]">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+        <span className="text-[11px] font-semibold whitespace-nowrap truncate text-left w-full max-w-full">
+          {pendingCount} pendente{pendingCount !== 1 ? "s" : ""}
         </span>
       </span>
     </div>
@@ -302,20 +304,20 @@ function KPITemplateCard({
       whileTap={state === "default" ? { scale: 0.99 } : undefined}
       transition={{ duration: 0.09, ease: "easeInOut" }}
       className={cn(
-        "premium-shine group flex h-[156px] w-full flex-col rounded-[20px] border border-zinc-200/80 bg-white/85 p-[18px] text-left",
-        "shadow-[var(--shadow-bento-sm)] transition-[transform,box-shadow,border-color] duration-[140ms] ease-out",
-        "hover:-translate-y-[2px] hover:shadow-[var(--shadow-bento-sm-hover)]",
+        "premium-shine group flex h-[172px] shrink-0 w-full flex-col rounded-[24px] border border-zinc-200/80 bg-white/90 p-5 text-left",
+        "shadow-(--shadow-bento-sm) transition-[transform,box-shadow,border-color] duration-150 ease-out",
+        "hover:-translate-y-[2px] hover:shadow-(--shadow-bento-sm-hover)",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/25",
         state !== "default" && "cursor-default hover:translate-y-0"
       )}
     >
       {state === "loading" ? (
         <div className="flex h-full flex-col">
-          <Skeleton className="h-3 w-24 rounded-md before:[animation-duration:900ms]" />
-          <Skeleton className="mt-4 h-8 w-32 rounded-lg before:[animation-duration:900ms]" />
-          <Skeleton className="mt-2 h-3 w-28 rounded-md before:[animation-duration:900ms]" />
+          <Skeleton className="h-3 w-24 rounded-md before:animation-duration-[900ms]" />
+          <Skeleton className="mt-4 h-8 w-32 rounded-lg before:animation-duration-[900ms]" />
+          <Skeleton className="mt-2 h-3 w-28 rounded-md before:animation-duration-[900ms]" />
           <div className="mt-auto flex h-[42px] items-end">
-            <Skeleton className="h-7 w-full rounded-md before:[animation-duration:900ms]" />
+            <Skeleton className="h-7 w-full rounded-md before:animation-duration-[900ms]" />
           </div>
         </div>
       ) : state === "error" ? (
@@ -350,15 +352,15 @@ function KPITemplateCard({
           </header>
 
           <div className="mt-3">
-            <p className="text-[30px] leading-none font-semibold text-zinc-900">
+            <p className="text-[32px] font-bold tracking-tight leading-none text-zinc-900">
               <AnimatedKpiValue value={data.value} format={data.valueFormat} />
             </p>
-            <p className="mt-2 truncate text-[12px] text-zinc-500">{data.subtext || "—"}</p>
+            <p className="mt-1.5 truncate text-[12.5px] font-medium text-zinc-500">{data.subtext || "—"}</p>
           </div>
 
-          <footer className="mt-auto flex h-[44px] items-end justify-between gap-3">
-            <TrendBadge trend={data.trend} />
-            <div className="flex min-w-0 shrink-0 items-end justify-end">{miniVisual}</div>
+          <footer className="mt-auto flex w-full flex-row items-end justify-between gap-x-2 gap-y-2 pt-2">
+            <div className="shrink-0 mb-0.5"><TrendBadge trend={data.trend} /></div>
+            <div className="flex min-w-0 flex-1 flex-col items-end justify-end ml-auto">{miniVisual}</div>
           </footer>
         </>
       )}
@@ -458,7 +460,7 @@ export function KpiSection() {
       variants={cardStaggerContainer}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
       <motion.div custom={0} variants={listItemReveal}>
         <KPITemplateCard
