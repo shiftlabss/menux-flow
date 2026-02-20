@@ -208,12 +208,12 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
       className="premium-panel min-h-0 overflow-hidden border-zinc-200/80 bg-white/86 shadow-[0_20px_32px_-28px_rgba(15,23,42,0.45)]"
     >
       <div className="border-b border-zinc-200/75 bg-white/85 px-3.5 py-3 backdrop-blur-sm">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2 sm:gap-3">
           <div className="min-w-0">
-            <h3 className="font-heading text-[1.02rem] font-semibold text-zinc-900">
+            <h3 className="font-heading text-[0.95rem] font-semibold text-zinc-900 sm:text-[1.02rem]">
               Raio X do Funil
             </h3>
-            <p className="truncate text-xs text-zinc-500">
+            <p className="truncate text-[11px] text-zinc-500 sm:text-xs">
               Fluxo de conversão, gargalos e ação recomendada para hoje
             </p>
           </div>
@@ -277,9 +277,9 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          className="grid grid-cols-1 gap-4 p-5 lg:grid-cols-12"
+          className="grid grid-cols-1 gap-4 p-3.5 sm:p-5 lg:grid-cols-12"
         >
-          <div className="space-y-3 lg:col-span-7">
+          <div className="space-y-3 lg:col-span-7 min-w-0">
             <TooltipProvider delayDuration={80}>
               <FlowStepsConnected
                 stages={stages}
@@ -300,7 +300,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                 transition={{ duration: 0.14 }}
                 className="space-y-3"
               >
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-2 xs:grid-cols-2 sm:grid-cols-3">
                   <SummaryMiniCard
                     icon={<Gauge className="h-3.5 w-3.5 text-brand" />}
                     label="Velocidade média"
@@ -363,7 +363,7 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
             </AnimatePresence>
           </div>
 
-          <div className="space-y-3 lg:col-span-5">
+          <div className="space-y-3 lg:col-span-5 min-w-0">
             <div className="rounded-xl border border-red-200/75 bg-red-50/60 p-4">
               <div className="mb-2 flex items-start justify-between gap-2">
                 <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-red-700">

@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/tooltip";
 import { useSidebarStore } from "@/stores/sidebar-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useActivityStore } from "@/stores/activity-store";
+import { getEffectiveActivityStatus } from "@/lib/business-rules";
 
 // Simple useMediaQuery hook
 function useMediaQuery(query: string): boolean {
@@ -52,8 +54,6 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-const PENDING_ACTIVITIES_COUNT = 3;
-
 const navItems = [
   {
     label: "Dashboard",
@@ -64,7 +64,7 @@ const navItems = [
     label: "Atividades",
     href: "/activities",
     icon: CalendarCheck,
-    badge: PENDING_ACTIVITIES_COUNT,
+    badgeKey: "activities" as const,
   },
   {
     label: "Pipes",
@@ -96,10 +96,20 @@ const navItems = [
   },
 ];
 
+function usePendingActivityCount(): number {
+  const activities = useActivityStore((s) => s.activities);
+  const now = new Date();
+  return activities.filter((a) => {
+    const status = getEffectiveActivityStatus(a, now);
+    return status === "pending" || status === "overdue";
+  }).length;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { isExpanded, toggle } = useSidebarStore();
   const { permissions } = useAuthStore();
+  const pendingActivityCount = usePendingActivityCount();
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -216,7 +226,8 @@ export function Sidebar() {
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
-            const hasBadge = item.badge && item.badge > 0;
+            const badgeValue = item.badgeKey === "activities" ? pendingActivityCount : 0;
+            const hasBadge = badgeValue > 0;
 
             const linkContent = (
               <Link
@@ -235,7 +246,7 @@ export function Sidebar() {
                   <Icon className="h-5 w-5" />
                   {hasBadge && !sidebarExpanded && (
                     <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-status-danger text-[10px] font-bold text-white">
-                      {item.badge}
+                      {badgeValue}
                     </span>
                   )}
                 </div>

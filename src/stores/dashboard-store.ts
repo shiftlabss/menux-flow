@@ -6,6 +6,8 @@ export type Context = 'me' | 'team'
 interface DashboardState {
   period: Period
   context: Context
+  /** Incremented on every filter change to key transition animations */
+  filterVersion: number
   setPeriod: (period: Period) => void
   setContext: (context: Context) => void
 }
@@ -13,8 +15,9 @@ interface DashboardState {
 export const useDashboardStore = create<DashboardState>((set) => ({
   period: 'today',
   context: 'me',
-  setPeriod: (period) => set({ period }),
-  setContext: (context) => set({ context }),
+  filterVersion: 0,
+  setPeriod: (period) => set((s) => ({ period, filterVersion: s.filterVersion + 1 })),
+  setContext: (context) => set((s) => ({ context, filterVersion: s.filterVersion + 1 })),
 }))
 
 // ─── Pure utility: convert Period into a date range ────────────────────────

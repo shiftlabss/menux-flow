@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { motion, animate, useMotionValue } from "framer-motion";
 import {
   ArrowDownRight,
@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Clock3,
   Gauge,
+  RefreshCw,
   ShieldAlert,
   TrendingUp,
 } from "lucide-react";
@@ -20,6 +21,19 @@ import { cardStaggerContainer, listItemReveal } from "@/lib/motion";
 
 type KPIState = "default" | "loading" | "error";
 type TrendTone = "positive" | "negative" | "neutral";
+
+// ── Centralized refresh state machine ────────────────────────────────
+type RefreshState = { status: "idle" } | { status: "refreshing" };
+type RefreshAction = { type: "refresh" } | { type: "done" };
+
+function refreshReducer(_state: RefreshState, action: RefreshAction): RefreshState {
+  switch (action.type) {
+    case "refresh":
+      return { status: "refreshing" };
+    case "done":
+      return { status: "idle" };
+  }
+}
 
 interface TrendData {
   value: string;
@@ -374,26 +388,32 @@ export function KpiSection() {
     now,
   } = useDashboardFilters();
   const baseData = useKpiData();
-  const [cardState, setCardState] = useState<Record<keyof typeof baseData, KPIState>>({
-    pipeline: "default",
-    conversion: "default",
-    activities: "default",
-    sla: "default",
-  });
+
+  // ── Centralized refresh ──────────────────────────────────────────
+  const [refreshState, dispatch] = useReducer(refreshReducer, { status: "idle" });
+
+  const refreshAll = useCallback(() => {
+    dispatch({ type: "refresh" });
+    // Re-derive from stores — the underlying data is already reactive,
+    // so we just show a brief loading flash to acknowledge the action.
+    const id = requestAnimationFrame(() => dispatch({ type: "done" }));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  const globalState: KPIState = refreshState.status === "refreshing" ? "loading" : "default";
 
   const kpis = useMemo(
     () => ({
-      pipeline: { ...baseData.pipeline, state: cardState.pipeline },
-      conversion: { ...baseData.conversion, state: cardState.conversion },
-      activities: { ...baseData.activities, state: cardState.activities },
-      sla: { ...baseData.sla, state: cardState.sla },
+      pipeline: { ...baseData.pipeline, state: globalState },
+      conversion: { ...baseData.conversion, state: globalState },
+      activities: { ...baseData.activities, state: globalState },
+      sla: { ...baseData.sla, state: globalState },
     }),
-    [baseData, cardState]
+    [baseData, globalState]
   );
 
   // ── Compute mini-chart data ──────────────────────────────────────
   const sparklineData = useMemo(() => {
-    // Build 7 time-bucketed pipeline values for the sparkline
     const openOpps = openOpportunities;
     const buckets = 7;
     const msPerBucket = (7 * 24 * 60 * 60 * 1000) / buckets;
@@ -410,7 +430,6 @@ export function KpiSection() {
         }
       }
     }
-    // Ensure at least some variation for visual interest
     return data.length >= 2 ? data : [0, 0];
   }, [openOpportunities, now]);
 
@@ -446,64 +465,72 @@ export function KpiSection() {
     return Math.round(((breached + atRisk) / total) * 100);
   }, [openOpportunities, now]);
 
-  function retryCard(card: keyof typeof kpis) {
-    setCardState((prev) => ({ ...prev, [card]: "loading" }));
-    window.setTimeout(() => {
-      setCardState((prev) => ({ ...prev, [card]: "default" }));
-    }, 240);
-  }
-
   return (
-    <motion.div
-      variants={cardStaggerContainer}
-      initial="hidden"
-      animate="show"
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-    >
-      <motion.div custom={0} variants={listItemReveal}>
-        <KPITemplateCard
-          icon={<Gauge className="h-4 w-4" />}
-          data={kpis.pipeline}
-          miniVisual={<SparklineMini data={sparklineData} />}
-          onClick={() => router.push(kpis.pipeline.targetPath)}
-          onRetry={() => retryCard("pipeline")}
-        />
+    <div className="space-y-2">
+      <motion.div
+        variants={cardStaggerContainer}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
+        <motion.div custom={0} variants={listItemReveal}>
+          <KPITemplateCard
+            icon={<Gauge className="h-4 w-4" />}
+            data={kpis.pipeline}
+            miniVisual={<SparklineMini data={sparklineData} />}
+            onClick={() => router.push(kpis.pipeline.targetPath)}
+            onRetry={refreshAll}
+          />
+        </motion.div>
+
+        <motion.div custom={1} variants={listItemReveal}>
+          <KPITemplateCard
+            icon={<TrendingUp className="h-4 w-4" />}
+            data={kpis.conversion}
+            miniVisual={<ConversionBarsMini stages={stageCounts} />}
+            onClick={() => router.push(kpis.conversion.targetPath)}
+            onRetry={refreshAll}
+          />
+        </motion.div>
+
+        <motion.div custom={2} variants={listItemReveal}>
+          <KPITemplateCard
+            icon={<Clock3 className="h-4 w-4" />}
+            data={kpis.activities}
+            miniVisual={
+              <ActivityMiniChips
+                overdueCount={activityCounts.overdueCount}
+                pendingCount={activityCounts.pendingCount}
+              />
+            }
+            onClick={() => router.push(kpis.activities.targetPath)}
+            onRetry={refreshAll}
+          />
+        </motion.div>
+
+        <motion.div custom={3} variants={listItemReveal}>
+          <KPITemplateCard
+            icon={<ShieldAlert className="h-4 w-4" />}
+            data={kpis.sla}
+            miniVisual={<SlaProgressMini riskPct={slaRiskPct} />}
+            onClick={() => router.push(kpis.sla.targetPath)}
+            onRetry={refreshAll}
+          />
+        </motion.div>
       </motion.div>
 
-      <motion.div custom={1} variants={listItemReveal}>
-        <KPITemplateCard
-          icon={<TrendingUp className="h-4 w-4" />}
-          data={kpis.conversion}
-          miniVisual={<ConversionBarsMini stages={stageCounts} />}
-          onClick={() => router.push(kpis.conversion.targetPath)}
-          onRetry={() => retryCard("conversion")}
-        />
-      </motion.div>
-
-      <motion.div custom={2} variants={listItemReveal}>
-        <KPITemplateCard
-          icon={<Clock3 className="h-4 w-4" />}
-          data={kpis.activities}
-          miniVisual={
-            <ActivityMiniChips
-              overdueCount={activityCounts.overdueCount}
-              pendingCount={activityCounts.pendingCount}
-            />
-          }
-          onClick={() => router.push(kpis.activities.targetPath)}
-          onRetry={() => retryCard("activities")}
-        />
-      </motion.div>
-
-      <motion.div custom={3} variants={listItemReveal}>
-        <KPITemplateCard
-          icon={<ShieldAlert className="h-4 w-4" />}
-          data={kpis.sla}
-          miniVisual={<SlaProgressMini riskPct={slaRiskPct} />}
-          onClick={() => router.push(kpis.sla.targetPath)}
-          onRetry={() => retryCard("sla")}
-        />
-      </motion.div>
-    </motion.div>
+      {/* Centralized refresh button */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={refreshAll}
+          disabled={refreshState.status === "refreshing"}
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 disabled:opacity-50"
+        >
+          <RefreshCw className={cn("h-3 w-3", refreshState.status === "refreshing" && "animate-spin")} />
+          Atualizar métricas
+        </button>
+      </div>
+    </div>
   );
 }

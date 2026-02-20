@@ -22,7 +22,7 @@ export function FlowStepsConnected({
 }) {
   return (
     <>
-      <div className="hidden items-stretch gap-2 md:flex md:flex-wrap xl:flex-nowrap">
+      <div className="hidden items-stretch gap-1.5 md:flex md:flex-wrap lg:gap-2 xl:flex-nowrap">
         {stages.map((stage, index) => (
           <Fragment key={stage.id}>
             <FlowStepCard
