@@ -1,4 +1,4 @@
-export { d } from "./helpers";
+export { d, daysAgo, daysFromNow } from "./helpers";
 export { mockUsers } from "./users";
 export { mockOpportunities } from "./opportunities";
 export { mockClients } from "./clients";
@@ -10,3 +10,5 @@ export { mockGoals } from "./goals";
 export { generateDynamicMockData } from "./dynamic-generator";
 export { mockNegotiationRounds } from "./negotiations";
 export { mockContacts } from "./contacts";
+export { mockVisits } from "./visits";
+export { mockNotes } from "./notes";

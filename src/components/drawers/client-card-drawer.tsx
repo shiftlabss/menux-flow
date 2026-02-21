@@ -69,6 +69,9 @@ import { useUIStore } from "@/stores/ui-store";
 import type { Contact, HealthScore, ClientStage } from "@/types";
 import { calculateHealthScore, RESTAURANT_POSITIONS } from "@/lib/business-rules";
 import { useClientStore } from "@/stores/client-store";
+import { useContactStore } from "@/stores/contact-store";
+import { useVisitStore } from "@/stores/visit-store";
+import { mockUsers } from "@/lib/mock-data";
 
 // ── Health config ───────────────────────────────────────────────────────────
 const healthConfig: Record<
@@ -129,28 +132,6 @@ const mockClient = {
   notes: "Cliente com excelente engajamento. Acompanhar renovacao do contrato em junho.",
 };
 
-const mockContacts: Contact[] = [
-  {
-    id: "c1",
-    clientId: "client-mock",
-    nome: "Ana Costa",
-    email: "ana@panoramico.com",
-    telefone: "(11) 99999-0001",
-    cargo: "diretor",
-    personalidade: "Visionária e estratégica, gosta de entender o impacto no negócio como um todo.",
-    isDecisionMaker: true,
-  },
-  {
-    id: "c2",
-    clientId: "client-mock",
-    nome: "Bruno Oliveira",
-    email: "bruno@panoramico.com",
-    telefone: "(11) 99999-0002",
-    cargo: "gerente",
-    personalidade: "Prático e focado em eficiência operacional. Valoriza facilidade de uso.",
-    isDecisionMaker: false,
-  },
-];
 
 function getCargoLabel(value: string): string {
   return RESTAURANT_POSITIONS.find((p) => p.value === value)?.label ?? value;
@@ -160,12 +141,9 @@ function getPatentScore(cargo: string): number {
   return RESTAURANT_POSITIONS.find((p) => p.value === cargo)?.patentScore ?? 0;
 }
 
-const mockTeamMembers = [
-  { id: "u1", name: "Maria Silva", avatar: "" },
-  { id: "u2", name: "Pedro Santos", avatar: "" },
-  { id: "u3", name: "Julia Fernandes", avatar: "" },
-  { id: "u4", name: "Rafael Costa", avatar: "" },
-];
+const mockTeamMembers = mockUsers
+  .filter((u) => u.isActive)
+  .map((u) => ({ id: u.id, name: u.name, avatar: "" }));
 
 const mockMrrHistory = [
   { month: "Set", value: 1800 },
@@ -182,50 +160,28 @@ const mockMetrics = {
   npsScore: 9,
 };
 
-const mockTimeline = [
-  {
-    id: "t1",
-    type: "created",
-    message: "Cliente criado a partir de oportunidade ganha",
-    user: "Maria Silva",
-    date: "01/06/2025 10:00",
-  },
-  {
-    id: "t2",
-    type: "stage-change",
-    message: "Movido de Onboarding para Implantacao",
-    user: "Maria Silva",
-    date: "15/06/2025 14:30",
-  },
-  {
-    id: "t3",
-    type: "stage-change",
-    message: "Movido de Implantacao para Acompanhamento",
-    user: "Maria Silva",
-    date: "01/08/2025 09:00",
-  },
-  {
-    id: "t4",
-    type: "activity",
-    message: "Reuniao trimestral de acompanhamento realizada",
-    user: "Maria Silva",
-    date: "01/11/2025 15:00",
-  },
-  {
-    id: "t5",
-    type: "value-change",
-    message: "MRR alterado de R$ 2.000 para R$ 2.500 (upsell)",
-    user: "Pedro Santos",
-    date: "15/01/2026 11:30",
-  },
-  {
-    id: "t6",
-    type: "health-change",
-    message: "Health score atualizado para Saudavel",
-    user: "Sistema",
-    date: "03/02/2026 08:00",
-  },
-];
+function buildClientTimeline(clientId: string) {
+  const visits = useVisitStore.getState().getByClient(clientId);
+  const items: { id: string; type: string; message: string; user: string; date: string }[] = [];
+
+  for (const v of visits) {
+    items.push({
+      id: v.id,
+      type: v.status === "realizada" ? "activity" : "created",
+      message: `Visita ${v.type}: ${v.objective ?? v.location}`,
+      user: v.responsible,
+      date: new Date(v.startAt).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    });
+  }
+
+  return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
 
 const churnReasons = [
   "Preco muito alto",
@@ -454,7 +410,7 @@ function ContactCard({
   onDelete,
   onToggleDecisionMaker,
 }: {
-  contact: (typeof mockContacts)[0];
+  contact: Contact;
   onEdit: () => void;
   onDelete: () => void;
   onToggleDecisionMaker: () => void;
@@ -742,7 +698,10 @@ export function ClientCardDrawer() {
   const [notes, setNotes] = useState(resolvedClient.notes);
   const [tags, setTags] = useState(() => [...resolvedClient.tags]);
   const [newTag, setNewTag] = useState("");
-  const [contacts, setContacts] = useState(mockContacts);
+  const [contacts, setContacts] = useState<Contact[]>(() => {
+    const storeContacts = useContactStore.getState().getByClient(resolvedClient.id);
+    return storeContacts.length > 0 ? storeContacts : [];
+  });
   const sortedContacts = useMemo(
     () => [...contacts].sort((a, b) => getPatentScore(b.cargo) - getPatentScore(a.cargo)),
     [contacts],
@@ -818,7 +777,7 @@ export function ClientCardDrawer() {
     );
   }
 
-  function handleStartEditContact(contact: (typeof mockContacts)[0]) {
+  function handleStartEditContact(contact: Contact) {
     setEditingContactId(contact.id);
     setEditContact({
       nome: contact.nome,
@@ -1410,24 +1369,27 @@ export function ClientCardDrawer() {
               {/* ── Tab: Historico ───────────────────────────────────── */}
               <TabsContent value="historico" className="mt-6">
                 <div className="relative space-y-0">
-                  {mockTimeline.map((event, i) => (
-                    <div key={event.id} className="relative flex gap-4 pb-6">
-                      {i < mockTimeline.length - 1 && (
-                        <div className="absolute left-[15px] top-8 h-full w-px bg-zinc-200" />
-                      )}
-                      <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
-                        {getTimelineIcon(event.type)}
+                  {(() => {
+                    const timeline = buildClientTimeline(resolvedClient.id);
+                    return timeline.map((event, i) => (
+                      <div key={event.id} className="relative flex gap-4 pb-6">
+                        {i < timeline.length - 1 && (
+                          <div className="absolute left-[15px] top-8 h-full w-px bg-zinc-200" />
+                        )}
+                        <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
+                          {getTimelineIcon(event.type)}
+                        </div>
+                        <div className="flex-1 pt-0.5">
+                          <p className="font-body text-sm text-black">
+                            {event.message}
+                          </p>
+                          <p className="font-body text-xs text-zinc-400">
+                            {event.user} -- {event.date}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 pt-0.5">
-                        <p className="font-body text-sm text-black">
-                          {event.message}
-                        </p>
-                        <p className="font-body text-xs text-zinc-400">
-                          {event.user} -- {event.date}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </TabsContent>
             </Tabs>

@@ -319,6 +319,7 @@ export type NegotiationStatus =
 
 export interface NegotiationRound {
   id: string;
+  opportunityId: string;
   type: NegotiationType;
   authorId: string;
   authorName: string;
@@ -351,4 +352,53 @@ export interface NegotiationSummary {
   lastInternalOffer?: NegotiationRound;
   lastClientCounter?: NegotiationRound;
   finalAgreement?: NegotiationRound;
+}
+
+// ===== Visit Types =====
+
+export type VisitType = "presencial" | "remoto" | "outro";
+export type VisitStatus = "agendada" | "realizada" | "cancelada";
+export type VisitOutcome = "realizada" | "no-show" | "remarcada";
+
+export interface Visit {
+  id: string;
+  opportunityId: string;
+  clientId: string;
+  type: VisitType;
+  location: string;
+  status: VisitStatus;
+  startAt: string;
+  responsible: string;
+  responsibleId: string;
+  objective?: string;
+  result?: string;
+  outcome?: VisitOutcome;
+  durationMinutes?: number;
+  link?: string;
+  platform?: string;
+  cancellationReason?: string;
+  createdAt: string;
+}
+
+// ===== Opportunity Note Types =====
+
+export type NoteIntent =
+  | "general"
+  | "pedido_cliente"
+  | "decisao"
+  | "objecao"
+  | "system";
+
+export type NoteVisibility = "team" | "private";
+
+export interface OpportunityNote {
+  id: string;
+  opportunityId: string;
+  body: string;
+  authorId: string;
+  authorName: string;
+  createdAt: string;
+  intent: NoteIntent;
+  visibility: NoteVisibility;
+  isSystem?: boolean;
 }

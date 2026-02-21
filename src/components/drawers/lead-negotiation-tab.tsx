@@ -677,6 +677,7 @@ export function NegotiationTab({ dealId, dealTitle }: NegotiationTabProps) {
         );
         const newRound: NegotiationRoundItem = {
           id: createRoundId(),
+          opportunityId: dealId,
           type: payload.type,
           authorId: payload.actorRole === "team" ? LOGGED_USER.id : "client-user",
           authorName:

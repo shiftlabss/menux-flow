@@ -117,6 +117,10 @@ import { NewVisitModal } from "@/components/modals/new-visit-modal";
 import type { VisitFormData } from "@/lib/validations/visit";
 import { NewActivityModal } from "@/components/modals/new-activity-modal";
 import type { ActivityFormData } from "@/lib/validations/activity";
+import { useContactStore } from "@/stores/contact-store";
+import { useVisitStore } from "@/stores/visit-store";
+import { useNoteStore } from "@/stores/note-store";
+import { mockUsers } from "@/lib/mock-data";
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -375,6 +379,7 @@ const UF_LIST = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT
 
 const mockLead = {
   id: "1",
+  clientId: "client-1",
   title: "Restaurante Bela Vista",
   clientName: "Restaurante Bela Vista Ltda",
   nomeFantasia: "Restaurante Bela Vista",
@@ -417,39 +422,6 @@ const mockLead = {
   },
 };
 
-const mockContacts: Contact[] = [
-  {
-    id: "c1",
-    clientId: "1",
-    nome: "Joao Silva",
-    email: "joao@belavista.com",
-    telefone: "(11) 99999-1234",
-    cargo: "gerente-geral",
-    personalidade: "Direto e objetivo, gosta de números e resultados. Prefere reuniões curtas.",
-    isDecisionMaker: true,
-  },
-  {
-    id: "c2",
-    clientId: "1",
-    nome: "Ana Costa",
-    email: "ana@belavista.com",
-    telefone: "(11) 99999-5678",
-    cargo: "diretor",
-    personalidade: "Analítica e detalhista, precisa de dados concretos para tomar decisões.",
-    isDecisionMaker: true,
-  },
-  {
-    id: "c3",
-    clientId: "1",
-    nome: "Carlos Mendes",
-    email: "carlos@belavista.com",
-    telefone: "(11) 99999-9012",
-    cargo: "operacional",
-    personalidade: "Técnico, curioso sobre integrações e APIs. Receptivo a demos.",
-    isDecisionMaker: false,
-  },
-];
-
 function getCargoLabel(value: string): string {
   return RESTAURANT_POSITIONS.find((p) => p.value === value)?.label ?? value;
 }
@@ -458,58 +430,52 @@ function getPatentScore(cargo: string): number {
   return getPositionPatentScore(cargo);
 }
 
-const mockTeamMembers = [
-  { id: "u1", name: "Maria Silva", avatar: "" },
-  { id: "u2", name: "Pedro Santos", avatar: "" },
-  { id: "u3", name: "Julia Fernandes", avatar: "" },
-  { id: "u4", name: "Rafael Costa", avatar: "" },
-];
+const mockTeamMembers = mockUsers.filter(u => u.isActive).map(u => ({ id: u.id, name: u.name, avatar: "" }));
 
-const mockTimeline = [
-  {
-    id: "t1",
-    type: "created",
-    message: "Oportunidade criada",
-    user: "Maria Silva",
-    date: "15/01/2026 10:00",
-  },
-  {
-    id: 1,
-    type: "stage-change",
-    date: "Hoje, 14:30",
-    title: "Mudança de Etapa",
-    description: "Alterado de Lead In para Contato Feito",
-    author: "Ana Silva",
-    icon: CheckCircle,
-  },
-  {
-    id: 2,
-    type: "note",
-    user: "Maria Silva",
-    date: "22/01/2026 11:00",
-  },
-  {
-    id: "t6",
-    type: "value-change",
-    message: "Valor alterado de R$ 8.000 para R$ 12.000",
-    user: "Pedro Santos",
-    date: "25/01/2026 16:45",
-  },
-  {
-    id: "t7",
-    type: "temperature-change",
-    message: "Temperatura alterada de Morna para Quente",
-    user: "Maria Silva",
-    date: "28/01/2026 10:20",
-  },
-  {
-    id: "t8",
-    type: "activity",
-    message: "Reuniao online com equipe do cliente",
-    user: "Maria Silva",
-    date: "03/02/2026 15:00",
-  },
-];
+interface TimelineItem {
+  id: string | number;
+  type: string;
+  message?: string;
+  user?: string;
+  date: string;
+  title?: string;
+  description?: string;
+  author?: string;
+  icon?: React.ElementType;
+}
+
+function buildTimelineFromStores(opportunityId: string): TimelineItem[] {
+  const visits = useVisitStore.getState().getByOpportunity(opportunityId);
+  const notes = useNoteStore.getState().getByOpportunity(opportunityId);
+
+  const items: TimelineItem[] = [];
+
+  for (const v of visits) {
+    items.push({
+      id: v.id,
+      type: v.status === "realizada" ? "activity" : "created",
+      message: `Visita ${v.type}: ${v.objective ?? v.location}`,
+      user: v.responsible,
+      date: new Date(v.startAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+    });
+  }
+
+  for (const n of notes) {
+    items.push({
+      id: n.id,
+      type: n.isSystem ? "stage-change" : "note",
+      message: n.body.slice(0, 80) + (n.body.length > 80 ? "..." : ""),
+      user: n.authorName,
+      date: new Date(n.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+    });
+  }
+
+  return items.sort((a, b) => {
+    const da = new Date(a.date.split(", ").reverse().join("T") || a.date);
+    const db = new Date(b.date.split(", ").reverse().join("T") || b.date);
+    return db.getTime() - da.getTime();
+  });
+}
 
 type VisitType = "presencial" | "remoto" | "outro";
 type VisitStatus = "agendada" | "realizada" | "cancelada";
@@ -990,7 +956,7 @@ function getTimelineIconColor(type: string) {
   }
 }
 
-function TimelinePremium({ events }: { events: typeof mockTimeline }) {
+function TimelinePremium({ events }: { events: TimelineItem[] }) {
   const [filter, setFilter] = useState<TimelineFilterType>("all");
 
   const filterOptions: { value: TimelineFilterType; label: string }[] = [
@@ -1002,7 +968,7 @@ function TimelinePremium({ events }: { events: typeof mockTimeline }) {
   ];
 
   const filteredEvents =
-    filter === "all" ? events : events.filter((e) => e.type === filter);
+    filter === "all" ? events : events.filter((e: TimelineItem) => e.type === filter);
 
   return (
     <div className="space-y-4">
@@ -1043,7 +1009,7 @@ function TimelinePremium({ events }: { events: typeof mockTimeline }) {
         </div>
       ) : (
         <div className="relative space-y-0">
-          {filteredEvents.map((event, i) => (
+          {filteredEvents.map((event: TimelineItem, i: number) => (
             <div key={event.id} className="group relative flex gap-3 pb-5">
               {i < filteredEvents.length - 1 && (
                 <div className="absolute left-[13px] top-7 h-full w-px bg-zinc-100" />
@@ -1095,7 +1061,7 @@ function ContactCard({
   onDelete,
   onToggleDecisionMaker,
 }: {
-  contact: (typeof mockContacts)[0];
+  contact: Contact;
   patentScore: number;
   isPrimary: boolean;
   onEdit: () => void;
@@ -1861,7 +1827,10 @@ export default function LeadCardDrawer() {
   const [responsibleName, setResponsibleName] = useState(
     resolvedLead.responsibleName,
   );
-  const [contacts, setContacts] = useState(mockContacts);
+  const [contacts, setContacts] = useState<Contact[]>(() => {
+    const storeContacts = useContactStore.getState().getByClient(resolvedLead.clientId ?? "");
+    return storeContacts.length > 0 ? storeContacts : [];
+  });
   const sortedContacts = useMemo(
     () => [...contacts].sort((a, b) => getPatentScore(b.cargo) - getPatentScore(a.cargo)),
     [contacts],
@@ -2765,7 +2734,7 @@ export default function LeadCardDrawer() {
     });
   };
 
-  const handleStartEditContact = (contact: (typeof mockContacts)[0]) => {
+  const handleStartEditContact = (contact: Contact) => {
     setEditingContactId(contact.id);
     setEditContact({
       nome: contact.nome,
@@ -4489,7 +4458,7 @@ export default function LeadCardDrawer() {
 
                         {/* ── Tab: Linha do Tempo (NEW - replaced Historico) ── */}
                         <TabsContent value="linha-do-tempo" className="mt-0 space-y-4">
-                          <TimelinePremium events={mockTimeline} />
+                          <TimelinePremium events={buildTimelineFromStores(resolvedLead.id)} />
                         </TabsContent>
                       </div>
 

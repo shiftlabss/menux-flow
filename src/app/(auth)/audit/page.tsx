@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import { motion } from "framer-motion";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
+import { mockAuditLog, mockUsers } from "@/lib/mock-data";
 
 // ---------------------------------------------------------------------------
 // Framer Motion Variants
@@ -132,206 +133,61 @@ const entityFilterOptions = [
 
 const userFilterOptions = [
   { value: "all", label: "Todos os usuários" },
-  { value: "Ana Souza", label: "Ana Souza" },
-  { value: "Carlos Lima", label: "Carlos Lima" },
-  { value: "Fernanda Reis", label: "Fernanda Reis" },
-  { value: "Pedro Alves", label: "Pedro Alves" },
-  { value: "Sistema", label: "Sistema" },
+  ...mockUsers.filter((u) => u.isActive).map((u) => ({ value: u.name, label: u.name })),
 ];
 
 // ---------------------------------------------------------------------------
-// Mock Audit Events
+// Mapping from global mock data to local AuditEvent shape
 // ---------------------------------------------------------------------------
 
-const mockAuditEvents: AuditEvent[] = [
-  {
-    id: "audit-1",
-    timestamp: "2025-01-15T14:32:00",
-    user: { name: "Ana Souza", initials: "AS", color: "bg-brand-light text-brand" },
-    action: "created",
-    entityType: "opportunity",
-    entityName: "Restaurante Bela Vista",
-    details: "Nova oportunidade criada no pipeline Vendas, etapa Lead-In",
-    fullDetails:
-      "Pipeline: Vendas\nEtapa: Lead-In\nValor: R$ 15.000\nResponsável: Ana Souza\nCliente: Restaurante Bela Vista\nProbabilidade: 20%",
-  },
-  {
-    id: "audit-2",
-    timestamp: "2025-01-15T13:45:00",
-    user: { name: "Carlos Lima", initials: "CL", color: "bg-status-success-light text-status-success" },
-    action: "moved",
-    entityType: "opportunity",
-    entityName: "Café Central",
-    details: "Movido de Proposta Enviada para Negociação",
-    fullDetails:
-      "Oportunidade: Café Central\nEtapa anterior: Proposta Enviada\nNova etapa: Negociação\nValor atualizado: R$ 8.500\nDias na etapa anterior: 5",
-  },
-  {
-    id: "audit-3",
-    timestamp: "2025-01-15T12:20:00",
-    user: { name: "Fernanda Reis", initials: "FR", color: "bg-status-warning-light text-status-warning" },
-    action: "updated",
-    entityType: "client",
-    entityName: "Acme Corp",
-    details: "Health Score atualizado de 85 para 72",
-    fullDetails:
-      "Cliente: Acme Corp\nCampo alterado: Health Score\nValor anterior: 85\nNovo valor: 72\nMotivo: Redução de engajamento nos últimos 30 dias",
-  },
-  {
-    id: "audit-4",
-    timestamp: "2025-01-15T11:10:00",
-    user: { name: "Ana Souza", initials: "AS", color: "bg-brand-light text-brand" },
-    action: "created",
-    entityType: "activity",
-    entityName: "Ligação com João",
-    details: "Atividade do tipo ligação agendada para 16/01 às 10:00",
-    fullDetails:
-      "Tipo: Ligação\nData: 16/01/2025\nHorário: 10:00\nDuração prevista: 30min\nCliente: Restaurante Bela Vista\nNotas: Discutir termos do contrato",
-  },
-  {
-    id: "audit-5",
-    timestamp: "2025-01-15T10:55:00",
-    user: { name: "Pedro Alves", initials: "PA", color: "bg-status-info-light text-status-info" },
-    action: "deleted",
-    entityType: "activity",
-    entityName: "Follow-up Padaria Gourmet",
-    details: "Atividade excluída — duplicada",
-    fullDetails:
-      "Tipo: Follow-up\nData original: 15/01/2025\nMotivo da exclusão: Atividade duplicada\nExcluído por: Pedro Alves",
-  },
-  {
-    id: "audit-6",
-    timestamp: "2025-01-15T09:30:00",
-    user: { name: "Sistema", initials: "SI", color: "bg-zinc-100 text-zinc-500" },
-    action: "updated",
-    entityType: "settings",
-    entityName: "Pipeline Vendas",
-    details: "SLA da etapa Proposta Enviada alterado de 5 para 7 dias",
-    fullDetails:
-      "Configuração: Pipeline Vendas\nEtapa: Proposta Enviada\nCampo: SLA\nValor anterior: 5 dias\nNovo valor: 7 dias\nAlterado por: Sistema (automação)",
-  },
-  {
-    id: "audit-7",
-    timestamp: "2025-01-14T17:45:00",
-    user: { name: "Carlos Lima", initials: "CL", color: "bg-status-success-light text-status-success" },
-    action: "created",
-    entityType: "client",
-    entityName: "Hotel Sunset",
-    details: "Novo cliente cadastrado com origem Indicação",
-    fullDetails:
-      "Nome: Hotel Sunset\nOrigem: Indicação\nSegmento: Hotelaria\nResponsável: Carlos Lima\nTelefone: (11) 98765-4321\nEmail: contato@hotelsunset.com",
-  },
-  {
-    id: "audit-8",
-    timestamp: "2025-01-14T16:20:00",
-    user: { name: "Ana Souza", initials: "AS", color: "bg-brand-light text-brand" },
-    action: "updated",
-    entityType: "opportunity",
-    entityName: "Pousada Mar",
-    details: "Valor atualizado de R$ 12.000 para R$ 14.500",
-    fullDetails:
-      "Oportunidade: Pousada Mar\nCampo alterado: Valor\nValor anterior: R$ 12.000\nNovo valor: R$ 14.500\nMotivo: Inclusão de módulo adicional de reservas",
-  },
-  {
-    id: "audit-9",
-    timestamp: "2025-01-14T15:00:00",
-    user: { name: "Fernanda Reis", initials: "FR", color: "bg-status-warning-light text-status-warning" },
-    action: "moved",
-    entityType: "opportunity",
-    entityName: "TechCorp",
-    details: "Movido de Negociação para Fechamento",
-    fullDetails:
-      "Oportunidade: TechCorp\nEtapa anterior: Negociação\nNova etapa: Fechamento\nValor: R$ 22.000\nProbabilidade: 90%\nPrevisão de fechamento: 20/01/2025",
-  },
-  {
-    id: "audit-10",
-    timestamp: "2025-01-14T14:30:00",
-    user: { name: "Pedro Alves", initials: "PA", color: "bg-status-info-light text-status-info" },
-    action: "created",
-    entityType: "activity",
-    entityName: "Reunião de apresentação",
-    details: "Reunião agendada com Hotel Sunset para 17/01",
-    fullDetails:
-      "Tipo: Reunião\nData: 17/01/2025\nHorário: 14:00\nDuração prevista: 1h\nLocal: Online (Zoom)\nParticipantes: Pedro Alves, Carlos Lima, Gerente do Hotel Sunset",
-  },
-  {
-    id: "audit-11",
-    timestamp: "2025-01-14T11:15:00",
-    user: { name: "Sistema", initials: "SI", color: "bg-zinc-100 text-zinc-500" },
-    action: "created",
-    entityType: "user",
-    entityName: "Mariana Costa",
-    details: "Novo usuário convidado com perfil Comercial",
-    fullDetails:
-      "Nome: Mariana Costa\nEmail: mariana@flow.com\nPerfil: Comercial\nConvidado por: Ana Souza\nStatus: Convite enviado",
-  },
-  {
-    id: "audit-12",
-    timestamp: "2025-01-14T10:00:00",
-    user: { name: "Ana Souza", initials: "AS", color: "bg-brand-light text-brand" },
-    action: "updated",
-    entityType: "settings",
-    entityName: "Campos personalizados",
-    details: "Novo campo \"Segmento\" adicionado ao cadastro de clientes",
-    fullDetails:
-      "Configuração: Campos personalizados\nEntidade: Clientes\nAção: Novo campo adicionado\nNome do campo: Segmento\nTipo: Select\nOpções: Restaurante, Hotelaria, Cafeteria, Padaria, Outro",
-  },
-  {
-    id: "audit-13",
-    timestamp: "2025-01-13T16:30:00",
-    user: { name: "Carlos Lima", initials: "CL", color: "bg-status-success-light text-status-success" },
-    action: "deleted",
-    entityType: "opportunity",
-    entityName: "Pizzaria Roma",
-    details: "Oportunidade excluída — cliente desistiu",
-    fullDetails:
-      "Oportunidade: Pizzaria Roma\nValor: R$ 5.000\nEtapa: Contato Feito\nMotivo: Cliente optou por outro fornecedor\nDias no pipeline: 12",
-  },
-  {
-    id: "audit-14",
-    timestamp: "2025-01-13T14:00:00",
-    user: { name: "Fernanda Reis", initials: "FR", color: "bg-status-warning-light text-status-warning" },
-    action: "updated",
-    entityType: "client",
-    entityName: "Padaria Gourmet",
-    details: "Telefone e e-mail de contato atualizados",
-    fullDetails:
-      "Cliente: Padaria Gourmet\nCampos alterados: Telefone, Email\nTelefone anterior: (11) 3456-7890\nNovo telefone: (11) 3456-7899\nEmail anterior: contato@padariagourmet.com\nNovo email: vendas@padariagourmet.com",
-  },
-  {
-    id: "audit-15",
-    timestamp: "2025-01-13T10:45:00",
-    user: { name: "Pedro Alves", initials: "PA", color: "bg-status-info-light text-status-info" },
-    action: "moved",
-    entityType: "opportunity",
-    entityName: "Bistrô Jardim",
-    details: "Movido de Lead-In para Contato Feito",
-    fullDetails:
-      "Oportunidade: Bistrô Jardim\nEtapa anterior: Lead-In\nNova etapa: Contato Feito\nValor: R$ 9.000\nPrimeiro contato realizado via telefone\nPróxima ação: Agendar reunião presencial",
-  },
-  {
-    id: "audit-16",
-    timestamp: "2025-01-13T09:00:00",
-    user: { name: "Ana Souza", initials: "AS", color: "bg-brand-light text-brand" },
-    action: "created",
-    entityType: "opportunity",
-    entityName: "Cervejaria Artesanal",
-    details: "Nova oportunidade criada via formulário web",
-    fullDetails:
-      "Pipeline: Vendas\nEtapa: Lead-In\nValor estimado: R$ 18.000\nOrigem: Formulário do site\nCliente: Cervejaria Artesanal\nResponsável: Ana Souza",
-  },
-  {
-    id: "audit-17",
-    timestamp: "2025-01-12T17:00:00",
-    user: { name: "Sistema", initials: "SI", color: "bg-zinc-100 text-zinc-500" },
-    action: "updated",
-    entityType: "user",
-    entityName: "Carlos Lima",
-    details: "Perfil alterado de Comercial para Admin",
-    fullDetails:
-      "Usuário: Carlos Lima\nCampo alterado: Perfil de acesso\nPerfil anterior: Comercial\nNovo perfil: Admin\nAlterado por: Ana Souza (Admin)",
-  },
-];
+function mapAuditLogToEvents(events: typeof mockAuditLog): AuditEvent[] {
+  const userColors: Record<string, string> = {
+    "Rafael Mendes": "bg-brand-light text-brand",
+    "Camila Ferreira": "bg-status-info-light text-status-info",
+    "Lucas Oliveira": "bg-status-success-light text-status-success",
+    "Juliana Costa": "bg-status-warning-light text-status-warning",
+    "Fernanda Lima": "bg-purple-100 text-purple-700",
+    "Marcos Pereira": "bg-amber-100 text-amber-700",
+    "Carolina Santos": "bg-pink-100 text-pink-700",
+  };
+
+  const actionMap: Record<string, AuditAction> = {
+    "Ganhou oportunidade": "created",
+    "Perdeu oportunidade": "deleted",
+    "Criou oportunidade": "created",
+    "Adicionou cliente": "created",
+    "Completou atividade": "updated",
+    "Avançou estágio": "moved",
+    "Alterou saúde do cliente": "updated",
+    "Atualizou configuração": "updated",
+    "Criou atividade": "created",
+  };
+
+  return events.map((e) => {
+    const initials = e.userName
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+
+    return {
+      id: e.id,
+      timestamp: e.timestamp,
+      user: {
+        name: e.userName,
+        initials,
+        color: userColors[e.userName] ?? "bg-zinc-100 text-zinc-600",
+      },
+      action: actionMap[e.action] ?? "updated",
+      entityType: e.entity,
+      entityName: e.entityName,
+      details: e.details,
+    };
+  });
+}
+
+const mappedAuditEvents = mapAuditLogToEvents(mockAuditLog);
 
 const TOTAL_RECORDS = 247;
 const PAGE_SIZE = 15;
@@ -479,7 +335,7 @@ export default function AuditPage() {
 
   // Filter events
   const filteredEvents = useMemo(() => {
-    return mockAuditEvents.filter((event) => {
+    return mappedAuditEvents.filter((event) => {
       if (entityFilter !== "all" && event.entityType !== entityFilter) {
         return false;
       }
