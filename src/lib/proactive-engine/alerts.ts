@@ -31,10 +31,7 @@ export function computeRiskAlerts(
   }
 
   // 2. Client health drops
-  const userClients =
-    userRole === "master" || userRole === "admin"
-      ? clients
-      : clients.filter((c) => c.responsibleId === userId);
+  const userClients = filterByUser(clients, userId, userRole);
 
   const atRiskClients = userClients.filter(
     (c) =>

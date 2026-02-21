@@ -4,6 +4,7 @@ import {
   type SessionUser,
   type UserRole,
 } from "@/lib/auth-types";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 // ---------------------------------------------------------------------------
 // Mock fallback user — used when session API is unavailable (dev / mock mode)
@@ -146,7 +147,12 @@ const ACTIVITY_EVENTS = [
 ] as const;
 
 function getPermissionsForRole(role: UserRole): Permission {
-  return rolePermissions[role];
+  const basePermissions = rolePermissions[role];
+  if (!SHOW_ALL_MOCK_DATA) return basePermissions;
+  return {
+    ...basePermissions,
+    canViewAllUnits: true,
+  };
 }
 
 function readLastActivityAt(): number {

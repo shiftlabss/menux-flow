@@ -90,6 +90,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 import { cn } from "@/lib/utils";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 type ViewMode = "list" | "agenda";
 type SlaFilter = "all" | "breached" | "risk";
@@ -428,7 +429,7 @@ function ActivitiesPageContent() {
     () => toISODate(startOfDay(now))
   );
 
-  const canViewTeamScope = Boolean(permissions?.canViewAllUnits || user?.role === "master");
+  const canViewTeamScope = Boolean(SHOW_ALL_MOCK_DATA || permissions?.canViewAllUnits || user?.role === "master");
   const canCreateActivity = Boolean(permissions?.canCreateActivity);
   const canExecuteActivityActions = Boolean(permissions?.canEditActivity);
   const canCancelActivity = Boolean(permissions?.canCancelActivity);
@@ -436,6 +437,20 @@ function ActivitiesPageContent() {
 
   const { scopedOwnerId, scopeMode } = useMemo(() => {
     const preferredOwnerId = user?.id ?? null;
+
+    if (SHOW_ALL_MOCK_DATA) {
+      if (
+        ownerOverrideId &&
+        storeActivities.some((activity) => activity.responsibleId === ownerOverrideId)
+      ) {
+        return {
+          scopedOwnerId: ownerOverrideId,
+          scopeMode: "override" as const,
+        };
+      }
+
+      return { scopedOwnerId: null, scopeMode: "team" as const };
+    }
 
     if (canViewTeamScope) {
       if (

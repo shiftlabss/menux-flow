@@ -29,6 +29,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useOpportunityStore } from "@/stores/opportunity-store";
 import { useActivityStore } from "@/stores/activity-store";
 import { computePipelineContext } from "@/lib/proactive-engine";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -65,7 +66,9 @@ function createConversation(messages: Message[] = []): Conversation {
 function getVendorContext() {
   const user = useAuthStore.getState().user;
   const opportunities = useOpportunityStore.getState().opportunities;
-  const userOpps = opportunities.filter((o) => o.responsibleId === user?.id);
+  const userOpps = SHOW_ALL_MOCK_DATA
+    ? opportunities
+    : opportunities.filter((o) => o.responsibleId === user?.id);
   const closed = userOpps.filter((o) => o.status === "won" || o.status === "lost");
   const won = closed.filter((o) => o.status === "won");
   const conversionRate = closed.length >= 3 ? Math.round((won.length / closed.length) * 100) : undefined;

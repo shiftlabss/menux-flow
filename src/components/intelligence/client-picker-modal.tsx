@@ -22,6 +22,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import type { ClientPickerItem } from "@/types/intelligence";
 import type { Temperature } from "@/types";
 import { formatCurrencyBRL } from "@/lib/business-rules";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 // ─── Temperature Components ─────────────────────────────────────────────
 
@@ -88,6 +89,8 @@ export function ClientPickerModal() {
 
   const { opportunities } = useOpportunityStore();
   const user = useAuthStore((s) => s.user);
+  const permissions = useAuthStore((s) => s.permissions);
+  const canViewAllUnits = Boolean(SHOW_ALL_MOCK_DATA || permissions?.canViewAllUnits);
   const [debounced, setDebounced] = useState(clientPickerSearch);
 
   // Debounce search — seção 2.3.2: debounce 300ms
@@ -101,7 +104,7 @@ export function ClientPickerModal() {
     return opportunities
       .filter((opp) => {
         // Respeitar permissão — seção 9.2
-        if (user?.role === "comercial" || user?.role === "cs") {
+        if (!canViewAllUnits && (user?.role === "comercial" || user?.role === "cs")) {
           return opp.responsibleId === user.id;
         }
         return true; // master e admin veem todos
@@ -119,7 +122,7 @@ export function ClientPickerModal() {
         value: opp.monthlyValue,
         tags: opp.tags,
       }));
-  }, [opportunities, user]);
+  }, [canViewAllUnits, opportunities, user]);
 
   // Filtrar itens — seção 2.3.2
   const filteredItems = useMemo(() => {

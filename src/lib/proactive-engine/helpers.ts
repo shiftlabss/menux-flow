@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { PipelineStageConfig } from "@/stores/pipeline-store";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 export function daysBetween(dateA: string | Date, dateB: string | Date): number {
   const a = new Date(dateA);
@@ -49,6 +50,7 @@ export function filterByUser<T extends { responsibleId: string }>(
   userId: string,
   userRole: string
 ): T[] {
+  if (SHOW_ALL_MOCK_DATA) return items;
   if (userRole === "master" || userRole === "admin") return items;
   return items.filter((i) => i.responsibleId === userId);
 }

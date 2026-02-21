@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 
 import { useAuthStore } from "../auth-store";
 import type { User, UserRole } from "../auth-store";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 // Helper to create a mock user with a given role
 function createMockUser(role: UserRole, overrides?: Partial<User>): User {
@@ -146,7 +147,7 @@ describe("auth-store", () => {
       expect(p.canViewAllUnits).toBe(true);
     });
 
-    it("admin: should have most permissions but not canViewAllUnits", () => {
+    it("admin: should have most permissions", () => {
       const user = createMockUser("admin");
       useAuthStore.getState().setUser(user, "tok");
 
@@ -165,7 +166,7 @@ describe("auth-store", () => {
       expect(p.canExportData).toBe(true);
       expect(p.canApproveDiscounts).toBe(true);
       expect(p.canManageGoals).toBe(true);
-      expect(p.canViewAllUnits).toBe(false);
+      expect(p.canViewAllUnits).toBe(SHOW_ALL_MOCK_DATA);
     });
 
     it("comercial: can create/edit opportunities and view finance only", () => {
@@ -187,7 +188,7 @@ describe("auth-store", () => {
       expect(p.canExportData).toBe(false);
       expect(p.canApproveDiscounts).toBe(false);
       expect(p.canManageGoals).toBe(true);
-      expect(p.canViewAllUnits).toBe(false);
+      expect(p.canViewAllUnits).toBe(SHOW_ALL_MOCK_DATA);
     });
 
     it("cs: can only edit opportunities", () => {
@@ -209,7 +210,7 @@ describe("auth-store", () => {
       expect(p.canExportData).toBe(false);
       expect(p.canApproveDiscounts).toBe(false);
       expect(p.canManageGoals).toBe(false);
-      expect(p.canViewAllUnits).toBe(false);
+      expect(p.canViewAllUnits).toBe(SHOW_ALL_MOCK_DATA);
     });
 
     it("leitura: should have no permissions at all", () => {
@@ -231,7 +232,7 @@ describe("auth-store", () => {
       expect(p.canExportData).toBe(false);
       expect(p.canApproveDiscounts).toBe(false);
       expect(p.canManageGoals).toBe(false);
-      expect(p.canViewAllUnits).toBe(false);
+      expect(p.canViewAllUnits).toBe(SHOW_ALL_MOCK_DATA);
     });
   });
 });

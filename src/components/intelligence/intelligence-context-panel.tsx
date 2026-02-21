@@ -17,6 +17,7 @@ import { useOpportunityStore } from "@/stores/opportunity-store";
 import { useAuthStore } from "@/stores/auth-store";
 import type { ClientPickerItem } from "@/types/intelligence";
 import type { Temperature } from "@/types";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 const stageLabels: Record<string, string> = {
   "lead-in": "Lead In",
@@ -34,12 +35,14 @@ export function IntelligenceContextPanel() {
     useIntelligenceStore();
   const { opportunities } = useOpportunityStore();
   const user = useAuthStore((s) => s.user);
+  const permissions = useAuthStore((s) => s.permissions);
+  const canViewAllUnits = Boolean(SHOW_ALL_MOCK_DATA || permissions?.canViewAllUnits);
 
   // Build items from real opportunities
   const allItems: ClientPickerItem[] = useMemo(() => {
     return opportunities
       .filter((opp) => {
-        if (user?.role === "comercial" || user?.role === "cs") {
+        if (!canViewAllUnits && (user?.role === "comercial" || user?.role === "cs")) {
           return opp.responsibleId === user.id;
         }
         return true;
@@ -57,7 +60,7 @@ export function IntelligenceContextPanel() {
         value: opp.monthlyValue,
         tags: opp.tags,
       }));
-  }, [opportunities, user]);
+  }, [canViewAllUnits, opportunities, user]);
 
   // Priorities: hot leads + overdue (simulated via hot temperature)
   const priorities = useMemo(() => {

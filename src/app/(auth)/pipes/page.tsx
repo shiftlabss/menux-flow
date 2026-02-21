@@ -61,6 +61,7 @@ import { useStageCustomization } from "./hooks/use-stage-customization";
 import { DealCardBento } from "./components/deal-card-bento";
 import { PipelineSkeleton } from "./components/pipeline-skeleton";
 import { ModuleCommandHeader } from "@/components/shared/module-command-header";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 const FILTERS_APPLIED_EVENT = "flow:filters-applied";
 const STALE_ACTIVITY_DAYS = 5;
@@ -146,7 +147,7 @@ function PipesPageContent() {
   } | null>(null);
   const opportunities = useMemo(() => {
     const openOpportunities = storeOpportunities.filter((opportunity) => opportunity.status === "open");
-    if (canViewAllUnits || !userId) {
+    if (SHOW_ALL_MOCK_DATA || canViewAllUnits || !userId) {
       return openOpportunities;
     }
     return openOpportunities.filter((opportunity) => opportunity.responsibleId === userId);

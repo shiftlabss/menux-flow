@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 export type Period = 'today' | '7d' | '30d' | 'quarter'
 export type Context = 'me' | 'team'
@@ -12,7 +13,7 @@ interface DashboardState {
 
 export const useDashboardStore = create<DashboardState>((set) => ({
   period: 'today',
-  context: 'me',
+  context: SHOW_ALL_MOCK_DATA ? "team" : "me",
   setPeriod: (period) => set({ period }),
   setContext: (context) => set({ context }),
 }))

@@ -63,6 +63,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 type SuccessColumnId = "onboarding" | "implantacao" | "ativos";
 type SuccessPhase = "all" | SuccessColumnId;
@@ -300,7 +301,7 @@ function ClientsPageContent() {
 
   const scopedClients = useMemo(
     () => {
-      if (canViewAllUnits) return allClients;
+      if (SHOW_ALL_MOCK_DATA || canViewAllUnits) return allClients;
       if (!scopedOwnerId) return [];
       return allClients.filter((client) => client.responsibleId === scopedOwnerId);
     },

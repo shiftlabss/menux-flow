@@ -37,6 +37,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import { SHOW_ALL_MOCK_DATA } from "@/lib/mock-scope";
 
 type PeriodFilter = "weekly" | "monthly" | "quarterly" | "yearly";
 type GoalStatus = "risk" | "pace" | "achieved";
@@ -190,8 +191,9 @@ function scoreGoal(goal: Goal) {
 export default function GoalsPage() {
   const router = useRouter();
   const { goals } = useGoalStore();
-  const { user } = useAuthStore();
+  const { user, permissions } = useAuthStore();
   const { openDrawer } = useUIStore();
+  const canViewAllUnits = Boolean(SHOW_ALL_MOCK_DATA || permissions?.canViewAllUnits);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshingPeriod, setIsRefreshingPeriod] = useState(false);
@@ -274,10 +276,12 @@ export default function GoalsPage() {
 
   const personalGoals = useMemo(
     () =>
-      goals.filter(
-        (goal) => !goal.userId || goal.userId === scopedOwnerId
-      ),
-    [goals, scopedOwnerId]
+      canViewAllUnits
+        ? goals
+        : goals.filter(
+            (goal) => !goal.userId || goal.userId === scopedOwnerId
+          ),
+    [canViewAllUnits, goals, scopedOwnerId]
   );
 
   const periodGoals = useMemo(() => {

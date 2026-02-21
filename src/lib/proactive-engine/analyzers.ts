@@ -183,10 +183,7 @@ export function analyzeContractExpiring(
   thresholdDays = 30
 ): GeneratedSuggestion[] {
   const now = new Date();
-  const userClients =
-    userRole === "master" || userRole === "admin"
-      ? clients
-      : clients.filter((c) => c.responsibleId === userId);
+  const userClients = filterByUser(clients, userId, userRole);
 
   return userClients
     .map((client) => {
@@ -232,10 +229,7 @@ export function analyzeCrossSell(
   userId: string,
   userRole: string
 ): GeneratedSuggestion[] {
-  const userClients =
-    userRole === "master" || userRole === "admin"
-      ? clients
-      : clients.filter((c) => c.responsibleId === userId);
+  const userClients = filterByUser(clients, userId, userRole);
 
   const activeClients = userClients.filter(
     (c) => c.stage !== "churn" && c.monthlyRevenue > 0
