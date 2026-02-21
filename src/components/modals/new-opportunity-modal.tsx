@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { InlineFeedback } from "@/components/ui/inline-feedback";
 import { Input } from "@/components/ui/input";
@@ -26,29 +26,47 @@ import {
 import { useUIStore } from "@/stores/ui-store";
 import { useOpportunityStore } from "@/stores/opportunity-store";
 import { useNotificationStore } from "@/stores/notification-store";
+import { mockUsers } from "@/lib/mock-data";
+import type { PipelineStage } from "@/types";
 import {
   newOpportunitySchema,
   type NewOpportunityFormData,
 } from "@/lib/schemas";
 import { formatCurrencyBRL } from "@/lib/business-rules";
 
-const responsibleNames: Record<string, string> = {
-  "1": "Maria Silva",
-  "2": "João Santos",
-};
+const ALLOWED_STAGES: PipelineStage[] = [
+  "lead-in",
+  "contato-feito",
+  "reuniao-agendada",
+  "proposta-enviada",
+  "negociacao",
+  "fechamento",
+];
 
 export function NewOpportunityModal() {
-  const { drawerType, closeDrawer } = useUIStore();
+  const { drawerType, drawerData, closeDrawer } = useUIStore();
   const { addOpportunity } = useOpportunityStore();
   const { addNotification } = useNotificationStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{type: "success" | "error", message: string} | null>(null);
   const isOpen = drawerType === "new-opportunity";
+  const initialStage = ALLOWED_STAGES.includes(drawerData?.initialStage as PipelineStage)
+    ? (drawerData?.initialStage as PipelineStage)
+    : "lead-in";
+  const initialSource = typeof drawerData?.source === "string" ? drawerData.source : "";
+  const responsibleOptions = mockUsers.filter(
+    (mockUser) => mockUser.isActive && mockUser.role !== "leitura"
+  );
+  const responsibleNames = responsibleOptions.reduce<Record<string, string>>((acc, mockUser) => {
+    acc[mockUser.id] = mockUser.name;
+    return acc;
+  }, {});
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     reset,
     formState: { errors },
   } = useForm<NewOpportunityFormData>({
@@ -56,8 +74,19 @@ export function NewOpportunityModal() {
     defaultValues: {
       temperature: "warm",
       tags: [],
+      source: initialSource,
     },
   });
+  const sourceValue = watch("source");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    reset({
+      temperature: "warm",
+      tags: [],
+      source: initialSource,
+    });
+  }, [initialSource, isOpen, reset]);
 
   async function onSubmit(data: NewOpportunityFormData) {
     setIsSubmitting(true);
@@ -67,7 +96,7 @@ export function NewOpportunityModal() {
         clientName: data.clientName,
         value: data.value,
         monthlyValue: data.monthlyValue || 0,
-        stage: "lead-in",
+        stage: initialStage,
         temperature: data.temperature || "warm",
         responsibleId: data.responsibleId,
         responsibleName: responsibleNames[data.responsibleId] || "Não atribuído",
@@ -87,7 +116,11 @@ export function NewOpportunityModal() {
       setFeedback({ type: "success", message: "Oportunidade criada com sucesso!" });
       setTimeout(() => {
         setFeedback(null);
-        reset();
+        reset({
+          temperature: "warm",
+          tags: [],
+          source: initialSource,
+        });
         closeDrawer();
       }, 1500);
     } catch {
@@ -102,7 +135,11 @@ export function NewOpportunityModal() {
       open={isOpen}
       onOpenChange={() => {
         setFeedback(null);
-        reset();
+        reset({
+          temperature: "warm",
+          tags: [],
+          source: initialSource,
+        });
         closeDrawer();
       }}
     >
@@ -191,9 +228,12 @@ export function NewOpportunityModal() {
             </div>
             <div className="space-y-2">
               <Label className="font-body text-sm text-zinc-600">Origem</Label>
-              <Select onValueChange={(v) => setValue("source", v)}>
+              <Select
+                value={sourceValue || undefined}
+                onValueChange={(v) => setValue("source", v)}
+              >
                 <SelectTrigger className="h-10 rounded-[15px] font-body text-sm">
-                  <SelectValue placeholder="Selecione" />
+                  <SelectValue placeholder={initialSource || "Selecione"} />
                 </SelectTrigger>
                 <SelectContent className="rounded-[15px]">
                   <SelectItem value="indicacao">Indicação</SelectItem>
@@ -216,8 +256,11 @@ export function NewOpportunityModal() {
                 <SelectValue placeholder="Selecione um responsável" />
               </SelectTrigger>
               <SelectContent className="rounded-[15px]">
-                <SelectItem value="1">Maria Silva</SelectItem>
-                <SelectItem value="2">João Santos</SelectItem>
+                {responsibleOptions.map((mockUser) => (
+                  <SelectItem key={mockUser.id} value={mockUser.id}>
+                    {mockUser.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             {errors.responsibleId && (

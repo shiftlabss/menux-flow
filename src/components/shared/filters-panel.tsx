@@ -93,11 +93,11 @@ function persistActiveFilterCount(context: FilterContext, count: number) {
 
 // ── Mock options ────────────────────────────────────────────────────────────
 const mockResponsibles = [
-  { id: "u1", name: "Maria Silva" },
-  { id: "u2", name: "Pedro Santos" },
-  { id: "u3", name: "Julia Fernandes" },
-  { id: "u4", name: "Rafael Costa" },
-  { id: "u5", name: "Ana Oliveira" },
+  { id: "user-3", name: "Lucas Oliveira" },
+  { id: "user-4", name: "Juliana Costa" },
+  { id: "user-5", name: "Fernanda Lima" },
+  { id: "user-6", name: "Marcos Pereira" },
+  { id: "user-7", name: "Carolina Santos" },
 ];
 
 const mockStages = [

@@ -15,6 +15,7 @@ interface OpportunityState {
 
   // Stage management
   moveToStage: (id: string, stage: PipelineStage, slaHours?: number) => void;
+  replaceOpportunities: (opportunities: Opportunity[]) => void;
 
   // Status management
   winOpportunity: (id: string) => void;
@@ -72,6 +73,11 @@ export const useOpportunityStore = create<OpportunityState>()(
                 }
               : opp
           ),
+        })),
+
+      replaceOpportunities: (opportunities) =>
+        set(() => ({
+          opportunities,
         })),
 
       winOpportunity: (id) =>

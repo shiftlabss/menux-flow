@@ -64,7 +64,7 @@ import { Label } from "@/components/ui/label";
 import { maskCep } from "@/lib/masks";
 import { PhoneInput } from "@/components/ui/masked-inputs";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -100,7 +100,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useUIStore } from "@/stores/ui-store";
-import type { Activity as FlowActivity, Contact, Temperature, PipelineStage } from "@/types";
+import type { Activity as FlowActivity, Contact, Temperature, PipelineStage, Opportunity } from "@/types";
 import {
   calculateCardPatentScore,
   calculateLeadScore,
@@ -1773,6 +1773,22 @@ export default function LeadCardDrawer() {
   const { modalType, modalData, closeModal } = useUIStore();
   const isOpen = modalType === "lead-card";
   const selectedLeadId = modalData?.id as string | undefined;
+  const opportunitySnapshot = useMemo(() => {
+    const raw = modalData?.opportunitySnapshot;
+    if (!raw || typeof raw !== "object") return null;
+    const candidate = raw as Partial<Opportunity>;
+    if (typeof candidate.id !== "string") return null;
+    return candidate as Opportunity;
+  }, [modalData?.opportunitySnapshot]);
+  const blockedFocusFields = useMemo(() => {
+    const raw = modalData?.focusFields;
+    if (!Array.isArray(raw)) return [] as string[];
+    return raw.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }, [modalData?.focusFields]);
+  const pendingStageFromModal = useMemo(() => {
+    if (typeof modalData?.pendingStage !== "string") return null;
+    return modalData.pendingStage as PipelineStage;
+  }, [modalData?.pendingStage]);
   const initialTabFromModal = useMemo(
     () => resolveLeadDrawerTab(modalData?.initialTab),
     [modalData?.initialTab]
@@ -1782,10 +1798,12 @@ export default function LeadCardDrawer() {
     return typeof raw === "string" ? raw.trim() : "";
   }, [modalData?.prefillNote]);
   const opportunities = useOpportunityStore((state) => state.opportunities);
-  const selectedLead = useMemo(
-    () => opportunities.find((opportunity) => opportunity.id === selectedLeadId),
-    [opportunities, selectedLeadId]
-  );
+  const selectedLead = useMemo(() => {
+    const found = opportunities.find((opportunity) => opportunity.id === selectedLeadId);
+    if (found) return found;
+    if (opportunitySnapshot?.id === selectedLeadId) return opportunitySnapshot;
+    return null;
+  }, [opportunities, opportunitySnapshot, selectedLeadId]);
   const resolvedLead = useMemo(
     () =>
       selectedLead
@@ -2456,6 +2474,8 @@ export default function LeadCardDrawer() {
     });
     setNextStepState("idle");
     setNextStepError(null);
+    setHeaderBanner(null);
+    setStageBanner(null);
     const seed = [...mockNotesSeed];
     if (initialLeadNote) {
       seed.unshift({
@@ -2478,6 +2498,25 @@ export default function LeadCardDrawer() {
     prefillNoteFromModal,
     resolvedLead.id,
   ]);
+
+  useEffect(() => {
+    if (!isOpen || blockedFocusFields.length === 0) return;
+    const stageLabel = pendingStageFromModal
+      ? stageConfig.find((stageItem) => stageItem.id === pendingStageFromModal)?.label
+      : null;
+
+    setActiveTab("empresa");
+    setHeaderBanner({
+      message: stageLabel
+        ? `Movimento bloqueado para ${stageLabel}. Preencha os campos obrigatórios.`
+        : "Movimento bloqueado. Preencha os campos obrigatórios para avançar etapa.",
+      variant: "warning",
+      action: {
+        label: "Ir para campos",
+        onClick: () => setActiveTab("empresa"),
+      },
+    });
+  }, [blockedFocusFields.length, isOpen, pendingStageFromModal]);
 
   // ── Handlers ─────────────────────────────────────────────────
 

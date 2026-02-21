@@ -182,27 +182,33 @@ function getClientColumn(client: Client): SuccessColumnId {
   return "ativos";
 }
 
+function getMaxStaleDays(stage: Client["stage"]): number {
+  return stage === "onboarding" ? 5 : 30;
+}
+
 function getClientRiskScore(client: Client): number {
   const daysWithoutInteraction = getDaysSinceInteraction(client.lastInteraction);
+  const maxStale = getMaxStaleDays(client.stage);
   let score = 0;
   if (client.healthScore === "critical") score += 60;
   if (client.healthScore === "warning") score += 30;
   if (client.stage === "churn") score += 40;
-  if (daysWithoutInteraction > 30) score += 25;
-  if (daysWithoutInteraction > 14 && daysWithoutInteraction <= 30) score += 12;
+  if (daysWithoutInteraction > maxStale) score += 25;
+  if (daysWithoutInteraction > (maxStale / 2) && daysWithoutInteraction <= maxStale) score += 12;
   return score;
 }
 
 function isRiskClient(client: Client): boolean {
   const staleDays = getDaysSinceInteraction(client.lastInteraction);
-  return client.healthScore !== "good" || staleDays > 30 || client.stage === "churn";
+  return client.healthScore !== "good" || staleDays > getMaxStaleDays(client.stage) || client.stage === "churn";
 }
 
 function getRiskReason(client: Client): string {
   const staleDays = getDaysSinceInteraction(client.lastInteraction);
+  const maxStale = getMaxStaleDays(client.stage);
   if (client.stage === "churn") return "Cliente já em churn";
   if (client.healthScore === "critical") return "Health score crítico";
-  if (staleDays > 30) return `Sem interação há ${staleDays} dias`;
+  if (staleDays > maxStale) return `Sem interação há ${staleDays} dias (SLA estourado)`;
   if (client.healthScore === "warning") return "Health score em atenção";
   return "Atenção recomendada";
 }
@@ -265,6 +271,9 @@ function ClientsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasRiskFilterParam = searchParams.get("filter") === "risk";
+  // Consider standard CSM as not having export rights unless admin
+  const canExport = user?.role === "admin" || (user as any)?.permissions?.canExport === true;
+
 
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<ClientsView>("board");
@@ -389,7 +398,7 @@ function ClientsPageContent() {
 
       if (
         filters.staleOnly &&
-        getDaysSinceInteraction(client.lastInteraction) <= 30
+        getDaysSinceInteraction(client.lastInteraction) <= getMaxStaleDays(client.stage)
       ) {
         return false;
       }
@@ -413,9 +422,8 @@ function ClientsPageContent() {
     );
   }, [visiblePhase]);
 
-  const headerMeta = `${phaseLabel} · ${phaseScopedClients.length} cliente${
-    phaseScopedClients.length === 1 ? "" : "s"
-  } visíveis`;
+  const headerMeta = `${phaseLabel} · ${phaseScopedClients.length} cliente${phaseScopedClients.length === 1 ? "" : "s"
+    } visíveis`;
 
   const clientsForDisplay = phaseScopedClients;
 
@@ -522,6 +530,10 @@ function ClientsPageContent() {
   const handleExportColumn = useCallback(
     (columnId: SuccessColumnId) => {
       const clients = clientsByColumn[columnId];
+      if (clients.length > 500) {
+        setFeedback({ type: "error", message: "Muitos clientes para exportar. Refine os filtros." });
+        return;
+      }
       const csvRows = clients.map((client) =>
         [
           client.companyName,
@@ -562,13 +574,13 @@ function ClientsPageContent() {
               Ajuste os filtros ou busque por outro termo para visualizar clientes nesta fase.
             </p>
             <div className="mt-4 flex justify-center gap-2">
-                <Button
-                  variant="outline"
-                  className="rounded-full"
-                  onClick={() => {
-                    setFilters({ health: "all", staleOnly: false });
-                    setVisiblePhase("all");
-                  }}
+              <Button
+                variant="outline"
+                className="rounded-full"
+                onClick={() => {
+                  setFilters({ health: "all", staleOnly: false });
+                  setVisiblePhase("all");
+                }}
               >
                 Limpar filtros
               </Button>
@@ -615,6 +627,7 @@ function ClientsPageContent() {
                 onFocusClient={(client) => setFocusedClientId(client.id)}
                 onCopyMessage={handleCopyText}
                 cardFeedback={cardFeedback}
+                canExport={canExport}
                 onExport={() => handleExportColumn(columnId)}
                 onSuggestPlan={() =>
                   handleIntelligenceCommand("plan-column", `Plano de ação para ${config.label}`)
@@ -652,6 +665,7 @@ function ClientsPageContent() {
               onFocusClient={(client) => setFocusedClientId(client.id)}
               onCopyMessage={handleCopyText}
               cardFeedback={cardFeedback}
+              canExport={canExport}
               onExport={() => {
                 setFeedback({
                   type: "success",
@@ -874,17 +888,19 @@ function ClientsPageContent() {
                       <Activity className="mr-2 h-4 w-4" />
                       Criar atividade
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        setFeedback({
-                          type: "success",
-                          message: "Preview de importação de clientes aberto.",
-                        })
-                      }
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Importar clientes (preview)
-                    </DropdownMenuItem>
+                    {canExport ? (
+                      <DropdownMenuItem
+                        onClick={() =>
+                          setFeedback({
+                            type: "success",
+                            message: "Preview de importação de clientes aberto.",
+                          })
+                        }
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Importar clientes (Admin)
+                      </DropdownMenuItem>
+                    ) : null}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() =>
@@ -894,8 +910,8 @@ function ClientsPageContent() {
                         )
                       }
                     >
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Pedir plano do dia
+                      <Sparkles className="mr-2 h-4 w-4 text-brand" />
+                      Intelligence: Plano do dia
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -904,113 +920,122 @@ function ClientsPageContent() {
             }
           >
             <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:justify-end">
-                <div className="relative min-w-[220px] flex-1 lg:max-w-[360px]">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                  <Input
-                    value={searchInput}
-                    onChange={(event) => setSearchInput(event.target.value)}
-                    placeholder="Buscar por empresa ou contato"
-                    className="h-9 rounded-full border-zinc-200 bg-white pl-9 pr-8 text-sm transition-[box-shadow,border-color] duration-140 focus:border-zinc-300 focus:shadow-[0_0_0_3px_rgba(148,163,184,0.15)]"
-                  />
-                  {searchInput ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchInput("");
-                        setSearchQuery("");
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-zinc-400 transition-colors hover:text-zinc-600"
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </button>
-                  ) : null}
-                </div>
-
-                <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 rounded-full">
-                      <Filter className="h-3.5 w-3.5" />
-                      {panelFilterCount > 0 ? `Filtros (${panelFilterCount})` : "Filtros"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="end"
-                    className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3"
+              <div className="relative min-w-[220px] flex-1 lg:max-w-[360px]">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Buscar por empresa ou contato"
+                  className="h-9 rounded-full border-zinc-200 bg-white pl-9 pr-8 text-sm transition-[box-shadow,border-color] duration-140 focus:border-zinc-300 focus:shadow-[0_0_0_3px_rgba(148,163,184,0.15)]"
+                />
+                {searchInput ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchInput("");
+                      setSearchQuery("");
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-zinc-400 transition-colors hover:text-zinc-600"
                   >
-                    <div className="space-y-3">
-                      <div>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                          Health Score
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          <FilterOptionButton
-                            label="Todos"
-                            active={filters.health === "all"}
-                            onClick={() => setFilters((prev) => ({ ...prev, health: "all" }))}
-                          />
-                          <FilterOptionButton
-                            label="Saudável"
-                            active={filters.health === "good"}
-                            onClick={() => setFilters((prev) => ({ ...prev, health: "good" }))}
-                          />
-                          <FilterOptionButton
-                            label="Atenção"
-                            active={filters.health === "warning"}
-                            onClick={() =>
-                              setFilters((prev) => ({ ...prev, health: "warning" }))
-                            }
-                          />
-                          <FilterOptionButton
-                            label="Crítico"
-                            active={filters.health === "critical"}
-                            onClick={() =>
-                              setFilters((prev) => ({ ...prev, health: "critical" }))
-                            }
-                          />
-                        </div>
-                      </div>
+                    <XCircle className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFilters((prev) => ({ ...prev, staleOnly: !prev.staleOnly }))
-                        }
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-[12px] border px-3 py-2 text-sm transition-colors",
-                          filters.staleOnly
-                            ? "border-amber-200 bg-amber-50 text-amber-700"
-                            : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-                        )}
-                      >
-                        <span>Sem interação &gt;30d</span>
-                        {filters.staleOnly ? <Check className="h-4 w-4" /> : null}
-                      </button>
-
-                      <div className="flex items-center justify-between border-t border-zinc-200 pt-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="rounded-full"
+              <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 relative rounded-full">
+                    <Filter className="h-3.5 w-3.5" />
+                    {panelFilterCount > 0 ? (
+                      <>
+                        Filtros
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] font-bold text-white shadow-[0_0_0_2px_#fff]">
+                          {panelFilterCount}
+                        </span>
+                      </>
+                    ) : (
+                      "Filtros"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-[min(92vw,360px)] rounded-[16px] border-zinc-200 bg-white p-3"
+                >
+                  <div className="space-y-3">
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                        Health Score
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <FilterOptionButton
+                          label="Todos"
+                          active={filters.health === "all"}
+                          onClick={() => setFilters((prev) => ({ ...prev, health: "all" }))}
+                        />
+                        <FilterOptionButton
+                          label="Saudável"
+                          active={filters.health === "good"}
+                          onClick={() => setFilters((prev) => ({ ...prev, health: "good" }))}
+                        />
+                        <FilterOptionButton
+                          label="Atenção"
+                          active={filters.health === "warning"}
                           onClick={() =>
-                            setFilters({
-                              health: "all",
-                              staleOnly: false,
-                            })
+                            setFilters((prev) => ({ ...prev, health: "warning" }))
                           }
-                        >
-                          Limpar
-                        </Button>
-                        <Button
-                          size="sm"
-                          className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
-                          onClick={() => setIsFiltersOpen(false)}
-                        >
-                          Aplicar
-                        </Button>
+                        />
+                        <FilterOptionButton
+                          label="Crítico"
+                          active={filters.health === "critical"}
+                          onClick={() =>
+                            setFilters((prev) => ({ ...prev, health: "critical" }))
+                          }
+                        />
                       </div>
                     </div>
-                  </PopoverContent>
-                </Popover>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFilters((prev) => ({ ...prev, staleOnly: !prev.staleOnly }))
+                      }
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-[12px] border px-3 py-2 text-sm transition-colors",
+                        filters.staleOnly
+                          ? "border-amber-200 bg-amber-50 text-amber-700"
+                          : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                      )}
+                    >
+                      <span>Exibir apenas inativos (SLA)</span>
+                      {filters.staleOnly ? <Check className="h-4 w-4" /> : null}
+                    </button>
+
+                    <div className="flex items-center justify-between border-t border-zinc-200 pt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() =>
+                          setFilters({
+                            health: "all",
+                            staleOnly: false,
+                          })
+                        }
+                      >
+                        Limpar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+                        onClick={() => setIsFiltersOpen(false)}
+                      >
+                        Aplicar
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </ModuleCommandHeader>
         </motion.div>
@@ -1129,6 +1154,7 @@ function SuccessBoardColumn({
   onFocusClient,
   onCopyMessage,
   cardFeedback,
+  canExport,
   onExport,
   onSuggestPlan,
   onViewAll,
@@ -1146,6 +1172,7 @@ function SuccessBoardColumn({
   onFocusClient: (client: Client) => void;
   onCopyMessage: (text: string, clientId: string) => Promise<void>;
   cardFeedback: CardFeedbackState | null;
+  canExport: boolean;
   onExport: () => void;
   onSuggestPlan: () => void;
   onViewAll: () => void;
@@ -1186,11 +1213,13 @@ function SuccessBoardColumn({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 rounded-[14px]">
               <DropdownMenuItem onClick={onViewAll}>Ver todos</DropdownMenuItem>
-              <DropdownMenuItem onClick={onExport}>Exportar lista (preview)</DropdownMenuItem>
+              {canExport ? (
+                <DropdownMenuItem onClick={onExport}>Exportar lista (Admin)</DropdownMenuItem>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onSuggestPlan}>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Sugerir plano de ação
+                <Sparkles className="mr-2 h-4 w-4 text-brand" />
+                Intelligence: Sugerir plano
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -12,6 +12,9 @@ export interface Permission {
   canCreateOpportunity: boolean;
   canEditOpportunity: boolean;
   canDeleteOpportunity: boolean;
+  canCreateActivity: boolean;
+  canEditActivity: boolean;
+  canCancelActivity: boolean;
   canViewFinance: boolean;
   canEditFinance: boolean;
   canManageUsers: boolean;
@@ -28,6 +31,9 @@ const rolePermissions: Record<UserRole, Permission> = {
     canCreateOpportunity: true,
     canEditOpportunity: true,
     canDeleteOpportunity: true,
+    canCreateActivity: true,
+    canEditActivity: true,
+    canCancelActivity: true,
     canViewFinance: true,
     canEditFinance: true,
     canManageUsers: true,
@@ -42,6 +48,9 @@ const rolePermissions: Record<UserRole, Permission> = {
     canCreateOpportunity: true,
     canEditOpportunity: true,
     canDeleteOpportunity: true,
+    canCreateActivity: true,
+    canEditActivity: true,
+    canCancelActivity: true,
     canViewFinance: true,
     canEditFinance: true,
     canManageUsers: true,
@@ -56,6 +65,9 @@ const rolePermissions: Record<UserRole, Permission> = {
     canCreateOpportunity: true,
     canEditOpportunity: true,
     canDeleteOpportunity: false,
+    canCreateActivity: true,
+    canEditActivity: true,
+    canCancelActivity: true,
     canViewFinance: true,
     canEditFinance: false,
     canManageUsers: false,
@@ -70,6 +82,9 @@ const rolePermissions: Record<UserRole, Permission> = {
     canCreateOpportunity: false,
     canEditOpportunity: true,
     canDeleteOpportunity: false,
+    canCreateActivity: true,
+    canEditActivity: true,
+    canCancelActivity: false,
     canViewFinance: false,
     canEditFinance: false,
     canManageUsers: false,
@@ -84,6 +99,9 @@ const rolePermissions: Record<UserRole, Permission> = {
     canCreateOpportunity: false,
     canEditOpportunity: false,
     canDeleteOpportunity: false,
+    canCreateActivity: false,
+    canEditActivity: false,
+    canCancelActivity: false,
     canViewFinance: false,
     canEditFinance: false,
     canManageUsers: false,

@@ -25,6 +25,7 @@ import {
   FileSpreadsheet,
   FileText,
   Filter,
+  Flame,
   ListChecks,
   MoreHorizontal,
   Sparkles,
@@ -437,6 +438,7 @@ function FinancePageContent() {
   const [rowFeedback, setRowFeedback] = useState<Record<string, FeedbackState>>({});
   const [calcOpenRowId, setCalcOpenRowId] = useState<string | null>(null);
   const [contestConfirmId, setContestConfirmId] = useState<string | null>(null);
+  const [contestReason, setContestReason] = useState("");
   const [pageFeedback, setPageFeedback] = useState<FeedbackState | null>(null);
   const [intelRunningAction, setIntelRunningAction] = useState<string | null>(null);
   const [intelResult, setIntelResult] = useState<string | null>(null);
@@ -489,27 +491,8 @@ function FinancePageContent() {
   ).padStart(2, "0")}`;
 
   const currentSellerName = useMemo(() => {
-    const preferredName = user?.name?.trim();
-    if (
-      preferredName &&
-      commissions.some((commission) => commission.sellerName === preferredName)
-    ) {
-      return preferredName;
-    }
-    const sellerTotals = new Map<string, number>();
-    for (const c of commissions) {
-      sellerTotals.set(c.sellerName, (sellerTotals.get(c.sellerName) ?? 0) + 1);
-    }
-    let bestSeller = commissions[0]?.sellerName ?? "Maria Silva";
-    let bestCount = 0;
-    for (const [name, count] of sellerTotals) {
-      if (count > bestCount) {
-        bestSeller = name;
-        bestCount = count;
-      }
-    }
-    return bestSeller;
-  }, [commissions, user?.name]);
+    return user?.name?.trim() || "Usuário não identificado";
+  }, [user?.name]);
   const sellerInitials = getInitials(currentSellerName);
 
   const periodCommissions = useMemo(
@@ -734,11 +717,9 @@ function FinancePageContent() {
     async (commission: FinanceCommission) => {
       const summaryText = `Oportunidade: ${commission.opportunityTitle}\nComissão: ${formatCurrency(
         commission.value
-      )} (${
-        commission.percentage
-      }%)\nStatus: ${
-        statusConfig[commission.status].label
-      }\nCompetência: ${formatMonthLabel(commission.competenceMonth)}`;
+      )} (${commission.percentage
+        }%)\nStatus: ${statusConfig[commission.status].label
+        }\nCompetência: ${formatMonthLabel(commission.competenceMonth)}`;
 
       if (typeof navigator === "undefined" || !navigator.clipboard) {
         setRowInlineFeedback(commission.id, "error", "Copiar indisponível");
@@ -766,32 +747,38 @@ function FinancePageContent() {
         return;
       }
       setContestConfirmId(commission.id);
+      setContestReason("");
     },
     [setRowInlineFeedback]
   );
 
   const handleConfirmContest = useCallback(
     (commissionId: string) => {
+      if (!contestReason.trim() || contestReason.trim().length < 5) {
+        setRowInlineFeedback(commissionId, "error", "Motivo é obrigatório e deve ser claro.");
+        return;
+      }
       setCommissions((prev) =>
         prev.map((current) =>
           current.id === commissionId
             ? {
-                ...current,
-                status: "contested" as CommissionStatus,
-                contestationReason:
-                  "Contestação registrada para revisão financeira interna.",
-              }
+              ...current,
+              status: "contested" as CommissionStatus,
+              contestationReason: contestReason.trim(),
+            }
             : current
         )
       );
       setContestConfirmId(null);
-      setRowInlineFeedback(commissionId, "success", "Contestação registrada");
+      setContestReason("");
+      setRowInlineFeedback(commissionId, "success", "Contestação enviada ao financeiro");
     },
-    [setRowInlineFeedback]
+    [contestReason, setRowInlineFeedback]
   );
 
   const handleCancelContest = useCallback(() => {
     setContestConfirmId(null);
+    setContestReason("");
   }, []);
 
   const handleExport = useCallback(
@@ -1578,6 +1565,8 @@ function FinancePageContent() {
                               router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                             }
                             isContestPending={contestConfirmId === commission.id}
+                            contestReason={contestReason}
+                            onContestReasonChange={setContestReason}
                             onCopySummary={() => void handleCopySummary(commission)}
                             onRequestContest={() => handleRequestContest(commission)}
                             onConfirmContest={() => handleConfirmContest(commission.id)}
@@ -1635,6 +1624,8 @@ function FinancePageContent() {
                                         router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                                       }
                                       isContestPending={contestConfirmId === commission.id}
+                                      contestReason={contestReason}
+                                      onContestReasonChange={setContestReason}
                                       onCopySummary={() => void handleCopySummary(commission)}
                                       onRequestContest={() => handleRequestContest(commission)}
                                       onConfirmContest={() => handleConfirmContest(commission.id)}
@@ -1695,6 +1686,8 @@ function FinancePageContent() {
                                         router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                                       }
                                       isContestPending={contestConfirmId === commission.id}
+                                      contestReason={contestReason}
+                                      onContestReasonChange={setContestReason}
                                       onCopySummary={() => void handleCopySummary(commission)}
                                       onRequestContest={() => handleRequestContest(commission)}
                                       onConfirmContest={() => handleConfirmContest(commission.id)}
@@ -2089,6 +2082,8 @@ function FinanceCommissionItem({
   inlineFeedback,
   isDetailsOpen,
   isContestPending,
+  contestReason,
+  onContestReasonChange,
   onToggleDetails,
   onViewOpportunity,
   onCopySummary,
@@ -2102,6 +2097,8 @@ function FinanceCommissionItem({
   inlineFeedback?: FeedbackState;
   isDetailsOpen: boolean;
   isContestPending: boolean;
+  contestReason: string;
+  onContestReasonChange: (reason: string) => void;
   onToggleDetails: () => void;
   onViewOpportunity: () => void;
   onCopySummary: () => void;
@@ -2128,9 +2125,17 @@ function FinanceCommissionItem({
             <p className="truncate text-sm font-semibold text-zinc-900">
               {commission.opportunityTitle}
             </p>
-            <Badge className={cn("rounded-full border px-2 py-0.5 text-[11px]", status.badgeClass)}>
-              {status.label}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <Badge className={cn("rounded-full border px-2 py-0.5 text-[11px]", status.badgeClass)}>
+                {status.label}
+              </Badge>
+              {isRiskyProjected && (
+                <Badge className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                  <Flame className="mr-1 h-3 w-3" />
+                  Risco SLA
+                </Badge>
+              )}
+            </div>
           </div>
           <p className="mt-1 truncate text-xs text-zinc-500">
             Competência {formatMonthLabel(commission.competenceMonth)} · {commission.percentage}%
@@ -2256,29 +2261,35 @@ function FinanceCommissionItem({
       ) : null}
 
       {isContestPending ? (
-        <div className="mt-2 rounded-[12px] border border-red-200 bg-red-50/80 p-2.5">
-          <p className="text-xs font-medium text-red-800">
-            Confirmar contestação de &ldquo;{commission.opportunityTitle}&rdquo;?
+        <div className="mt-2 rounded-[12px] border border-red-200 bg-red-50/80 p-3">
+          <p className="font-heading text-sm font-semibold text-red-900">
+            Contestar comissão
           </p>
-          <p className="mt-0.5 text-[11px] text-red-600">
-            A comissão será marcada para revisão pelo financeiro. Essa ação não pode ser desfeita.
+          <p className="mt-0.5 text-xs text-red-700">
+            O valor ou os dados de &ldquo;{commission.opportunityTitle}&rdquo; divergem do acordado? Detalhe o motivo abaixo para análise do backoffice.
           </p>
-          <div className="mt-2 flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 rounded-full border-red-200 px-2.5 text-[11px] text-red-700 hover:bg-red-100"
-              onClick={onConfirmContest}
-            >
-              Confirmar contestação
-            </Button>
+          <textarea
+            className="mt-3 min-h-[64px] w-full resize-none rounded-[10px] border border-red-200 bg-white px-2.5 py-2 text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-red-400"
+            placeholder="Ex: O valor base faturado foi de R$ 10.000,00, não R$ 8.000,00."
+            value={contestReason}
+            onChange={(e) => onContestReasonChange(e.target.value)}
+          />
+          <div className="mt-3 flex items-center justify-end gap-2">
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 rounded-full px-2.5 text-[11px] text-zinc-600 hover:bg-zinc-100"
+              className="h-8 rounded-[8px] px-3 text-xs text-zinc-600 hover:bg-red-100"
               onClick={onCancelContest}
             >
               Cancelar
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-[8px] border-red-200 bg-white px-3 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-50"
+              onClick={onConfirmContest}
+            >
+              Enviar para análise
             </Button>
           </div>
         </div>
@@ -2372,7 +2383,7 @@ function FinanceIntelligenceRail({
         <Button
           className="mt-3 h-8 w-full rounded-full border border-white/15 bg-white/10 text-xs text-slate-100 hover:bg-white/15"
           onClick={() =>
-            onRunAction("plan", "Plano de follow-up financeiro gerado.")
+            onRunAction("plan", "Análise de regras aplicada. Revise as anomalias detectadas no painel.")
           }
           disabled={runningAction === "plan"}
         >
@@ -2381,7 +2392,7 @@ function FinanceIntelligenceRail({
           ) : (
             <Bot className="mr-1.5 h-3.5 w-3.5" />
           )}
-          Gerar plano do período
+          Rodar diagnóstico do período
         </Button>
       </div>
 
@@ -2458,9 +2469,9 @@ function FinanceIntelligenceRail({
           </p>
           <div className="mt-2 space-y-2">
             <IntelligenceQuickAction
-              label="Cobrar confirmação de itens pendentes"
+              label="Destacar itens pendentes para cobrança"
               onClick={() =>
-                onRunAction("confirm", "Checklist de cobrança gerado.", applyProjectedFilter)
+                onRunAction("confirm", "Filtro aplicado: projetadas pendentes para sua cobrança local.", applyProjectedFilter)
               }
               loading={runningAction === "confirm"}
             />
@@ -2470,9 +2481,9 @@ function FinanceIntelligenceRail({
               loading={runningAction === "paid"}
             />
             <IntelligenceQuickAction
-              label="Gerar resumo para financeiro"
+              label="Gerar resumo contábil para o financeiro"
               onClick={() =>
-                onRunAction("summary", "Resumo executivo pessoal gerado.", () => {
+                onRunAction("summary", "Resumo estruturado gerado e pronto para cópia.", () => {
                   setGeneratedSummary(onGenerateSummary());
                 })
               }

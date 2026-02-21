@@ -225,7 +225,6 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
   const addActivity = useActivityStore((store) => store.addActivity);
   const [viewState, setViewState] = useState<FunnelXRayState>(state);
   const [actionState, setActionState] = useState<ActionState>("idle");
-  const [messageActionState, setMessageActionState] = useState<ActionState>("idle");
   const [createdCount, setCreatedCount] = useState(0);
 
   const {
@@ -345,9 +344,16 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
 
   useEffect(() => {
     setActionState("idle");
-    setMessageActionState("idle");
     setCreatedCount(0);
   }, [selectedStage?.id]);
+
+  // Auto-dismiss action feedback after 6 seconds
+  useEffect(() => {
+    if (actionState !== "success" && actionState !== "error") return;
+    const t = setTimeout(() => setActionState("idle"), 6000);
+    return () => clearTimeout(t);
+  }, [actionState]);
+
 
   function setStageSelection(nextStageId: FlowStageId | null) {
     const current = selectedStage?.id ?? null;
@@ -389,21 +395,15 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
   }
 
   function openHighlightReason() {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("view", "insights");
-    params.set("focus", `best-conversion-${bestStage?.from.id ?? "funnel"}`);
-
-    const serialized = params.toString();
-    router.push(serialized ? `${pathname}?${serialized}` : pathname);
+    if (bestStage?.from.id) {
+      setStageSelection(bestStage.from.id);
+    }
   }
 
   function openActivitiesFromAction() {
     router.push("/activities?statuses=pending,overdue&q=Follow-up");
   }
 
-  function openDrafts() {
-    router.push("/intelligence?source=funnel&view=drafts");
-  }
 
   function handleRecommendedAction() {
     if (actionState === "loading") return;
@@ -456,20 +456,6 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
 
     setCreatedCount(count);
     setActionState("success");
-  }
-
-  function handleGenerateMessages() {
-    if (messageActionState === "loading") return;
-
-    if (!scopeStage) {
-      setMessageActionState("error");
-      return;
-    }
-
-    setMessageActionState("loading");
-    window.setTimeout(() => {
-      setMessageActionState("success");
-    }, 450);
   }
 
   function handleRetry() {
@@ -562,7 +548,6 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
               headline=""
               description=""
               primaryAction={{ label: "Cobrar feedbacks", onAction: () => {}, asButton: true }}
-              secondaryAction={{ label: "Gerar mensagens via IA", onAction: () => {} }}
               onRetry={handleRetry}
               status={viewState === "loading" ? "loading" : "error"}
             />
@@ -692,14 +677,6 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                     disabled: actionState === "loading",
                     loading: actionState === "loading",
                   }}
-                  secondaryAction={{
-                    label:
-                      messageActionState === "loading"
-                        ? "Gerando mensagens..."
-                        : "Gerar mensagens via IA",
-                    onAction: handleGenerateMessages,
-                    loading: messageActionState === "loading",
-                  }}
                   feedback={
                     <>
                       {actionState === "success" ? (
@@ -734,37 +711,6 @@ export function FunnelXRay({ state = "ready" }: { state?: FunnelXRayState }) {
                         </p>
                       ) : null}
 
-                      {messageActionState === "success" ? (
-                        <p className="mt-1 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1 text-zinc-700">
-                          Mensagens geradas. {" "}
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openDrafts();
-                            }}
-                            className="font-semibold underline underline-offset-4"
-                          >
-                            Abrir rascunhos
-                          </button>
-                        </p>
-                      ) : null}
-
-                      {messageActionState === "error" ? (
-                        <p className="mt-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-red-700">
-                          Falha ao gerar mensagens. {" "}
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleGenerateMessages();
-                            }}
-                            className="font-semibold underline underline-offset-4"
-                          >
-                            Tentar novamente
-                          </button>
-                        </p>
-                      ) : null}
                     </>
                   }
                   onRetry={handleRetry}

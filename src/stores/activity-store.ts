@@ -77,7 +77,7 @@ export const useActivityStore = create<ActivityState>()(
         set((state) => ({
           activities: state.activities.map((act) =>
             act.id === id
-              ? { ...act, status: "cancelled" as ActivityStatus }
+              ? { ...act, status: "cancelled" as ActivityStatus, updatedAt: new Date().toISOString() }
               : act
           ),
         })),

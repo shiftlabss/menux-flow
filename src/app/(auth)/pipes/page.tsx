@@ -42,11 +42,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUIStore } from "@/stores/ui-store";
 import { useAuthStore } from "@/stores/auth-store";
+import { useOpportunityStore } from "@/stores/opportunity-store";
 import {
   calculateTemperature,
   formatCurrencyBRL,
 } from "@/lib/business-rules";
-import { generateDynamicMockData } from "@/lib/mock-data";
 import { screenContainer, sectionEnter, listItemReveal } from "@/lib/motion";
 import { cn } from "@/lib/cn";
 import {
@@ -124,27 +124,50 @@ function getStageParamLabel(stage: PipelineStage) {
 function PipesPageContent() {
   const { openDrawer, openModal } = useUIStore();
   const { user, permissions } = useAuthStore();
+  const storeOpportunities = useOpportunityStore((state) => state.opportunities);
+  const replaceOpportunities = useOpportunityStore((state) => state.replaceOpportunities);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const userId = user?.id ?? null;
 
-  const canCreateOpportunity = permissions?.canCreateOpportunity ?? true;
-  const canMoveCards = permissions?.canEditOpportunity ?? true;
+  const canCreateOpportunity = permissions?.canCreateOpportunity ?? false;
+  const canMoveCards = permissions?.canEditOpportunity ?? false;
+  const canCreateActivity = permissions?.canCreateActivity ?? false;
   const canConfigureStages = permissions?.canManageSettings ?? false;
-
-  const currentUserId = user?.id ?? "demo-user";
-  const currentUserName = user?.name ?? "Usuario Demo";
+  const canViewAllUnits = permissions?.canViewAllUnits ?? false;
 
   const [selectedFunnel, setSelectedFunnel] = useState("comercial");
-  const [localOpportunities, setLocalOpportunities] = useState<Opportunity[]>(
-    () => generateDynamicMockData(currentUserId, currentUserName)
-  );
-  const opportunities = localOpportunities;
+  const [filtersInlineFeedback, setFiltersInlineFeedback] = useState<{
+    tone: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
+  const opportunities = useMemo(() => {
+    const openOpportunities = storeOpportunities.filter((opportunity) => opportunity.status === "open");
+    if (canViewAllUnits || !userId) {
+      return openOpportunities;
+    }
+    return openOpportunities.filter((opportunity) => opportunity.responsibleId === userId);
+  }, [canViewAllUnits, storeOpportunities, userId]);
 
   useEffect(() => {
     const opportunityId = searchParams.get("opportunityId");
     if (!opportunityId) return;
 
-    openModal("lead-card", { id: opportunityId });
+    const opportunity = opportunities.find((candidate) => candidate.id === opportunityId);
+    let feedbackTimeoutId: number | null = null;
+    if (!opportunity) {
+      feedbackTimeoutId = window.setTimeout(() => {
+        setFiltersInlineFeedback({
+          tone: "error",
+          message: "Não foi possível abrir o card. Oportunidade não encontrada no escopo atual.",
+        });
+      }, 0);
+    } else {
+      openModal("lead-card", {
+        id: opportunityId,
+        opportunitySnapshot: opportunity,
+      });
+    }
 
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("opportunityId");
@@ -152,14 +175,17 @@ function PipesPageContent() {
     router.replace(serialized ? `/pipes?${serialized}` : "/pipes", {
       scroll: false,
     });
-  }, [openModal, router, searchParams]);
+    return () => {
+      if (feedbackTimeoutId) {
+        window.clearTimeout(feedbackTimeoutId);
+      }
+    };
+  }, [openModal, opportunities, router, searchParams]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInputValue, setSearchInputValue] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const [appliedFiltersCount, setAppliedFiltersCount] = useState(0);
-  const [recentFiltersCount, setRecentFiltersCount] = useState<number | null>(null);
   const [globalPipesFilters, setGlobalPipesFilters] = useState<GlobalPipesFilters | null>(null);
 
   useEffect(() => {
@@ -170,38 +196,40 @@ function PipesPageContent() {
       .map((token) => token.trim())
       .filter(Boolean);
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- URL query is the source of truth for entry filters.
-    setGlobalPipesFilters((prev) => {
-      const base = prev ?? createEmptyPipesFilters();
-      const next: GlobalPipesFilters = {
-        ...base,
-        overdue: false,
-        stale: false,
-        risk: false,
-      };
+    const frameId = window.requestAnimationFrame(() => {
+      setGlobalPipesFilters((prev) => {
+        const base = prev ?? createEmptyPipesFilters();
+        const next: GlobalPipesFilters = {
+          ...base,
+          overdue: false,
+          stale: false,
+          risk: false,
+        };
 
-      for (const token of filterTokens) {
-        if (token === "sla_overdue") next.overdue = true;
-        if (token === "sla_risk" || token === "risk") next.risk = true;
-        if (
-          token === "stale" ||
-          token === "stalled" ||
-          token === "no_activity"
-        ) {
-          next.stale = true;
+        for (const token of filterTokens) {
+          if (token === "sla_overdue") next.overdue = true;
+          if (token === "sla_risk" || token === "risk") next.risk = true;
+          if (
+            token === "stale" ||
+            token === "stalled" ||
+            token === "no_activity"
+          ) {
+            next.stale = true;
+          }
         }
-      }
 
-      if (
-        base.overdue === next.overdue &&
-        base.stale === next.stale &&
-        Boolean(base.risk) === Boolean(next.risk)
-      ) {
-        return prev ?? next;
-      }
+        if (
+          base.overdue === next.overdue &&
+          base.stale === next.stale &&
+          Boolean(base.risk) === Boolean(next.risk)
+        ) {
+          return prev ?? next;
+        }
 
-      return next;
+        return next;
+      });
     });
+    return () => window.cancelAnimationFrame(frameId);
   }, [searchParams]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -235,6 +263,35 @@ function PipesPageContent() {
     [stageFilter, activeStageIds]
   );
 
+  const setScopedOpportunities = useCallback(
+    (
+      next:
+        | Opportunity[]
+        | ((previous: Opportunity[]) => Opportunity[])
+    ) => {
+      const previousScoped = opportunities;
+      const nextScoped =
+        typeof next === "function" ? next(previousScoped) : next;
+      const scopedIds = new Set(previousScoped.map((opportunity) => opportunity.id));
+      const nextScopedById = new Map(
+        nextScoped.map((opportunity) => [opportunity.id, opportunity])
+      );
+      const nextGlobal = storeOpportunities.map((opportunity) => {
+        if (!scopedIds.has(opportunity.id)) return opportunity;
+        return nextScopedById.get(opportunity.id) ?? opportunity;
+      });
+
+      for (const opportunity of nextScoped) {
+        if (!storeOpportunities.some((current) => current.id === opportunity.id)) {
+          nextGlobal.push(opportunity);
+        }
+      }
+
+      replaceOpportunities(nextGlobal);
+    },
+    [opportunities, replaceOpportunities, storeOpportunities]
+  );
+
   const announce = useCallback((message: string) => {
     if (liveRegionRef.current) {
       liveRegionRef.current.textContent = message;
@@ -257,13 +314,18 @@ function PipesPageContent() {
       }>;
       if (customEvent.detail?.context !== "pipes") return;
 
-      const count = Number(customEvent.detail?.count ?? 0);
-      const safeCount = Number.isFinite(count) && count >= 0 ? count : 0;
-      setAppliedFiltersCount(safeCount);
-      setRecentFiltersCount(safeCount);
-
       if (customEvent.detail?.filters) {
         setGlobalPipesFilters(customEvent.detail.filters);
+      }
+      const count = Number(customEvent.detail?.count ?? 0);
+      if (Number.isFinite(count) && count >= 0) {
+        setFiltersInlineFeedback({
+          tone: "success",
+          message:
+            count > 0
+              ? `${count} filtro(s) aplicado(s) no pipeline.`
+              : "Filtros aplicados. Nenhum critério ativo.",
+        });
       }
     };
 
@@ -276,10 +338,10 @@ function PipesPageContent() {
   }, []);
 
   useEffect(() => {
-    if (recentFiltersCount === null) return;
-    const timer = window.setTimeout(() => setRecentFiltersCount(null), 1200);
+    if (!filtersInlineFeedback) return;
+    const timer = window.setTimeout(() => setFiltersInlineFeedback(null), 2200);
     return () => window.clearTimeout(timer);
-  }, [recentFiltersCount]);
+  }, [filtersInlineFeedback]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -326,13 +388,18 @@ function PipesPageContent() {
     for (const opportunity of opportunities) {
       if (!effectiveStageIds.includes(opportunity.stage)) continue;
 
-      if (
-        normalizedSearch &&
-        !opportunity.title.toLowerCase().includes(normalizedSearch) &&
-        !opportunity.clientName.toLowerCase().includes(normalizedSearch) &&
-        !opportunity.tags.some((tag) => tag.toLowerCase().includes(normalizedSearch))
-      ) {
-        continue;
+      if (normalizedSearch) {
+        const textMatch =
+          opportunity.title.toLowerCase().includes(normalizedSearch) ||
+          opportunity.clientName.toLowerCase().includes(normalizedSearch) ||
+          opportunity.tags.some((tag) => tag.toLowerCase().includes(normalizedSearch));
+
+        const numericSearch = normalizedSearch.replace(/\D/g, "");
+        const valueMatch = numericSearch.length > 0 && String(opportunity.value).includes(numericSearch);
+
+        if (!textMatch && !valueMatch) {
+          continue;
+        }
       }
 
       const computedTemperature = resolveTemperature(opportunity);
@@ -345,6 +412,15 @@ function PipesPageContent() {
         if (globalPipesFilters.risk && !isSlaRiskOpportunity(opportunity)) continue;
         if (globalPipesFilters.stale && !isStaleOpportunity(opportunity)) continue;
         if (globalPipesFilters.stage?.length > 0 && !globalPipesFilters.stage.includes(opportunity.stage)) continue;
+
+        const referenceDate = (opportunity.expectedCloseDate ?? opportunity.updatedAt).slice(0, 10);
+        if (globalPipesFilters.dateStart && referenceDate < globalPipesFilters.dateStart) continue;
+        if (globalPipesFilters.dateEnd && referenceDate > globalPipesFilters.dateEnd) continue;
+
+        const valueMin = Number(globalPipesFilters.valueMin || 0);
+        if (Number.isFinite(valueMin) && valueMin > 0 && opportunity.value < valueMin) continue;
+        const valueMax = Number(globalPipesFilters.valueMax || 0);
+        if (Number.isFinite(valueMax) && valueMax > 0 && opportunity.value > valueMax) continue;
       }
 
       grouped[opportunity.stage].push(opportunity);
@@ -372,10 +448,23 @@ function PipesPageContent() {
     };
   }, [opportunitiesByStage]);
 
-  const activeFilterCount = useMemo(
-    () => appliedFiltersCount + (stageFilter ? 1 : 0),
-    [appliedFiltersCount, stageFilter]
-  );
+  const activeFilterCount = useMemo(() => {
+    if (!globalPipesFilters) return stageFilter ? 1 : 0;
+    return (
+      globalPipesFilters.responsible.length +
+      globalPipesFilters.stage.length +
+      globalPipesFilters.temperature.length +
+      globalPipesFilters.tags.length +
+      (globalPipesFilters.dateStart ? 1 : 0) +
+      (globalPipesFilters.dateEnd ? 1 : 0) +
+      (globalPipesFilters.valueMin ? 1 : 0) +
+      (globalPipesFilters.valueMax ? 1 : 0) +
+      (globalPipesFilters.overdue ? 1 : 0) +
+      (globalPipesFilters.stale ? 1 : 0) +
+      (globalPipesFilters.risk ? 1 : 0) +
+      (stageFilter ? 1 : 0)
+    );
+  }, [globalPipesFilters, stageFilter]);
 
   const clearSearch = useCallback(() => {
     setSearchInputValue("");
@@ -388,8 +477,10 @@ function PipesPageContent() {
       const params = new URLSearchParams(searchParams.toString());
       if (next === "all") {
         params.delete("stage");
+        params.delete("stageId");
       } else {
         params.set("stage", next);
+        params.delete("stageId");
       }
       const serialized = params.toString();
       router.replace(serialized ? `/pipes?${serialized}` : "/pipes", {
@@ -401,15 +492,42 @@ function PipesPageContent() {
 
   const clearLocalFilters = useCallback(() => {
     setGlobalPipesFilters(null);
-    setAppliedFiltersCount(0);
-    setRecentFiltersCount(0);
+    setFiltersInlineFeedback({
+      tone: "info",
+      message: "Filtros do pipeline limpos.",
+    });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("flow:filters-clear", { detail: { context: "pipes" } })
+      );
+    }
     setSearchInputValue("");
     setSearchQuery("");
     setIsMobileSearchOpen(false);
-    if (stageFilter) {
-      updateStageFilter("all");
-    }
-  }, [stageFilter, updateStageFilter]);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("filter");
+    params.delete("filters");
+    params.delete("stage");
+    params.delete("stageId");
+    const serialized = params.toString();
+    router.replace(serialized ? `/pipes?${serialized}` : "/pipes", { scroll: false });
+  }, [router, searchParams]);
+
+  const toggleQuickFilter = useCallback(
+    (key: keyof Pick<GlobalPipesFilters, "overdue" | "stale">) => {
+      setGlobalPipesFilters((prev) => {
+        const base = prev ?? createEmptyPipesFilters();
+        const next = { ...base, [key]: !base[key] };
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("flow:filters-update", { detail: { context: "pipes", filters: next } })
+          );
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   const handleFunnelChange = useCallback(
     (pipelineId: string) => {
@@ -430,37 +548,39 @@ function PipesPageContent() {
       tone: "neutral" | "info" | "warning" | "danger" | "success";
       onClick?: () => void;
     }> = [
-      {
-        id: "pipeline-total",
-        label: `Pipeline: ${formatCurrencyBRL(boardMetrics.boardTotal)}`,
-        icon: <CircleDollarSign className="h-3.5 w-3.5" />,
-        tone: "info",
-      },
-      {
-        id: "stages-visible",
-        label: `Etapas: ${visibleStages.length}`,
-        icon: <Columns3 className="h-3.5 w-3.5" />,
-        tone: "neutral",
-      },
-      {
-        id: "cards-total",
-        label: `Cards: ${boardMetrics.totalCards}`,
-        icon: <Filter className="h-3.5 w-3.5" />,
-        tone: "neutral",
-      },
-      {
-        id: "cards-overdue",
-        label: `Estourados: ${boardMetrics.overdueCards}`,
-        icon: <Flame className="h-3.5 w-3.5" />,
-        tone: boardMetrics.overdueCards > 0 ? "danger" : "neutral",
-      },
-      {
-        id: "cards-stale",
-        label: `Sem atividade: ${boardMetrics.staleCards}`,
-        icon: <TimerReset className="h-3.5 w-3.5" />,
-        tone: boardMetrics.staleCards > 0 ? "warning" : "neutral",
-      },
-    ];
+        {
+          id: "pipeline-total",
+          label: `Pipeline: ${formatCurrencyBRL(boardMetrics.boardTotal)}`,
+          icon: <CircleDollarSign className="h-3.5 w-3.5" />,
+          tone: "info",
+        },
+        {
+          id: "stages-visible",
+          label: `Etapas: ${visibleStages.length}`,
+          icon: <Columns3 className="h-3.5 w-3.5" />,
+          tone: "neutral",
+        },
+        {
+          id: "cards-total",
+          label: `Cards: ${boardMetrics.totalCards}`,
+          icon: <Filter className="h-3.5 w-3.5" />,
+          tone: "neutral",
+        },
+        {
+          id: "cards-overdue",
+          label: `Estourados: ${boardMetrics.overdueCards}`,
+          icon: <Flame className="h-3.5 w-3.5" />,
+          tone: globalPipesFilters?.overdue ? "danger" : "neutral",
+          onClick: () => toggleQuickFilter("overdue"),
+        },
+        {
+          id: "cards-stale",
+          label: `Sem atividade: ${boardMetrics.staleCards}`,
+          icon: <TimerReset className="h-3.5 w-3.5" />,
+          tone: globalPipesFilters?.stale ? "warning" : "neutral",
+          onClick: () => toggleQuickFilter("stale"),
+        },
+      ];
 
     return chips;
   }, [
@@ -469,75 +589,97 @@ function PipesPageContent() {
     boardMetrics.staleCards,
     boardMetrics.totalCards,
     visibleStages.length,
+    globalPipesFilters,
+    toggleQuickFilter,
   ]);
 
   const activeFilters = useMemo(() => {
     const filters: { id: string; label: string; onRemove: () => void }[] = [];
-    if (!globalPipesFilters) return filters;
+    if (globalPipesFilters) {
+      const dispatchUpdate = (newFilters: NonNullable<typeof globalPipesFilters>) => {
+        setGlobalPipesFilters(newFilters);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("flow:filters-update", { detail: { context: "pipes", filters: newFilters } })
+          );
+        }
+      };
 
-    const dispatchUpdate = (newFilters: NonNullable<typeof globalPipesFilters>) => {
-      setGlobalPipesFilters(newFilters);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("flow:filters-update", { detail: { context: "pipes", filters: newFilters } })
-        );
+      if (globalPipesFilters.temperature?.length > 0) {
+        filters.push({
+          id: "temp",
+          label: `Temperatura: ${globalPipesFilters.temperature.map((t) => (t === "hot" ? "Quente" : t === "warm" ? "Morna" : "Fria")).join(", ")}`,
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, temperature: [] }),
+        });
       }
-    };
-
-    if (globalPipesFilters.temperature?.length > 0) {
-      filters.push({
-        id: "temp",
-        label: `Temperatura: ${globalPipesFilters.temperature.map((t) => (t === "hot" ? "Quente" : t === "warm" ? "Morna" : "Fria")).join(", ")}`,
-        onRemove: () => dispatchUpdate({ ...globalPipesFilters, temperature: [] }),
-      });
-    }
-    if (globalPipesFilters.responsible?.length > 0) {
-      filters.push({
-        id: "owner",
-        label: `Donos: ${globalPipesFilters.responsible.length}`,
-        onRemove: () => dispatchUpdate({ ...globalPipesFilters, responsible: [] }),
-      });
-    }
-    if (globalPipesFilters.tags?.length > 0) {
-      filters.push({
-        id: "segment",
-        label: `Tags: ${globalPipesFilters.tags.join(", ")}`,
-        onRemove: () => dispatchUpdate({ ...globalPipesFilters, tags: [] }),
-      });
-    }
-    if (globalPipesFilters.stage?.length > 0) {
-      filters.push({
-        id: "stage-filters",
-        label: `Etapas: ${globalPipesFilters.stage.length}`,
-        onRemove: () => dispatchUpdate({ ...globalPipesFilters, stage: [] }),
-      });
-    }
-    if (globalPipesFilters.overdue) {
-      filters.push({
-        id: "overdue",
-        label: "Somente estourados",
-        onRemove: () => dispatchUpdate({ ...globalPipesFilters, overdue: false }),
-      });
-    }
-    if (globalPipesFilters.risk) {
-      filters.push({
-        id: "risk",
-        label: "Somente em risco",
-        onRemove: () => dispatchUpdate({ ...globalPipesFilters, risk: false }),
-      });
-    }
-    if (globalPipesFilters.stale) {
-      filters.push({
-        id: "stale",
-        label: "Somente sem atividade",
-        onRemove: () => dispatchUpdate({ ...globalPipesFilters, stale: false }),
-      });
+      if (globalPipesFilters.responsible?.length > 0) {
+        filters.push({
+          id: "owner",
+          label: `Donos: ${globalPipesFilters.responsible.length}`,
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, responsible: [] }),
+        });
+      }
+      if (globalPipesFilters.tags?.length > 0) {
+        filters.push({
+          id: "segment",
+          label: `Tags: ${globalPipesFilters.tags.join(", ")}`,
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, tags: [] }),
+        });
+      }
+      if (globalPipesFilters.stage?.length > 0) {
+        filters.push({
+          id: "stage-filters",
+          label: `Etapas: ${globalPipesFilters.stage.length}`,
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, stage: [] }),
+        });
+      }
+      if (globalPipesFilters.dateStart || globalPipesFilters.dateEnd) {
+        filters.push({
+          id: "period",
+          label: `Periodo: ${globalPipesFilters.dateStart || "..."} ate ${globalPipesFilters.dateEnd || "..."}`,
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, dateStart: "", dateEnd: "" }),
+        });
+      }
+      if (globalPipesFilters.valueMin || globalPipesFilters.valueMax) {
+        const minLabel = globalPipesFilters.valueMin
+          ? formatCurrencyBRL(Number(globalPipesFilters.valueMin))
+          : "...";
+        const maxLabel = globalPipesFilters.valueMax
+          ? formatCurrencyBRL(Number(globalPipesFilters.valueMax))
+          : "...";
+        filters.push({
+          id: "value-range",
+          label: `Valor: ${minLabel} ate ${maxLabel}`,
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, valueMin: "", valueMax: "" }),
+        });
+      }
+      if (globalPipesFilters.overdue) {
+        filters.push({
+          id: "overdue",
+          label: "Somente estourados",
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, overdue: false }),
+        });
+      }
+      if (globalPipesFilters.risk) {
+        filters.push({
+          id: "risk",
+          label: "Somente em risco",
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, risk: false }),
+        });
+      }
+      if (globalPipesFilters.stale) {
+        filters.push({
+          id: "stale",
+          label: "Somente sem atividade",
+          onRemove: () => dispatchUpdate({ ...globalPipesFilters, stale: false }),
+        });
+      }
     }
 
     if (stageFilter) {
       filters.push({
         id: "stage",
-        label: `Status: ${activeFunnel.stages.find((stage) => stage.id === stageFilter)?.label ?? getStageParamLabel(stageFilter)}`,
+        label: `Etapa: ${activeFunnel.stages.find((stage) => stage.id === stageFilter)?.label ?? getStageParamLabel(stageFilter)}`,
         onRemove: () => updateStageFilter("all"),
       });
     }
@@ -570,8 +712,8 @@ function PipesPageContent() {
     handleDrop,
     handleDragEnd,
   } = usePipelineBoard({
-    localOpportunities,
-    setLocalOpportunities,
+    localOpportunities: opportunities,
+    setLocalOpportunities: setScopedOpportunities,
     activeFunnel,
     announce,
     canMoveCards,
@@ -623,12 +765,15 @@ function PipesPageContent() {
 
   const handleOpenBlockedMove = useCallback(() => {
     if (!columnError?.cardId) return;
+    const blockedOpportunity = opportunities.find((opportunity) => opportunity.id === columnError.cardId);
     openModal("lead-card", {
       id: columnError.cardId,
       focusFields: columnError.missingFields,
       pendingStage: columnError.targetStage,
+      initialTab: "empresa",
+      opportunitySnapshot: blockedOpportunity,
     });
-  }, [columnError, openModal]);
+  }, [columnError, openModal, opportunities]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -867,6 +1012,22 @@ function PipesPageContent() {
           </ModuleCommandHeader>
         </motion.div>
 
+        {filtersInlineFeedback ? (
+          <div
+            className={cn(
+              "shrink-0 rounded-[14px] border px-3.5 py-2 text-xs font-medium",
+              filtersInlineFeedback.tone === "error"
+                ? "border-red-200 bg-red-50 text-red-700"
+                : filtersInlineFeedback.tone === "info"
+                  ? "border-sky-200 bg-sky-50 text-sky-700"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            )}
+            role="status"
+          >
+            {filtersInlineFeedback.message}
+          </div>
+        ) : null}
+
         <div
           className="premium-ambient premium-grain relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-zinc-200/70 bg-white/72 p-3 shadow-(--shadow-premium-soft) backdrop-blur-sm md:p-4"
           role="region"
@@ -883,6 +1044,7 @@ function PipesPageContent() {
             style={{ scrollSnapType: "x proximity" }}
           >
             {visibleStages.map((stageDef, index) => {
+              const isFiltered = Boolean(normalizedSearch) || activeFilterCount > 0;
               const cards = opportunitiesByStage[stageDef.id] || [];
               const stageLabel = stageCustomizations[stageDef.id]?.label || stageDef.label;
               const stageColor = getStageColor(stageDef.id);
@@ -1118,20 +1280,20 @@ function PipesPageContent() {
                                 const cardInlineFeedback =
                                   stageError?.cardId === opportunity.id
                                     ? ({
-                                        tone: stageError.tone === "error" ? "error" : "warning",
-                                        message: stageError.message,
-                                        actionLabel: stageError.missingFields?.length
-                                          ? "Preencher agora"
-                                          : undefined,
-                                        onAction: stageError.missingFields?.length
-                                          ? handleOpenBlockedMove
-                                          : undefined,
-                                      } as const)
+                                      tone: stageError.tone === "error" ? "error" : "warning",
+                                      message: stageError.message,
+                                      actionLabel: stageError.missingFields?.length
+                                        ? "Preencher agora"
+                                        : undefined,
+                                      onAction: stageError.missingFields?.length
+                                        ? handleOpenBlockedMove
+                                        : undefined,
+                                    } as const)
                                     : stageSuccess?.cardId === opportunity.id
                                       ? ({
-                                          tone: "success",
-                                          message: stageSuccess.message,
-                                        } as const)
+                                        tone: "success",
+                                        message: stageSuccess.message,
+                                      } as const)
                                       : null;
 
                                 if (showPlaceholder && placeholderIndex === idx) {
@@ -1153,7 +1315,11 @@ function PipesPageContent() {
                                     key={opportunity.id}
                                     layout
                                     data-card-index={idx}
+                                    animate={{
+                                      x: stageError?.cardId === opportunity.id ? [-5, 5, -4, 4, -2, 2, 0] : 0,
+                                    }}
                                     transition={{
+                                      x: { duration: 0.4, ease: "easeInOut" },
                                       layout: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
                                     }}
                                     className={cn(
@@ -1169,10 +1335,18 @@ function PipesPageContent() {
                                       isHighlighted={recentlyMovedCardId === opportunity.id}
                                       canMove={canMoveCards}
                                       canEdit={canMoveCards}
+                                      canCreateActivity={canCreateActivity}
                                       inlineFeedback={cardInlineFeedback}
+                                      onTagClick={(tag) => {
+                                        setSearchInputValue(tag);
+                                        setSearchQuery(tag);
+                                        window.scrollTo({ top: 0, behavior: "smooth" });
+                                        searchInputRef.current?.focus();
+                                      }}
                                       onOpen={() =>
                                         openModal("lead-card", {
                                           id: opportunity.id,
+                                          opportunitySnapshot: opportunity,
                                         })
                                       }
                                       onDragStart={(event) =>
@@ -1221,9 +1395,11 @@ function PipesPageContent() {
                       </div>
                     ) : (
                       <div className="mt-1 flex min-h-[180px] flex-col items-center justify-center rounded-[16px] border-2 border-dashed border-zinc-200 bg-zinc-50/40 px-4 text-center">
-                        <p className="text-sm font-semibold text-zinc-700">Sem cards nesta etapa</p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          Crie um novo card aqui ou mova um card de outra coluna.
+                        <p className="text-sm font-semibold text-zinc-700">
+                          {isFiltered ? "Zero resultados no filtro" : "Sem cards nesta etapa"}
+                        </p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                          {isFiltered ? "Tente limpar a busca ou os filtros ativos acima." : "Crie um novo card aqui ou mova um card de outra coluna."}
                         </p>
                         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                           <Button
@@ -1239,17 +1415,6 @@ function PipesPageContent() {
                             <Plus className="h-3.5 w-3.5" />
                             Criar card nesta etapa
                           </Button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              announce(
-                                `Arraste um card de outra etapa e solte em ${stageLabel}.`
-                              )
-                            }
-                            className="inline-flex h-8 items-center rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
-                          >
-                            Mover um card para ca
-                          </button>
                         </div>
                       </div>
                     )}

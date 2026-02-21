@@ -84,21 +84,21 @@ export function PipelineHealth() {
           label: "Estagnados (+30 dias)",
           value: stalledCount,
           color: "bg-red-500",
-          filter: "stalled",
+          filter: "stale",
           max: maxDenominator,
         },
         {
           label: "Sem próxima ação",
           value: oppsWithoutAction,
           color: "bg-amber-500",
-          filter: "no-action",
+          filter: "no_activity",
           max: maxDenominator,
         },
         {
           label: "Valor vazio",
           value: noValueCount,
           color: "bg-zinc-400",
-          filter: "no-value",
+          filter: "stale",
           max: maxDenominator,
         },
       ],
@@ -128,12 +128,12 @@ export function PipelineHealth() {
           <div
             key={metric.label}
             className="group cursor-pointer"
-            onClick={() => router.push(`/pipes?health=${metric.filter}`)}
+            onClick={() => router.push(`/pipes?filter=${metric.filter}`)}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === "Enter")
-                router.push(`/pipes?health=${metric.filter}`);
+                router.push(`/pipes?filter=${metric.filter}`);
             }}
           >
             <div className="mb-1.5 flex items-center justify-between">
@@ -260,7 +260,7 @@ export function TeamPerformance() {
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 font-semibold text-zinc-900">
           <Users className="h-4 w-4 text-blue-500" />
-          Performance pessoal
+          {isBroadRole ? "Performance do time" : "Performance pessoal"}
         </h3>
         <button
           className="text-xs font-medium text-zinc-500 transition-colors hover:text-zinc-900"

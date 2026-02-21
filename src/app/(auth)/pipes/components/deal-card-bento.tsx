@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/cn";
 import {
   Tooltip,
   TooltipContent,
@@ -48,6 +49,7 @@ interface DealCardBentoProps {
   isHighlighted?: boolean;
   canMove?: boolean;
   canEdit?: boolean;
+  canCreateActivity?: boolean;
   onOpen: () => void;
   onDragStart: (e: React.DragEvent) => void;
   onDragEnd: () => void;
@@ -57,6 +59,7 @@ interface DealCardBentoProps {
     actionLabel?: string;
     onAction?: () => void;
   } | null;
+  onTagClick?: (tag: string) => void;
 }
 
 function formatElapsed(isoDate: string): string {
@@ -117,10 +120,12 @@ export function DealCardBento({
   isHighlighted,
   canMove = true,
   canEdit = true,
+  canCreateActivity = true,
   onOpen,
   onDragStart,
   onDragEnd,
   inlineFeedback,
+  onTagClick,
 }: DealCardBentoProps) {
   const { openDrawer, openModal } = useUIStore();
   const sla = getSlaStatus(opportunity.slaDeadline);
@@ -130,12 +135,12 @@ export function DealCardBento({
 
   return (
     <div
-      className={`group relative rounded-[22px] border border-zinc-200/90 border-l-[3px] ${slaColors.border} bg-white p-4 shadow-[var(--shadow-bento-sm)] transition-all duration-[var(--transition-bento-fast)] hover:shadow-[var(--shadow-bento-sm-hover)] focus-within:ring-2 focus-within:ring-brand/40 active:scale-[var(--scale-bento-active)] ${isDragging
-        ? "cursor-grabbing shadow-[0_14px_30px_-18px_rgba(15,23,42,0.38)]"
+      className={`group relative rounded-[22px] border border-zinc-200/90 border-l-[3px] ${slaColors.border} bg-white p-4 shadow-[var(--shadow-bento-sm)] transition-all duration-300 hover:-translate-y-[1.5px] hover:shadow-[0_8px_24px_-10px_rgba(0,0,0,0.08)] focus-within:ring-2 focus-within:ring-brand/40 active:scale-[0.98] ${isDragging
+        ? "cursor-grabbing shadow-[0_14px_30px_-18px_rgba(15,23,42,0.38)] scale-[1.02]"
         : canMove
           ? "cursor-grab"
           : "cursor-pointer"
-        } ${isUpdating ? "opacity-80 saturate-80" : ""} ${isHighlighted
+        } ${isUpdating ? "opacity-60 saturate-50 pointer-events-none" : ""} ${isHighlighted
           ? "ring-2 ring-emerald-300/70"
           : ""
         }`}
@@ -192,6 +197,7 @@ export function DealCardBento({
               Editar
             </DropdownMenuItem>
             <DropdownMenuItem
+              disabled={!canCreateActivity}
               onClick={(e) => {
                 e.stopPropagation();
                 openDrawer("new-activity", {
@@ -247,7 +253,17 @@ export function DealCardBento({
           <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
           {opportunity.neighborhood || "Sem localizacao"}
         </span>
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-600">
+        <span
+          className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition-colors",
+            onTagClick && primarySegment !== "Sem segmento" && "cursor-pointer hover:bg-zinc-100 hover:text-zinc-900"
+          )}
+          onClick={(e) => {
+            if (onTagClick && primarySegment !== "Sem segmento") {
+              e.stopPropagation();
+              onTagClick(primarySegment);
+            }
+          }}
+        >
           <Tags className="h-3 w-3" />
           {primarySegment}
         </span>
@@ -300,7 +316,15 @@ export function DealCardBento({
             <Badge
               key={idx}
               variant="secondary"
-              className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 font-body text-[10px] text-zinc-600"
+              className={cn("shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 font-body text-[10px] text-zinc-600 transition-colors",
+                onTagClick && "cursor-pointer hover:bg-zinc-100 hover:text-zinc-900"
+              )}
+              onClick={(e) => {
+                if (onTagClick) {
+                  e.stopPropagation();
+                  onTagClick(tag);
+                }
+              }}
             >
               {tag}
             </Badge>

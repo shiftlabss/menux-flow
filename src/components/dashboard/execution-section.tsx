@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -40,6 +40,16 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useActivityStore } from "@/stores/activity-store";
 import { useOpportunityStore } from "@/stores/opportunity-store";
 import { useClientStore } from "@/stores/client-store";
@@ -137,15 +147,15 @@ interface RescheduleDraft {
 const STAGE_LABELS: Record<PipelineStage, string> = {
   "lead-in": "Leads",
   "contato-feito": "Contato",
-  "reuniao-agendada": "Reuniao",
+  "reuniao-agendada": "Reunião",
   "proposta-enviada": "Proposta",
-  negociacao: "Negociacao",
+  negociacao: "Negociação",
   fechamento: "Fechamento",
 };
 
 const ALERT_FILTER_OPTIONS: Array<{ id: AlertFilter; label: string }> = [
   { id: "all", label: "Todos" },
-  { id: "critical", label: "Criticos" },
+  { id: "critical", label: "Críticos" },
   { id: "churn", label: "Risco de churn" },
   { id: "pipeline", label: "Pipeline parado" },
   { id: "activities", label: "Atividades" },
@@ -154,7 +164,7 @@ const ALERT_FILTER_OPTIONS: Array<{ id: AlertFilter; label: string }> = [
 
 const SNOOZE_OPTIONS = [
   { label: "1h", hours: 1 },
-  { label: "Amanha", hours: 24 },
+  { label: "Amanhã", hours: 24 },
   { label: "1 semana", hours: 24 * 7 },
 ] as const;
 
@@ -171,7 +181,7 @@ const ALERT_STATUS_ORDER: Record<AlertLifecycle, number> = {
   snoozed: 3,
 };
 
-const FALLBACK_RETRY_MESSAGE = "Nao consegui resolver agora.";
+const FALLBACK_RETRY_MESSAGE = "Não consegui resolver agora.";
 
 function toDateOnly(date: Date): string {
   const year = date.getFullYear();
@@ -244,9 +254,9 @@ function getAlertBadgeClass(severity: AlertSeverity): string {
 }
 
 function getSeverityLabel(severity: AlertSeverity): string {
-  if (severity === "critical") return "Critico";
+  if (severity === "critical") return "Crítico";
   if (severity === "high") return "Alto";
-  return "Medio";
+  return "Médio";
 }
 
 function getAlertIcon(alert: DisplayAlert) {
@@ -329,6 +339,7 @@ export function CriticalAlerts() {
   const [snoozePopoverId, setSnoozePopoverId] = useState<string | null>(null);
   const [snoozeReasonById, setSnoozeReasonById] = useState<Record<string, string>>({});
   const [snoozedAlerts, setSnoozedAlerts] = useState<SnoozedAlert[]>([]);
+  const [confirmBatchResolveOpen, setConfirmBatchResolveOpen] = useState(false);
 
   const alerts = useMemo(() => {
     const opportunityById = new Map(openOpportunities.map((opportunity) => [opportunity.id, opportunity]));
@@ -359,7 +370,7 @@ export function CriticalAlerts() {
         const client = alert.linkedEntityId ? clientById.get(alert.linkedEntityId) : null;
         pushAlert({
           id: alert.id,
-          title: "Saude critica",
+          title: "Saúde crítica",
           context: client?.companyName ?? alert.title,
           impact: alert.description,
           recommendation: "Reengajar cliente com follow-up imediato.",
@@ -383,12 +394,12 @@ export function CriticalAlerts() {
 
         pushAlert({
           id: alert.id,
-          title: staleDays ? `Parado ha ${staleDays}d` : "Pipeline parado",
+          title: staleDays ? `Parado há ${staleDays}d` : "Pipeline parado",
           context: opportunity
             ? `${opportunity.clientName} - ${formatStage(opportunity.stage)}`
             : alert.title,
           impact: alert.description,
-          recommendation: "Cobrar resposta e registrar proxima acao.",
+          recommendation: "Cobrar resposta e registrar próxima ação.",
           consequence: "Vai criar follow-up para hoje e abrir a oportunidade filtrada.",
           severity: mapRiskSeverity(alert.severity),
           kind: "stalled_deal",
@@ -413,8 +424,8 @@ export function CriticalAlerts() {
             ? `${opportunity.clientName} - ${formatStage(opportunity.stage)}`
             : alert.title,
           impact: alert.description,
-          recommendation: "Tratar SLA imediatamente e formalizar proxima acao.",
-          consequence: "Vai criar atividade critica de follow-up para hoje.",
+          recommendation: "Tratar SLA imediatamente e formalizar próxima ação.",
+          consequence: "Vai criar atividade crítica de follow-up para hoje.",
           severity: "critical",
           kind: "sla_risk",
           group: "pipeline",
@@ -434,13 +445,13 @@ export function CriticalAlerts() {
           title: "Meta em risco",
           context: alert.title,
           impact: alert.description,
-          recommendation: "Ajustar plano de recuperacao da meta agora.",
-          consequence: "Vai criar tarefa de recuperacao e abrir metas em risco.",
+          recommendation: "Ajustar plano de recuperação da meta agora.",
+          consequence: "Vai criar tarefa de recuperação e abrir metas em risco.",
           severity: "critical",
           kind: "goal_risk",
           group: "goals",
           reasonCode: "goal_risk",
-          viewPath: "/goals?filter=risk",
+          viewPath: "/goals",
           entityId: alert.linkedEntityId,
           impactScore: 120000,
         });
@@ -455,8 +466,8 @@ export function CriticalAlerts() {
           title: "Contrato expirando",
           context: client?.companyName ?? alert.title,
           impact: alert.description,
-          recommendation: "Iniciar renovacao com proposta de valor objetiva.",
-          consequence: "Vai criar atividade de renovacao para hoje.",
+          recommendation: "Iniciar renovação com proposta de valor objetiva.",
+          consequence: "Vai criar atividade de renovação para hoje.",
           severity: mapRiskSeverity(alert.severity),
           kind: "contract_risk",
           group: "churn",
@@ -484,10 +495,10 @@ export function CriticalAlerts() {
       pushAlert({
         id: "overdue-activities",
         title: "Atividades atrasadas",
-        context: `${overdueActivities.length} item(ns) aguardando execucao`,
+        context: `${overdueActivities.length} item(ns) aguardando execução`,
         impact: `Maior atraso acumulado: ${formatDelay(maxDelayMs)}.`,
         recommendation: "Priorizar backlog atrasado para proteger o SLA.",
-        consequence: "Vai abrir a lista de atrasadas e criar tarefa de mutirao.",
+        consequence: "Vai abrir a lista de atrasadas e criar tarefa de mutirão.",
         severity,
         kind: "overdue_activities",
         group: "activities",
@@ -565,6 +576,29 @@ export function CriticalAlerts() {
     }, 1800);
   };
 
+  // Auto-dismiss info feedback on alerts after 5 seconds
+  useEffect(() => {
+    const infoAlertIds = Object.entries(runtimeById)
+      .filter(([, r]) => r.feedback?.tone === "info" && r.status !== "resolved")
+      .map(([id]) => id);
+    if (infoAlertIds.length === 0) return;
+
+    const t = setTimeout(() => {
+      setRuntimeById((prev) => {
+        const next = { ...prev };
+        for (const id of infoAlertIds) {
+          const current = next[id];
+          if (current?.feedback?.tone === "info") {
+            const { feedback: _, ...rest } = current;
+            next[id] = rest;
+          }
+        }
+        return next;
+      });
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [runtimeById]);
+
   const ensureFollowUpActivity = (
     opts: {
       title: string;
@@ -609,12 +643,12 @@ export function CriticalAlerts() {
   const resolveAlertByType = async (alert: DisplayAlert): Promise<ResolveResult> => {
     if (alert.kind === "health_critical") {
       const activityId = ensureFollowUpActivity({
-        title: `Follow-up de saude: ${alert.context}`,
+        title: `Follow-up de saúde: ${alert.context}`,
         description: `Gerado a partir de alerta: ${alert.title}`,
         type: "whatsapp",
         dueTime: "16:00",
         clientId: alert.entityId,
-        searchTerm: "saude",
+        searchTerm: "saúde",
       });
 
       return {
@@ -631,11 +665,11 @@ export function CriticalAlerts() {
         type: "meeting",
         dueTime: "15:00",
         clientId: alert.entityId,
-        searchTerm: "renovacao",
+        searchTerm: "renovação",
       });
 
       return {
-        message: "Resolvido, atividade de renovacao criada.",
+        message: "Resolvido, atividade de renovação criada.",
         linkLabel: "Ver atividade",
         linkPath: `/activities?activityId=${activityId}`,
       };
@@ -657,7 +691,7 @@ export function CriticalAlerts() {
       });
 
       if (opportunity?.id) {
-        updateOpportunity(opportunity.id, {});
+        updateOpportunity(opportunity.id, { updatedAt: new Date().toISOString() });
       }
 
       return {
@@ -673,7 +707,7 @@ export function CriticalAlerts() {
         : null;
 
       const activityId = ensureFollowUpActivity({
-        title: `SLA critico: ${opportunity?.clientName ?? alert.context}`,
+        title: `SLA crítico: ${opportunity?.clientName ?? alert.context}`,
         description: `Gerado a partir de alerta: ${alert.title}`,
         type: "call",
         dueTime: "10:00",
@@ -683,7 +717,7 @@ export function CriticalAlerts() {
       });
 
       if (opportunity?.id) {
-        updateOpportunity(opportunity.id, {});
+        updateOpportunity(opportunity.id, { updatedAt: new Date().toISOString() });
       }
 
       return {
@@ -695,15 +729,15 @@ export function CriticalAlerts() {
 
     if (alert.kind === "goal_risk") {
       const activityId = ensureFollowUpActivity({
-        title: "Plano de recuperacao da meta",
+        title: "Plano de recuperação da meta",
         description: `Gerado a partir de alerta: ${alert.context}`,
         type: "task",
         dueTime: "09:00",
-        searchTerm: "recuperacao da meta",
+        searchTerm: "recuperação da meta",
       });
 
       return {
-        message: "Resolvido, plano de recuperacao criado.",
+        message: "Resolvido, plano de recuperação criado.",
         linkLabel: "Ver plano",
         linkPath: `/activities?activityId=${activityId}`,
       };
@@ -711,16 +745,16 @@ export function CriticalAlerts() {
 
     if (alert.kind === "overdue_activities") {
       const activityId = ensureFollowUpActivity({
-        title: "Mutirao de atividades atrasadas",
-        description: "Priorizar backlog atrasado e concluir itens criticos.",
+        title: "Mutirão de atividades atrasadas",
+        description: "Priorizar backlog atrasado e concluir itens críticos.",
         type: "task",
         dueTime: "09:30",
-        searchTerm: "mutirao",
+        searchTerm: "mutirão",
       });
 
       return {
-        message: "Resolvido, mutirao criado para limpar atrasos.",
-        linkLabel: "Ver mutirao",
+        message: "Resolvido, mutirão criado para limpar atrasos.",
+        linkLabel: "Ver mutirão",
         linkPath: `/activities?activityId=${activityId}`,
       };
     }
@@ -775,7 +809,7 @@ export function CriticalAlerts() {
   const handleCopySummary = async (alert: DisplayAlert) => {
     try {
       await navigator.clipboard.writeText(
-        `${alert.title} | ${alert.context} | ${alert.impact} | Acao: ${alert.recommendation}`
+        `${alert.title} | ${alert.context} | ${alert.impact} | Ação: ${alert.recommendation}`
       );
       setAlertRuntime(alert.id, {
         status: runtimeById[alert.id]?.status ?? "open",
@@ -789,7 +823,7 @@ export function CriticalAlerts() {
         status: runtimeById[alert.id]?.status ?? "open",
         feedback: {
           tone: "error",
-          message: "Nao consegui copiar o resumo.",
+          message: "Não consegui copiar o resumo.",
         },
       });
     }
@@ -832,15 +866,13 @@ export function CriticalAlerts() {
     });
   };
 
-  const handleResolveVisible = async () => {
+  const handleRequestBatchResolve = () => {
     if (actionableVisible.length < 2) return;
+    setConfirmBatchResolveOpen(true);
+  };
 
-    const confirmed = window.confirm(
-      `Resolver ${actionableVisible.length} alerta(s) visivel(is) de uma vez?`
-    );
-
-    if (!confirmed) return;
-
+  const handleConfirmBatchResolve = async () => {
+    setConfirmBatchResolveOpen(false);
     for (const alert of actionableVisible) {
       await handleResolve(alert);
     }
@@ -850,7 +882,7 @@ export function CriticalAlerts() {
     <BentoCard className="premium-panel flex flex-col gap-4 border-zinc-200/80 bg-white/88 p-5 shadow-[0_18px_32px_-24px_rgba(15,23,42,0.45)] md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <h3 className="text-base font-semibold text-zinc-900">Alertas Criticos</h3>
+          <h3 className="text-base font-semibold text-zinc-900">Alertas Críticos</h3>
           <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-red-200 bg-red-50 px-2 text-xs font-semibold text-red-700">
             {counterByFilter.all}
           </span>
@@ -873,11 +905,26 @@ export function CriticalAlerts() {
             size="xs"
             variant="outline"
             className="h-7 rounded-full border-zinc-200 px-3 text-xs"
-            onClick={handleResolveVisible}
+            onClick={handleRequestBatchResolve}
           >
             Resolver todos do tipo
           </Button>
         ) : null}
+
+        <AlertDialog open={confirmBatchResolveOpen} onOpenChange={setConfirmBatchResolveOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Resolver {actionableVisible.length} alerta(s)?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Isso vai criar atividades de follow-up para cada alerta acionável visível.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmBatchResolve}>Resolver todos</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -919,7 +966,7 @@ export function CriticalAlerts() {
         <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 p-6 text-center">
           <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600" />
           <p className="mt-2 text-sm font-medium text-zinc-900">Sem alertas ativos no seu escopo.</p>
-          <p className="mt-1 text-xs text-zinc-500">Tudo estavel por enquanto.</p>
+          <p className="mt-1 text-xs text-zinc-500">Tudo estável por enquanto.</p>
         </div>
       ) : null}
 
@@ -966,7 +1013,7 @@ export function CriticalAlerts() {
                     </div>
 
                     <div className="mt-2 rounded-lg border border-zinc-200/80 bg-zinc-50/70 p-2.5">
-                      <p className="text-xs font-semibold text-zinc-700">Acao recomendada: {alert.recommendation}</p>
+                      <p className="text-xs font-semibold text-zinc-700">Ação recomendada: {alert.recommendation}</p>
                       <p className="mt-0.5 text-xs text-zinc-500">{alert.consequence}</p>
                     </div>
                   </div>
@@ -1119,6 +1166,14 @@ export function TodayActivities() {
   const [rescheduleDraftById, setRescheduleDraftById] = useState<Record<string, RescheduleDraft>>({});
   const [notice, setNotice] = useState<AgendaNotice | null>(null);
   const [runtimeById, setRuntimeById] = useState<Record<string, AgendaItemRuntime>>({});
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+
+  // Auto-dismiss notice after 6 seconds
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   const todayIso = toDateOnly(now);
 
@@ -1138,7 +1193,7 @@ export function TodayActivities() {
             activity.clientName ||
             activity.opportunityTitle ||
             "Sem cliente associado",
-          description: activity.description || "Sem descricao registrada.",
+          description: activity.description || "Sem descrição registrada.",
           type: activity.type,
           status,
           dueDate: activity.dueDate,
@@ -1197,10 +1252,10 @@ export function TodayActivities() {
   const handleComplete = (item: ActivityAgendaItem) => {
     setItemRuntime(item.id, { loading: true });
     try {
-      completeActivity(item.id, "Concluida pela Agenda de Hoje");
+      completeActivity(item.id, "Concluída pela Agenda de Hoje");
       setNotice({
         tone: "success",
-        message: "Atividade concluida com sucesso.",
+        message: "Atividade concluída com sucesso.",
         linkLabel: "Ver historico",
         linkPath: "/activities?status=completed",
       });
@@ -1211,14 +1266,14 @@ export function TodayActivities() {
       });
       setItemRuntime(item.id, {});
     } catch {
-      setItemRuntime(item.id, { error: "Nao consegui concluir agora." });
+      setItemRuntime(item.id, { error: "Não consegui concluir agora." });
     }
   };
 
   const handleSaveReschedule = (item: ActivityAgendaItem) => {
     const draft = rescheduleDraftById[item.id];
     if (!draft?.dueDate) {
-      setItemRuntime(item.id, { error: "Escolha uma data valida." });
+      setItemRuntime(item.id, { error: "Escolha uma data válida." });
       return;
     }
 
@@ -1238,25 +1293,30 @@ export function TodayActivities() {
       });
       setItemRuntime(item.id, {});
     } catch {
-      setItemRuntime(item.id, { error: "Nao consegui reagendar agora." });
+      setItemRuntime(item.id, { error: "Não consegui reagendar agora." });
     }
   };
 
-  const handleCancel = (item: ActivityAgendaItem) => {
-    const confirmed = window.confirm("Cancelar esta atividade?");
-    if (!confirmed) return;
+  const handleRequestCancel = (item: ActivityAgendaItem) => {
+    setConfirmCancelId(item.id);
+  };
 
-    setItemRuntime(item.id, { loading: true });
+  const handleConfirmCancel = () => {
+    const targetId = confirmCancelId;
+    setConfirmCancelId(null);
+    if (!targetId) return;
+
+    setItemRuntime(targetId, { loading: true });
 
     try {
-      cancelActivity(item.id);
+      cancelActivity(targetId);
       setNotice({
         tone: "info",
         message: "Atividade cancelada.",
       });
-      setItemRuntime(item.id, {});
+      setItemRuntime(targetId, {});
     } catch {
-      setItemRuntime(item.id, { error: "Nao consegui cancelar agora." });
+      setItemRuntime(targetId, { error: "Não consegui cancelar agora." });
     }
   };
 
@@ -1291,9 +1351,6 @@ export function TodayActivities() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 rounded-xl">
-              <DropdownMenuItem onClick={() => router.push("/activities?view=agenda&export=csv")}>Exportar agenda</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/activities?view=agenda&settings=display")}>Preferencias de visualizacao</DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push("/activities?status=overdue")}>Ver apenas atrasadas</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1338,7 +1395,7 @@ export function TodayActivities() {
         <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 p-6 text-center">
           <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600" />
           <p className="mt-2 text-sm font-medium text-zinc-900">Sem atividades pendentes para hoje.</p>
-          <p className="mt-1 text-xs text-zinc-500">A agenda esta limpa no seu escopo.</p>
+          <p className="mt-1 text-xs text-zinc-500">A agenda está limpa no seu escopo.</p>
           <Button
             size="xs"
             variant="outline"
@@ -1386,13 +1443,13 @@ export function TodayActivities() {
 
                     {wasExecuted ? (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50/80 p-2">
-                        <span className="text-xs text-zinc-600">Execucao iniciada:</span>
+                        <span className="text-xs text-zinc-600">Execução iniciada:</span>
                         <Button
                           size="xs"
                           className="h-7 rounded-md bg-zinc-900 px-2.5 text-xs text-white hover:bg-zinc-800"
                           onClick={() => handleComplete(item)}
                         >
-                          Marcar concluida
+                          Marcar concluída
                         </Button>
                         <Button
                           size="xs"
@@ -1509,7 +1566,7 @@ export function TodayActivities() {
                           Ver detalhes
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleCancel(item)}>
+                        <DropdownMenuItem onClick={() => handleRequestCancel(item)}>
                           Cancelar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -1523,7 +1580,7 @@ export function TodayActivities() {
           {unscheduledItems.length > 0 ? (
             <div className="rounded-xl border border-zinc-200/85 bg-zinc-50/30 p-3">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sem horario</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Sem horário</p>
                 <Button
                   size="xs"
                   variant="ghost"
@@ -1533,7 +1590,7 @@ export function TodayActivities() {
                     if (first) openReschedule(first);
                   }}
                 >
-                  Definir horario
+                  Definir horário
                 </Button>
               </div>
 
@@ -1559,7 +1616,7 @@ export function TodayActivities() {
                           className="h-7 rounded-md border-zinc-200 px-2.5 text-xs"
                           onClick={() => openReschedule(item)}
                         >
-                          Definir horario
+                          Definir horário
                         </Button>
                       </div>
                     </div>
@@ -1570,6 +1627,21 @@ export function TodayActivities() {
           ) : null}
         </div>
       ) : null}
+
+      <AlertDialog open={confirmCancelId !== null} onOpenChange={(open) => { if (!open) setConfirmCancelId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar atividade?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A atividade será cancelada permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Manter</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCancel}>Cancelar atividade</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </BentoCard>
   );
 }

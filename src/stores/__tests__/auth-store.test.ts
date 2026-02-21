@@ -52,6 +52,9 @@ describe("auth-store", () => {
       expect(state.permissions).not.toBeNull();
       expect(state.permissions!.canCreateOpportunity).toBe(true);
       expect(state.permissions!.canDeleteOpportunity).toBe(false);
+      expect(state.permissions!.canCreateActivity).toBe(true);
+      expect(state.permissions!.canEditActivity).toBe(true);
+      expect(state.permissions!.canCancelActivity).toBe(true);
     });
 
     it("should ignore invalid user payloads", () => {
@@ -129,6 +132,9 @@ describe("auth-store", () => {
       expect(p.canCreateOpportunity).toBe(true);
       expect(p.canEditOpportunity).toBe(true);
       expect(p.canDeleteOpportunity).toBe(true);
+      expect(p.canCreateActivity).toBe(true);
+      expect(p.canEditActivity).toBe(true);
+      expect(p.canCancelActivity).toBe(true);
       expect(p.canViewFinance).toBe(true);
       expect(p.canEditFinance).toBe(true);
       expect(p.canManageUsers).toBe(true);
@@ -148,6 +154,9 @@ describe("auth-store", () => {
       expect(p.canCreateOpportunity).toBe(true);
       expect(p.canEditOpportunity).toBe(true);
       expect(p.canDeleteOpportunity).toBe(true);
+      expect(p.canCreateActivity).toBe(true);
+      expect(p.canEditActivity).toBe(true);
+      expect(p.canCancelActivity).toBe(true);
       expect(p.canViewFinance).toBe(true);
       expect(p.canEditFinance).toBe(true);
       expect(p.canManageUsers).toBe(true);
@@ -167,6 +176,9 @@ describe("auth-store", () => {
       expect(p.canCreateOpportunity).toBe(true);
       expect(p.canEditOpportunity).toBe(true);
       expect(p.canDeleteOpportunity).toBe(false);
+      expect(p.canCreateActivity).toBe(true);
+      expect(p.canEditActivity).toBe(true);
+      expect(p.canCancelActivity).toBe(true);
       expect(p.canViewFinance).toBe(true);
       expect(p.canEditFinance).toBe(false);
       expect(p.canManageUsers).toBe(false);
@@ -186,6 +198,9 @@ describe("auth-store", () => {
       expect(p.canCreateOpportunity).toBe(false);
       expect(p.canEditOpportunity).toBe(true);
       expect(p.canDeleteOpportunity).toBe(false);
+      expect(p.canCreateActivity).toBe(true);
+      expect(p.canEditActivity).toBe(true);
+      expect(p.canCancelActivity).toBe(false);
       expect(p.canViewFinance).toBe(false);
       expect(p.canEditFinance).toBe(false);
       expect(p.canManageUsers).toBe(false);
@@ -205,6 +220,9 @@ describe("auth-store", () => {
       expect(p.canCreateOpportunity).toBe(false);
       expect(p.canEditOpportunity).toBe(false);
       expect(p.canDeleteOpportunity).toBe(false);
+      expect(p.canCreateActivity).toBe(false);
+      expect(p.canEditActivity).toBe(false);
+      expect(p.canCancelActivity).toBe(false);
       expect(p.canViewFinance).toBe(false);
       expect(p.canEditFinance).toBe(false);
       expect(p.canManageUsers).toBe(false);

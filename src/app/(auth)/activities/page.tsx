@@ -99,9 +99,11 @@ type RecommendationActionState = "idle" | "loading" | "success" | "error";
 type ActivityFeedbackState =
   | "idle"
   | "loading-complete"
+  | "loading-cancel"
   | "complete-success"
   | "loading-postpone"
   | "postpone-success"
+  | "info"
   | "error";
 
 interface MenuxIntelligenceRecommendation {
@@ -124,6 +126,11 @@ interface CommandResult {
   text: string;
 }
 
+interface InlineFeedback {
+  tone: "success" | "error" | "info";
+  message: string;
+}
+
 const STATUS_OPTIONS: { value: ActivityStatus; label: string }[] = [
   { value: "pending", label: "Pendente" },
   { value: "overdue", label: "Atrasada" },
@@ -143,7 +150,32 @@ const SLA_OPTIONS: { value: SlaFilter; label: string }[] = [
 ];
 
 const STATUS_VALUES = STATUS_OPTIONS.map((status) => status.value);
+const ALL_ACTIVITY_TYPE_SET = new Set<ActivityType>(allActivityTypes);
 const DATE_PARAM_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+function isSameSet<T>(left: Set<T>, right: Set<T>): boolean {
+  if (left.size !== right.size) return false;
+  for (const value of left) {
+    if (!right.has(value)) return false;
+  }
+  return true;
+}
+
+function getEffectiveStatus(activity: Activity, now: Date): ActivityStatus {
+  if (activity.status === "completed" || activity.status === "cancelled") {
+    return activity.status;
+  }
+  return isActivityOverdue(activity, now) ? "overdue" : "pending";
+}
+
+function getExecuteChannelLabel(value: string | null): string {
+  if (!value) return "atividade";
+  if (value === "call") return "ligação";
+  if (value === "email") return "e-mail";
+  if (value === "meeting") return "reunião";
+  if (value === "whatsapp") return "WhatsApp";
+  return "atividade";
+}
 
 function parseSetParam<T extends string>(
   rawParam: string | null,
@@ -371,10 +403,14 @@ function ActivitiesPageContent() {
   const [activityFeedback, setActivityFeedback] = useState<Record<string, ActivityFeedback>>(
     {}
   );
+  const [headerInlineFeedback, setHeaderInlineFeedback] = useState<InlineFeedback | null>(null);
+  const [bulkInlineFeedback, setBulkInlineFeedback] = useState<InlineFeedback | null>(null);
+  const [summaryInlineFeedback, setSummaryInlineFeedback] = useState<InlineFeedback | null>(null);
   const [highlightedPostponedId, setHighlightedPostponedId] = useState<string | null>(null);
 
   const [commandLoadingId, setCommandLoadingId] = useState<string | null>(null);
   const [commandResult, setCommandResult] = useState<CommandResult | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [isPageScrolled, setIsPageScrolled] = useState(false);
 
   // Modal State
@@ -393,8 +429,9 @@ function ActivitiesPageContent() {
   );
 
   const canViewTeamScope = Boolean(permissions?.canViewAllUnits || user?.role === "master");
-  const canCreateActivity = Boolean(permissions?.canCreateOpportunity);
-  const canExecuteActivityActions = Boolean(permissions?.canEditOpportunity);
+  const canCreateActivity = Boolean(permissions?.canCreateActivity);
+  const canExecuteActivityActions = Boolean(permissions?.canEditActivity);
+  const canCancelActivity = Boolean(permissions?.canCancelActivity);
   const canExportActivities = Boolean(permissions?.canExportData);
 
   const { scopedOwnerId, scopeMode } = useMemo(() => {
@@ -447,6 +484,30 @@ function ActivitiesPageContent() {
     }, ms);
     timeoutRef.current.push(id);
   }, []);
+
+  const pushHeaderInlineFeedback = useCallback(
+    (feedback: InlineFeedback) => {
+      setHeaderInlineFeedback(feedback);
+      schedule(() => setHeaderInlineFeedback(null), 2600);
+    },
+    [schedule]
+  );
+
+  const pushBulkInlineFeedback = useCallback(
+    (feedback: InlineFeedback) => {
+      setBulkInlineFeedback(feedback);
+      schedule(() => setBulkInlineFeedback(null), 2600);
+    },
+    [schedule]
+  );
+
+  const pushSummaryInlineFeedback = useCallback(
+    (feedback: InlineFeedback) => {
+      setSummaryInlineFeedback(feedback);
+      schedule(() => setSummaryInlineFeedback(null), 2600);
+    },
+    [schedule]
+  );
 
   // Loading is instant since data comes from the local store (no API).
 
@@ -556,7 +617,8 @@ function ActivitiesPageContent() {
     const statusParam = searchParams.get("status");
     const focusParam = searchParams.get("focus");
     const goalParam = searchParams.get("goal");
-    const activityIdParam = searchParams.get("id");
+    const activityIdParam = searchParams.get("activityId") ?? searchParams.get("id");
+    const executeParam = searchParams.get("execute");
     const viewParam = searchParams.get("view");
     const queryParam = searchParams.get("q");
     const typesParam = searchParams.get("types");
@@ -574,7 +636,6 @@ function ActivitiesPageContent() {
       endParam !== null;
 
     if (hasExplicitUrlFilters) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Query params are the source of truth when hydrating this screen.
       applyExplicitUrlFilters({
         viewMode: viewParam === "agenda" ? "agenda" : "list",
         query: queryParam ?? "",
@@ -645,6 +706,13 @@ function ActivitiesPageContent() {
           target.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       }, 80);
+
+      if (executeParam) {
+        pushHeaderInlineFeedback({
+          tone: "info",
+          message: `Canal de ${getExecuteChannelLabel(executeParam)} pronto para execução desta atividade.`,
+        });
+      }
     } else {
       setOwnerOverrideId(null);
     }
@@ -652,6 +720,7 @@ function ActivitiesPageContent() {
     applyExplicitUrlFilters,
     canViewTeamScope,
     applyStatusFromParam,
+    pushHeaderInlineFeedback,
     resetFiltersToDefault,
     schedule,
     searchParams,
@@ -693,6 +762,8 @@ function ActivitiesPageContent() {
     // Legacy status param can diverge from explicit filters.
     params.delete("status");
     params.delete("id");
+    params.delete("activityId");
+    params.delete("execute");
     params.delete("source");
     params.delete("focus");
     params.delete("goal");
@@ -722,8 +793,9 @@ function ActivitiesPageContent() {
     const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
 
     return activities.filter((activity) => {
+      const effectiveStatus = getEffectiveStatus(activity, now);
       if (!filterTypes.has(activity.type)) return false;
-      if (!filterStatuses.has(activity.status)) return false;
+      if (!filterStatuses.has(effectiveStatus)) return false;
       if (filterDateStart && activity.dueDate < filterDateStart) return false;
       if (filterDateEnd && activity.dueDate > filterDateEnd) return false;
       if (normalizedQuery) {
@@ -970,8 +1042,8 @@ function ActivitiesPageContent() {
   );
 
   const hasActiveFilters =
-    filterTypes.size < allActivityTypes.length ||
-    filterStatuses.size < DEFAULT_STATUS_FILTER.size ||
+    !isSameSet(filterTypes, ALL_ACTIVITY_TYPE_SET) ||
+    !isSameSet(filterStatuses, DEFAULT_STATUS_FILTER) ||
     filterDateStart !== "" ||
     filterDateEnd !== "" ||
     filterSla !== "all" ||
@@ -998,7 +1070,7 @@ function ActivitiesPageContent() {
       });
     }
 
-    if (filterStatuses.size < DEFAULT_STATUS_FILTER.size) {
+    if (!isSameSet(filterStatuses, DEFAULT_STATUS_FILTER)) {
       STATUS_OPTIONS.forEach((option) => {
         if (!filterStatuses.has(option.value)) return;
         chips.push({
@@ -1086,6 +1158,10 @@ function ActivitiesPageContent() {
           ...prev,
           intelligence: "Não há atividades ativas para montar um plano agora.",
         }));
+        pushHeaderInlineFeedback({
+          tone: "error",
+          message: "Não há atividades ativas para montar um plano agora.",
+        });
         return;
       }
 
@@ -1094,9 +1170,13 @@ function ActivitiesPageContent() {
         status: "success",
         text: "Plano do dia gerado com foco em impacto e risco.",
       });
+      pushHeaderInlineFeedback({
+        tone: "success",
+        message: "Plano do dia gerado com foco em impacto e risco.",
+      });
       setIsPlanning(false);
     }, 260);
-  }, [executionActivities.length, schedule]);
+  }, [executionActivities.length, pushHeaderInlineFeedback, schedule]);
 
   const handleQuickFilterOverdue = useCallback(() => {
     setViewMode("list");
@@ -1269,7 +1349,7 @@ function ActivitiesPageContent() {
 
   const handleCancelActivity = useCallback(
     (activityId: string) => {
-      if (!canExecuteActivityActions) {
+      if (!canCancelActivity) {
         handleActionDenied(activityId, "Você não tem permissão para cancelar atividades.");
         return;
       }
@@ -1281,7 +1361,7 @@ function ActivitiesPageContent() {
 
       setActivityFeedback((prev) => ({
         ...prev,
-        [activityId]: { state: "loading-complete" },
+        [activityId]: { state: "loading-cancel" },
       }));
 
       schedule(() => {
@@ -1304,7 +1384,7 @@ function ActivitiesPageContent() {
       }, 1500);
     },
     [
-      canExecuteActivityActions,
+      canCancelActivity,
       canRunActionOnActivity,
       cancelActivity,
       clearActivityFeedback,
@@ -1384,11 +1464,15 @@ function ActivitiesPageContent() {
         status: "error",
         text: "Você não tem permissão para concluir atividades em lote.",
       });
+      pushBulkInlineFeedback({
+        tone: "error",
+        message: "Você não tem permissão para concluir atividades em lote.",
+      });
       return;
     }
 
     setConfirmBulkCompleteOpen(true);
-  }, [canExecuteActivityActions, selectedExecutionIds.length]);
+  }, [canExecuteActivityActions, pushBulkInlineFeedback, selectedExecutionIds.length]);
 
   const handleConfirmBulkCompleteActivities = useCallback(() => {
     if (selectedExecutionIds.length === 0) {
@@ -1396,30 +1480,55 @@ function ActivitiesPageContent() {
       return;
     }
 
+    let successCount = 0;
+    let deniedCount = 0;
     selectedExecutionIds.forEach((activityId) => {
+      if (!canRunActionOnActivity(activityId)) {
+        deniedCount += 1;
+        return;
+      }
       handleCompleteActivity(activityId);
+      successCount += 1;
     });
     clearSelectedActivities();
     setConfirmBulkCompleteOpen(false);
+    const message =
+      deniedCount > 0
+        ? `${successCount} concluída(s), ${deniedCount} sem permissão/escopo.`
+        : `${successCount} atividade(s) concluída(s) em lote.`;
     setCommandResult({
-      status: "success",
-      text: `${selectedExecutionIds.length} atividades concluídas em lote.`,
+      status: deniedCount > 0 ? "error" : "success",
+      text: message,
     });
-  }, [clearSelectedActivities, handleCompleteActivity, selectedExecutionIds]);
+    pushBulkInlineFeedback({
+      tone: deniedCount > 0 ? "error" : "success",
+      message,
+    });
+  }, [
+    canRunActionOnActivity,
+    clearSelectedActivities,
+    handleCompleteActivity,
+    pushBulkInlineFeedback,
+    selectedExecutionIds,
+  ]);
 
   const handleRequestBulkCancelActivities = useCallback(() => {
     if (selectedExecutionIds.length === 0) return;
 
-    if (!canExecuteActivityActions) {
+    if (!canCancelActivity) {
       setCommandResult({
         status: "error",
         text: "Você não tem permissão para cancelar atividades em lote.",
+      });
+      pushBulkInlineFeedback({
+        tone: "error",
+        message: "Você não tem permissão para cancelar atividades em lote.",
       });
       return;
     }
 
     setConfirmBulkCancelOpen(true);
-  }, [canExecuteActivityActions, selectedExecutionIds.length]);
+  }, [canCancelActivity, pushBulkInlineFeedback, selectedExecutionIds.length]);
 
   const handleConfirmBulkCancelActivities = useCallback(() => {
     if (selectedExecutionIds.length === 0) {
@@ -1427,16 +1536,37 @@ function ActivitiesPageContent() {
       return;
     }
 
+    let successCount = 0;
+    let deniedCount = 0;
     selectedExecutionIds.forEach((activityId) => {
+      if (!canRunActionOnActivity(activityId)) {
+        deniedCount += 1;
+        return;
+      }
       handleCancelActivity(activityId);
+      successCount += 1;
     });
     clearSelectedActivities();
     setConfirmBulkCancelOpen(false);
+    const message =
+      deniedCount > 0
+        ? `${successCount} cancelada(s), ${deniedCount} sem permissão/escopo.`
+        : `${successCount} atividade(s) cancelada(s) em lote.`;
     setCommandResult({
-      status: "success",
-      text: `${selectedExecutionIds.length} atividades canceladas em lote.`,
+      status: deniedCount > 0 ? "error" : "success",
+      text: message,
     });
-  }, [clearSelectedActivities, handleCancelActivity, selectedExecutionIds]);
+    pushBulkInlineFeedback({
+      tone: deniedCount > 0 ? "error" : "success",
+      message,
+    });
+  }, [
+    canRunActionOnActivity,
+    clearSelectedActivities,
+    handleCancelActivity,
+    pushBulkInlineFeedback,
+    selectedExecutionIds,
+  ]);
 
   const handleBulkPostponeActivities = useCallback(
     (targetDate: string) => {
@@ -1447,26 +1577,63 @@ function ActivitiesPageContent() {
           status: "error",
           text: "Você não tem permissão para reagendar atividades em lote.",
         });
+        pushBulkInlineFeedback({
+          tone: "error",
+          message: "Você não tem permissão para reagendar atividades em lote.",
+        });
         return;
       }
 
+      if (!DATE_PARAM_REGEX.test(targetDate)) {
+        pushBulkInlineFeedback({
+          tone: "error",
+          message: "Data de reagendamento inválida para lote.",
+        });
+        return;
+      }
+
+      const todayIso = toISODate(startOfDay(now));
+      if (targetDate < todayIso) {
+        pushBulkInlineFeedback({
+          tone: "error",
+          message: "Escolha uma data de lote a partir de hoje.",
+        });
+        return;
+      }
+
+      let successCount = 0;
+      let deniedCount = 0;
       selectedExecutionIds.forEach((activityId) => {
+        if (!canRunActionOnActivity(activityId)) {
+          deniedCount += 1;
+          return;
+        }
         handlePostponeActivity(activityId, targetDate);
+        successCount += 1;
       });
       clearSelectedActivities();
       setBulkPostponeOpen(false);
       setBulkPostponeCustomDate("");
+      const message =
+        deniedCount > 0
+          ? `${successCount} reagendada(s), ${deniedCount} sem permissão/escopo.`
+          : `${successCount} atividade(s) reagendada(s) para ${formatDateBR(targetDate)}.`;
       setCommandResult({
-        status: "success",
-        text: `${selectedExecutionIds.length} atividades reagendadas para ${formatDateBR(
-          targetDate
-        )}.`,
+        status: deniedCount > 0 ? "error" : "success",
+        text: message,
+      });
+      pushBulkInlineFeedback({
+        tone: deniedCount > 0 ? "error" : "success",
+        message,
       });
     },
     [
       canExecuteActivityActions,
+      canRunActionOnActivity,
       clearSelectedActivities,
       handlePostponeActivity,
+      now,
+      pushBulkInlineFeedback,
       selectedExecutionIds,
     ]
   );
@@ -1487,8 +1654,17 @@ function ActivitiesPageContent() {
         status: "success",
         text: `Sugestões da Menux Intelligence abertas para ${contextLabel}.`,
       });
+
+      setActivityFeedback((prev) => ({
+        ...prev,
+        [activity.id]: {
+          state: "info",
+          message: "Insights gerados para esta atividade.",
+        },
+      }));
+      schedule(() => clearActivityFeedback(activity.id), 1800);
     },
-    [now]
+    [clearActivityFeedback, now, schedule]
   );
 
   const handleGenerateFollowup = useCallback(
@@ -1507,8 +1683,17 @@ function ActivitiesPageContent() {
         status: "success",
         text: `Follow-up pronto para ${contextLabel}.`,
       });
+
+      setActivityFeedback((prev) => ({
+        ...prev,
+        [activity.id]: {
+          state: "info",
+          message: "Follow-up gerado e pronto para envio.",
+        },
+      }));
+      schedule(() => clearActivityFeedback(activity.id), 1800);
     },
-    [now]
+    [clearActivityFeedback, now, schedule]
   );
 
   const handleRunCommand = useCallback(
@@ -1583,39 +1768,75 @@ function ActivitiesPageContent() {
         status: "error",
         text: "Você não tem permissão para exportar dados desta tela.",
       });
+      pushSummaryInlineFeedback({
+        tone: "error",
+        message: "Você não tem permissão para exportar dados desta tela.",
+      });
       return;
     }
 
-    const header = ["Título", "Tipo", "Status", "Cliente", "Oportunidade", "Data", "Horário", "Responsável"];
-    const rows = filteredActivities.map((activity) => [
-      activity.title,
-      typeLabels[activity.type],
-      activity.status === "pending" ? "Pendente" : activity.status === "completed" ? "Concluída" : activity.status === "overdue" ? "Atrasada" : "Cancelada",
-      activity.clientName || "",
-      activity.opportunityTitle || "",
-      formatDateBR(activity.dueDate),
-      activity.dueTime || "",
-      activity.responsibleName,
-    ]);
-
-    const csvContent = [
-      header.join(";"),
-      ...rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(";")),
-    ].join("\n");
-
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `atividades-${toISODate(now)}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-
-    setCommandResult({
-      status: "success",
-      text: `${filteredActivities.length} atividades exportadas em CSV.`,
+    setIsExporting(true);
+    pushSummaryInlineFeedback({
+      tone: "info",
+      message: "Exportando lista de atividades...",
     });
-  }, [canExportActivities, filteredActivities, now]);
+
+    const header = ["Título", "Tipo", "Status", "Cliente", "Oportunidade", "Data", "Horário", "Responsável"];
+    try {
+      const rows = filteredActivities.map((activity) => {
+        const effectiveStatus = getEffectiveStatus(activity, now);
+        return [
+          activity.title,
+          typeLabels[activity.type],
+          effectiveStatus === "pending"
+            ? "Pendente"
+            : effectiveStatus === "completed"
+              ? "Concluída"
+              : effectiveStatus === "overdue"
+                ? "Atrasada"
+                : "Cancelada",
+          activity.clientName || "",
+          activity.opportunityTitle || "",
+          formatDateBR(activity.dueDate),
+          activity.dueTime || "",
+          activity.responsibleName,
+        ];
+      });
+
+      const csvContent = [
+        header.join(";"),
+        ...rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(";")),
+      ].join("\n");
+
+      const BOM = "\uFEFF";
+      const blob = new Blob([BOM + csvContent], { type: "text/csv;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `atividades-${toISODate(now)}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+
+      setCommandResult({
+        status: "success",
+        text: `${filteredActivities.length} atividades exportadas em CSV.`,
+      });
+      pushSummaryInlineFeedback({
+        tone: "success",
+        message: `${filteredActivities.length} atividade(s) exportada(s) em CSV.`,
+      });
+    } catch {
+      setCommandResult({
+        status: "error",
+        text: "Não foi possível exportar a lista agora.",
+      });
+      pushSummaryInlineFeedback({
+        tone: "error",
+        message: "Não foi possível exportar a lista agora.",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [canExportActivities, filteredActivities, now, pushSummaryInlineFeedback]);
 
   const renderSectionBody = useCallback(
     (items: Activity[], sectionKey: Exclude<SectionKey, "intelligence">) => {
@@ -1740,6 +1961,7 @@ function ActivitiesPageContent() {
                           isHighlighted={highlightedPostponedId === activity.id}
                           selected={selectedActivityIds.has(activity.id)}
                           canExecuteActions={canExecuteActivityActions}
+                          canCancelActions={canCancelActivity}
                           feedback={activityFeedback[activity.id]}
                           onToggleExpand={() => {
                             setExpandedActivityId((prev) =>
@@ -1776,6 +1998,7 @@ function ActivitiesPageContent() {
               isHighlighted={highlightedPostponedId === activity.id}
               selected={selectedActivityIds.has(activity.id)}
               canExecuteActions={canExecuteActivityActions}
+              canCancelActions={canCancelActivity}
               feedback={activityFeedback[activity.id]}
               onToggleExpand={() => {
                 setExpandedActivityId((prev) => (prev === activity.id ? null : activity.id));
@@ -1803,6 +2026,7 @@ function ActivitiesPageContent() {
       activityFeedback,
       canCreateActivity,
       canExecuteActivityActions,
+      canCancelActivity,
       openDrawer,
       handleGeneratePlan,
       toggleActivitySelection,
@@ -2076,6 +2300,13 @@ function ActivitiesPageContent() {
         }
       />
 
+      {headerInlineFeedback ? (
+        <InlineFeedbackMessage
+          tone={headerInlineFeedback.tone}
+          message={headerInlineFeedback.message}
+        />
+      ) : null}
+
       {hasActiveFilters && activeFilterChips.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {activeFilterChips.map((chip) => (
@@ -2228,7 +2459,7 @@ function ActivitiesPageContent() {
                 variant="ghost"
                 className="h-8 rounded-full px-3 text-xs text-red-600 hover:bg-red-50"
                 onClick={handleRequestBulkCancelActivities}
-                disabled={!canExecuteActivityActions}
+                disabled={!canCancelActivity}
               >
                 <XCircle className="h-3.5 w-3.5" />
                 Cancelar em lote
@@ -2243,6 +2474,14 @@ function ActivitiesPageContent() {
               </Button>
             </div>
           )}
+
+          {bulkInlineFeedback ? (
+            <InlineFeedbackMessage
+              tone={bulkInlineFeedback.tone}
+              message={bulkInlineFeedback.message}
+              className="mt-2"
+            />
+          ) : null}
         </div>
       )}
 
@@ -2260,6 +2499,7 @@ function ActivitiesPageContent() {
               highlightedPostponedId={highlightedPostponedId}
               selectedActivityIds={selectedActivityIds}
               canExecuteActions={canExecuteActivityActions}
+              canCancelActions={canCancelActivity}
               activityFeedback={activityFeedback}
               onPreviousMonth={() =>
                 setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
@@ -2471,13 +2711,29 @@ function ActivitiesPageContent() {
                     size="sm"
                     variant="outline"
                     className="rounded-full text-xs"
+                    disabled={isExporting}
                     onClick={handleExportCSV}
                   >
-                    Exportar lista
+                    {isExporting ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Exportando...
+                      </>
+                    ) : (
+                      "Exportar lista"
+                    )}
                   </Button>
                 ) : null}
               </div>
             </div>
+
+            {summaryInlineFeedback ? (
+              <InlineFeedbackMessage
+                tone={summaryInlineFeedback.tone}
+                message={summaryInlineFeedback.message}
+                className="mt-3"
+              />
+            ) : null}
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <SummaryMetric label="Total de atividades" value={String(filteredActivities.length)} />
@@ -2831,6 +3087,7 @@ function ActivitiesCalendarView({
   highlightedPostponedId,
   selectedActivityIds,
   canExecuteActions,
+  canCancelActions,
   activityFeedback,
   onPreviousMonth,
   onNextMonth,
@@ -2855,6 +3112,7 @@ function ActivitiesCalendarView({
   highlightedPostponedId: string | null;
   selectedActivityIds: Set<string>;
   canExecuteActions: boolean;
+  canCancelActions: boolean;
   activityFeedback: Record<string, ActivityFeedback>;
   onPreviousMonth: () => void;
   onNextMonth: () => void;
@@ -3053,6 +3311,7 @@ function ActivitiesCalendarView({
                     isHighlighted={highlightedPostponedId === activity.id}
                     selected={selectedActivityIds.has(activity.id)}
                     canExecuteActions={canExecuteActions}
+                    canCancelActions={canCancelActions}
                     feedback={activityFeedback[activity.id]}
                     onToggleExpand={() => onToggleExpand(activity.id)}
                     onToggleSelect={() => onToggleSelectActivity(activity.id)}
@@ -3295,6 +3554,30 @@ function InlineSectionError({
   );
 }
 
+function InlineFeedbackMessage({
+  tone,
+  message,
+  className,
+}: {
+  tone: "success" | "error" | "info";
+  message: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-[12px] border px-3 py-2 text-xs",
+        tone === "success" && "border-emerald-200 bg-emerald-50 text-emerald-700",
+        tone === "error" && "border-red-200 bg-red-50 text-red-700",
+        tone === "info" && "border-blue-200 bg-blue-50 text-blue-700",
+        className
+      )}
+    >
+      {message}
+    </div>
+  );
+}
+
 const ExecutionActivityCard = memo(function ExecutionActivityCard({
   activity,
   now,
@@ -3303,6 +3586,7 @@ const ExecutionActivityCard = memo(function ExecutionActivityCard({
   isHighlighted,
   selected,
   canExecuteActions,
+  canCancelActions,
   onToggleExpand,
   onToggleSelect,
   onComplete,
@@ -3318,6 +3602,7 @@ const ExecutionActivityCard = memo(function ExecutionActivityCard({
   isHighlighted: boolean;
   selected: boolean;
   canExecuteActions: boolean;
+  canCancelActions: boolean;
   onToggleExpand: () => void;
   onToggleSelect: () => void;
   onComplete: (notes?: string) => void;
@@ -3340,7 +3625,7 @@ const ExecutionActivityCard = memo(function ExecutionActivityCard({
   const insight = getActivityInsight(activity, now);
 
   const isBusy =
-    feedback?.state === "loading-complete" || feedback?.state === "loading-postpone";
+    feedback?.state === "loading-complete" || feedback?.state === "loading-cancel" || feedback?.state === "loading-postpone";
 
   const handleCopyMessage = async () => {
     try {
@@ -3650,7 +3935,7 @@ const ExecutionActivityCard = memo(function ExecutionActivityCard({
                 size="sm"
                 variant="ghost"
                 className="h-8 rounded-full px-3 text-xs text-red-500 hover:bg-red-50 hover:text-red-600"
-                disabled={isBusy || !canExecuteActions}
+                disabled={isBusy || !canCancelActions}
                 onClick={() => setConfirmCancelOpen(true)}
               >
                 <XCircle className="h-3.5 w-3.5" />
@@ -3716,21 +4001,12 @@ const ExecutionActivityCard = memo(function ExecutionActivityCard({
                   )}
 
                   <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Checklist
+                    Checklist de preparação
                   </p>
                   <ul className="mt-1.5 space-y-1.5">
-                    {getActivityChecklist(activity).map((item, index) => (
+                    {getActivityChecklist(activity).map((item) => (
                       <li key={item} className="flex items-center gap-2 text-sm text-zinc-700">
-                        <span
-                          className={cn(
-                            "inline-flex h-4 w-4 items-center justify-center rounded-full border",
-                            index === 0
-                              ? "border-emerald-300 bg-emerald-100 text-emerald-700"
-                              : "border-zinc-300 bg-white text-zinc-400"
-                          )}
-                        >
-                          {index === 0 ? <Check className="h-3 w-3" /> : null}
-                        </span>
+                        <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
                         <span>{item}</span>
                       </li>
                     ))}
