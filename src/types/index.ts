@@ -43,6 +43,7 @@ export interface Opportunity {
 
 export interface Contact {
   id: string;
+  clientId: string;
   nome: string;
   email: string;
   telefone: string;
@@ -66,6 +67,7 @@ export interface Client {
   id: string;
   companyName: string;
   cnpj: string;
+  city?: string;
   contactName: string;
   contactEmail: string;
   contactPhone: string;
@@ -109,6 +111,8 @@ export interface Activity {
   opportunityTitle?: string;
   clientId?: string;
   clientName?: string;
+  contactIds?: string[];
+  contactNames?: string[];
   completedAt?: string;
   completionNotes?: string;
   createdAt: string;

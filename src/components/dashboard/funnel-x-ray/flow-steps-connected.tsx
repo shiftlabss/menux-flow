@@ -8,17 +8,15 @@ import { FlowConnector } from "./flow-connector";
 export function FlowStepsConnected({
   stages,
   transitions,
-  activeStageId,
+  selectedStageId,
   bottleneckToStageId,
-  onHoverStage,
-  onOpenStage,
+  onSelectStage,
 }: {
   stages: FlowStage[];
   transitions: FlowTransition[];
-  activeStageId: FlowStageId;
+  selectedStageId: FlowStageId | null;
   bottleneckToStageId: FlowStageId | null;
-  onHoverStage: (stageId: FlowStageId) => void;
-  onOpenStage: (stageId: FlowStageId) => void;
+  onSelectStage: (stageId: FlowStageId) => void;
 }) {
   return (
     <>
@@ -27,9 +25,8 @@ export function FlowStepsConnected({
           <Fragment key={stage.id}>
             <FlowStepCard
               stage={stage}
-              active={activeStageId === stage.id}
-              onHoverStage={onHoverStage}
-              onOpenStage={onOpenStage}
+              selected={selectedStageId === stage.id}
+              onSelectStage={onSelectStage}
               compact={false}
             />
             {index < transitions.length && (
@@ -49,9 +46,8 @@ export function FlowStepsConnected({
           <Fragment key={`mobile-${stage.id}`}>
             <FlowStepCard
               stage={stage}
-              active={activeStageId === stage.id}
-              onHoverStage={onHoverStage}
-              onOpenStage={onOpenStage}
+              selected={selectedStageId === stage.id}
+              onSelectStage={onSelectStage}
               compact
             />
             {index < transitions.length && (

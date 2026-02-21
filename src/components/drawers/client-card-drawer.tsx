@@ -66,7 +66,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useUIStore } from "@/stores/ui-store";
-import type { HealthScore, ClientStage } from "@/types";
+import type { Contact, HealthScore, ClientStage } from "@/types";
 import { calculateHealthScore, RESTAURANT_POSITIONS } from "@/lib/business-rules";
 import { useClientStore } from "@/stores/client-store";
 
@@ -129,9 +129,10 @@ const mockClient = {
   notes: "Cliente com excelente engajamento. Acompanhar renovacao do contrato em junho.",
 };
 
-const mockContacts = [
+const mockContacts: Contact[] = [
   {
     id: "c1",
+    clientId: "client-mock",
     nome: "Ana Costa",
     email: "ana@panoramico.com",
     telefone: "(11) 99999-0001",
@@ -141,6 +142,7 @@ const mockContacts = [
   },
   {
     id: "c2",
+    clientId: "client-mock",
     nome: "Bruno Oliveira",
     email: "bruno@panoramico.com",
     telefone: "(11) 99999-0002",
@@ -794,6 +796,7 @@ export function ClientCardDrawer() {
         ...contacts,
         {
           id: `c${Date.now()}`,
+          clientId: "client-mock",
           ...newContact,
           isDecisionMaker: false,
         },
@@ -822,7 +825,7 @@ export function ClientCardDrawer() {
       email: contact.email,
       telefone: contact.telefone,
       cargo: contact.cargo,
-      personalidade: contact.personalidade,
+      personalidade: contact.personalidade ?? "",
     });
   }
 

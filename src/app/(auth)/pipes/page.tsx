@@ -54,7 +54,7 @@ import {
   stageColorPalette,
   temperatureConfig,
 } from "./lib/pipeline-config";
-import type { PipelineStage, Opportunity, Temperature } from "@/types";
+import type { PipelineStage, Opportunity } from "@/types";
 import { getSlaStatus, validateStageTransition } from "./lib/pipeline-validation";
 import { usePipelineBoard } from "./hooks/use-pipeline-board";
 import { useStageCustomization } from "./hooks/use-stage-customization";
@@ -64,6 +64,7 @@ import { ModuleCommandHeader } from "@/components/shared/module-command-header";
 
 const FILTERS_APPLIED_EVENT = "flow:filters-applied";
 const STALE_ACTIVITY_DAYS = 5;
+const SLA_RISK_WINDOW_HOURS = 24;
 type GlobalPipesFilters = {
   responsible: string[];
   stage: string[];
@@ -75,6 +76,7 @@ type GlobalPipesFilters = {
   valueMax: string;
   overdue: boolean;
   stale: boolean;
+  risk?: boolean;
 };
 
 const WIP_LIMIT_BY_STAGE: Record<PipelineStage, number> = {
@@ -90,6 +92,29 @@ function isStaleOpportunity(opportunity: Opportunity): boolean {
   const updatedAt = new Date(opportunity.updatedAt).getTime();
   const staleThreshold = Date.now() - STALE_ACTIVITY_DAYS * 24 * 60 * 60 * 1000;
   return updatedAt < staleThreshold;
+}
+
+function isSlaRiskOpportunity(opportunity: Opportunity): boolean {
+  if (!opportunity.slaDeadline) return false;
+  const deadline = new Date(opportunity.slaDeadline).getTime();
+  const hoursLeft = (deadline - Date.now()) / (1000 * 60 * 60);
+  return hoursLeft > 0 && hoursLeft <= SLA_RISK_WINDOW_HOURS;
+}
+
+function createEmptyPipesFilters(): GlobalPipesFilters {
+  return {
+    responsible: [],
+    stage: [],
+    temperature: [],
+    tags: [],
+    dateStart: "",
+    dateEnd: "",
+    valueMin: "",
+    valueMax: "",
+    overdue: false,
+    stale: false,
+    risk: false,
+  };
 }
 
 function getStageParamLabel(stage: PipelineStage) {
@@ -137,6 +162,48 @@ function PipesPageContent() {
   const [recentFiltersCount, setRecentFiltersCount] = useState<number | null>(null);
   const [globalPipesFilters, setGlobalPipesFilters] = useState<GlobalPipesFilters | null>(null);
 
+  useEffect(() => {
+    const rawFilterParam = searchParams.get("filter") ?? searchParams.get("filters");
+    if (!rawFilterParam) return;
+    const filterTokens = rawFilterParam
+      .split(",")
+      .map((token) => token.trim())
+      .filter(Boolean);
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- URL query is the source of truth for entry filters.
+    setGlobalPipesFilters((prev) => {
+      const base = prev ?? createEmptyPipesFilters();
+      const next: GlobalPipesFilters = {
+        ...base,
+        overdue: false,
+        stale: false,
+        risk: false,
+      };
+
+      for (const token of filterTokens) {
+        if (token === "sla_overdue") next.overdue = true;
+        if (token === "sla_risk" || token === "risk") next.risk = true;
+        if (
+          token === "stale" ||
+          token === "stalled" ||
+          token === "no_activity"
+        ) {
+          next.stale = true;
+        }
+      }
+
+      if (
+        base.overdue === next.overdue &&
+        base.stale === next.stale &&
+        Boolean(base.risk) === Boolean(next.risk)
+      ) {
+        return prev ?? next;
+      }
+
+      return next;
+    });
+  }, [searchParams]);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
   const liveRegionRef = useRef<HTMLDivElement>(null);
@@ -149,7 +216,7 @@ function PipesPageContent() {
   );
 
   const stageFilter = useMemo(() => {
-    const raw = searchParams.get("stage");
+    const raw = searchParams.get("stage") ?? searchParams.get("stageId");
     if (!raw) return null;
     const candidate = raw as PipelineStage;
     return activeStageIds.includes(candidate) ? candidate : null;
@@ -275,6 +342,7 @@ function PipesPageContent() {
         if (globalPipesFilters.responsible?.length > 0 && !globalPipesFilters.responsible.includes(opportunity.responsibleId)) continue;
         if (globalPipesFilters.tags?.length > 0 && !globalPipesFilters.tags.some(t => opportunity.tags.includes(t))) continue;
         if (globalPipesFilters.overdue && getSlaStatus(opportunity.slaDeadline).status !== "breached") continue;
+        if (globalPipesFilters.risk && !isSlaRiskOpportunity(opportunity)) continue;
         if (globalPipesFilters.stale && !isStaleOpportunity(opportunity)) continue;
         if (globalPipesFilters.stage?.length > 0 && !globalPipesFilters.stage.includes(opportunity.stage)) continue;
       }
@@ -449,6 +517,13 @@ function PipesPageContent() {
         id: "overdue",
         label: "Somente estourados",
         onRemove: () => dispatchUpdate({ ...globalPipesFilters, overdue: false }),
+      });
+    }
+    if (globalPipesFilters.risk) {
+      filters.push({
+        id: "risk",
+        label: "Somente em risco",
+        onRemove: () => dispatchUpdate({ ...globalPipesFilters, risk: false }),
       });
     }
     if (globalPipesFilters.stale) {

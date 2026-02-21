@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardHeader } from "@/components/dashboard/header";
 import { KpiSection } from "@/components/dashboard/kpi-section";
@@ -11,37 +12,50 @@ import { PipelineHealth, TeamPerformance } from "@/components/dashboard/performa
 import { useProactiveEngine } from "@/hooks/use-proactive-engine";
 import { screenContainer, sectionEnter } from "@/lib/motion";
 
-export default function Dashboard() {
+function DashboardLoadingSkeleton() {
+  return (
+    <div className="space-y-6 p-6 md:p-8">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-9 w-36 rounded-full" />
+      </div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 rounded-xl" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardContent() {
   // Activate proactive engine in background — feeds alerts & suggestions
   useProactiveEngine();
+  const searchParams = useSearchParams();
+  const viewParam = searchParams.get("view");
 
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => { const t = setTimeout(() => setIsLoading(false), 800); return () => clearTimeout(t); }, []);
 
+  useEffect(() => {
+    if (viewParam !== "conversion") return;
+    const target = document.getElementById("dashboard-funnel");
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [viewParam]);
+
   if (isLoading) {
-    return (
-      <div className="space-y-6 p-6 md:p-8">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-56" />
-          <Skeleton className="h-9 w-36 rounded-full" />
-        </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
-          ))}
-        </div>
-        <Skeleton className="h-64 rounded-xl" />
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-8 flex flex-col gap-6">
-            <Skeleton className="h-48 rounded-xl" />
-            <Skeleton className="h-48 rounded-xl" />
-          </div>
-          <div className="lg:col-span-4 flex flex-col gap-6">
-            <Skeleton className="h-48 rounded-xl" />
-          </div>
-        </div>
-      </div>
-    );
+    return <DashboardLoadingSkeleton />;
   }
 
   return (
@@ -85,5 +99,13 @@ export default function Dashboard() {
          </div>
       </motion.section>
     </motion.div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<DashboardLoadingSkeleton />}>
+      <DashboardContent />
+    </Suspense>
   );
 }

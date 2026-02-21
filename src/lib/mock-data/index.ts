@@ -9,3 +9,4 @@ export { mockAuditLog } from "./audit-log";
 export { mockGoals } from "./goals";
 export { generateDynamicMockData } from "./dynamic-generator";
 export { mockNegotiationRounds } from "./negotiations";
+export { mockContacts } from "./contacts";

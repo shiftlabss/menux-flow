@@ -31,7 +31,6 @@ import {
   useStageFieldsStore,
   useViewStageFields,
   useViewStageValues,
-  useIsViewingDifferentStage,
   useRequiredProgress,
 } from "@/stores/stage-fields-store";
 import { DynamicFieldRenderer } from "./dynamic-field-renderer";
@@ -152,13 +151,13 @@ export function StageFieldsPanel({
   stages,
   initialValues,
   isLocked,
+  onStageChange,
   canCreateFields = false,
   advanceBlockedReason = null,
 }: StageFieldsPanelProps) {
   const store = useStageFieldsStore();
   const fields = useViewStageFields();
   const values = useViewStageValues();
-  const isViewingDifferent = useIsViewingDifferentStage();
   const progress = useRequiredProgress();
 
   // Initialize store when opportunity opens/changes
@@ -177,10 +176,10 @@ export function StageFieldsPanel({
 
   const handleFieldChange = useCallback(
     (fieldId: string, value: string | number | boolean | string[] | null | undefined) => {
-      if (isLocked || isViewingDifferent) return;
+      if (isLocked || store.isChangingStage) return;
       store.updateFieldValue(fieldId, value);
     },
-    [isLocked, isViewingDifferent, store],
+    [isLocked, store],
   );
 
   const handleSave = useCallback(() => {
@@ -190,8 +189,8 @@ export function StageFieldsPanel({
 
   const handleCreateField = useCallback(
     (fieldData: Parameters<typeof store.addFieldDefinition>[1]) => {
-      if (!store.viewStage) return;
-      store.addFieldDefinition(store.viewStage, fieldData);
+      if (!store.opportunityStage) return;
+      store.addFieldDefinition(store.opportunityStage, fieldData);
     },
     [store],
   );
@@ -200,15 +199,11 @@ export function StageFieldsPanel({
     return stages.find((s) => s.id === store.opportunityStage)?.label ?? "Etapa";
   }, [stages, store.opportunityStage]);
 
-  const viewStageName = useMemo(() => {
-    return stages.find((s) => s.id === store.viewStage)?.label ?? "Etapa";
-  }, [stages, store.viewStage]);
-
   // Split fields: required first, then optional
   const requiredFields = useMemo(() => fields.filter((f) => f.required), [fields]);
   const optionalFields = useMemo(() => fields.filter((f) => !f.required), [fields]);
 
-  const isEditable = !isLocked && !isViewingDifferent;
+  const isEditable = !isLocked && !store.isChangingStage;
   const hasAdvanceBlockedReason = Boolean(advanceBlockedReason && advanceBlockedReason.trim().length > 0);
 
   return (
@@ -226,37 +221,46 @@ export function StageFieldsPanel({
             </Badge>
           }
         >
-          {/* ── Controls row: Ver etapa + Novo campo ── */}
+          {/* ── Controls row: Etapa Atual + Novo campo ── */}
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="h-9 w-full justify-between rounded-xl border-zinc-200 bg-white px-3 font-normal text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 focus:ring-2 focus:ring-brand/10 transition-all"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
-                        <Eye className="h-3 w-3" />
-                      </span>
-                      <span className="text-xs font-semibold text-zinc-700">
-                        {store.viewStage ? stages.find(s => s.id === store.viewStage)?.label : "Selecionar etapa..."}
-                      </span>
-                    </div>
-                    <ChevronDown className="h-3.5 w-3.5 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
+                <div className="group relative w-full">
+                  <div className="absolute -top-2 left-2 z-10 bg-white px-1 text-[10px] font-semibold tracking-wide text-zinc-500">
+                    Etapa atual
+                  </div>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="h-11 w-full justify-between rounded-xl border-zinc-200 bg-white px-3 font-normal text-zinc-900 shadow-sm transition-all hover:border-brand/40 hover:bg-zinc-50 focus:border-brand/40 focus:ring-2 focus:ring-brand/10 disabled:opacity-70"
+                      disabled={store.isChangingStage}
+                    >
+                      <div className="flex items-center gap-2">
+                        {store.isChangingStage ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-brand" />
+                        ) : (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/10 text-brand">
+                            <Activity className="h-3 w-3" />
+                          </span>
+                        )}
+                        <span className="text-sm font-semibold">
+                          {store.isChangingStage ? "Alterando etapa..." : currentStageName}
+                        </span>
+                      </div>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                </div>
                 <PopoverContent className="w-[280px] p-0 rounded-2xl shadow-xl border-zinc-100" align="start">
                   <Command>
                     <CommandList className="max-h-[300px] p-1.5">
                       <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                        Navegar etapas
+                        Alterar etapa da oportunidade
                       </div>
                       <CommandGroup>
                         {stages.map((s, index) => {
                           const isCurrent = s.id === store.opportunityStage;
-                          const isSelected = s.id === store.viewStage;
                           const currentIndex = stages.findIndex(st => st.id === store.opportunityStage);
                           const isPassed = index < currentIndex;
 
@@ -265,11 +269,12 @@ export function StageFieldsPanel({
                               key={s.id}
                               value={s.label}
                               onSelect={() => {
-                                store.setViewStage(s.id as PipelineStage);
+                                if (isCurrent) return;
+                                store.updateOpportunityStage(s.id as PipelineStage, onStageChange);
                               }}
                               className={cn(
                                 "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs transition-colors cursor-pointer",
-                                isSelected ? "bg-zinc-50" : "hover:bg-zinc-50"
+                                isCurrent ? "bg-zinc-50" : "hover:bg-zinc-50"
                               )}
                             >
                               {/* Status Indicator */}
@@ -282,7 +287,7 @@ export function StageFieldsPanel({
 
                               <span className={cn(
                                 "flex-1 truncate font-medium",
-                                isSelected ? "text-zinc-900" : "text-zinc-600"
+                                isCurrent ? "text-zinc-900" : "text-zinc-600"
                               )}>
                                 {s.label}
                               </span>
@@ -290,14 +295,10 @@ export function StageFieldsPanel({
                               {isCurrent && (
                                 <Badge
                                   variant="secondary"
-                                  className="ml-auto h-5 rounded-full bg-brand/10 px-1.5 text-[9px] font-semibold text-brand hover:bg-brand/20"
+                                  className="ml-auto h-5 rounded-full bg-brand/10 px-1.5 text-[9px] font-semibold text-brand"
                                 >
                                   Atual
                                 </Badge>
-                              )}
-
-                              {isSelected && !isCurrent && (
-                                <Check className="h-3.5 w-3.5 text-zinc-900" />
                               )}
                             </CommandItem>
                           );
@@ -311,40 +312,14 @@ export function StageFieldsPanel({
             {canCreateFields && (
               <Button
                 size="sm"
-                className="h-9 rounded-xl bg-zinc-900 px-3 text-xs text-white hover:bg-black shadow-sm transition-all hover:shadow-md"
+                className="h-11 rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white shadow-sm transition-all hover:bg-black hover:shadow-md"
                 onClick={() => store.setNewFieldModalOpen(true)}
               >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                <Plus className="mr-1.5 h-4 w-4" />
                 Novo campo
               </Button>
             )}
           </div>
-
-          {/* ── Banner: viewing different stage ── */}
-          <AnimatePresence>
-            {isViewingDifferent && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="flex items-center gap-2 rounded-[10px] border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700">
-                  <Eye className="h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    Visualizando <strong>{viewStageName}</strong>. Para editar, volte para{" "}
-                    <button
-                      type="button"
-                      className="font-semibold underline hover:no-underline"
-                      onClick={() => store.setViewStage(store.opportunityStage!)}
-                    >
-                      {currentStageName}
-                    </button>.
-                  </span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* ── Store banner ── */}
           <AnimatePresence>
@@ -366,7 +341,7 @@ export function StageFieldsPanel({
 
 
           {/* ── Missing required fields warning ── */}
-          {progress.missingFields.length > 0 && store.viewStage === store.opportunityStage && (
+          {progress.missingFields.length > 0 && !store.isChangingStage && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
               <p className="text-[11px] font-semibold text-amber-700">Pendências para avanço</p>
               <ul className="mt-1 space-y-1 text-[11px] text-amber-700">
@@ -377,7 +352,7 @@ export function StageFieldsPanel({
             </div>
           )}
 
-          {hasAdvanceBlockedReason && store.viewStage === store.opportunityStage && (
+          {hasAdvanceBlockedReason && !store.isChangingStage && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
               <p className="text-[11px] font-semibold text-amber-700">Avanço bloqueado</p>
               <p className="mt-1 text-[11px] text-amber-700">{advanceBlockedReason}</p>
@@ -448,16 +423,16 @@ export function StageFieldsPanel({
             <Button
               size="sm"
               variant="outline"
-              className="h-8 rounded-full px-3 text-xs"
+              className="h-9 rounded-xl px-4 text-xs font-semibold shadow-sm hover:bg-zinc-50 hover:text-zinc-900"
               onClick={handleSave}
-              disabled={isLocked || store.isSaving || isViewingDifferent}
+              disabled={isLocked || store.isSaving || store.isChangingStage || fields.length === 0}
             >
               {store.isSaving ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Check className="mr-1.5 h-3.5 w-3.5" />
               )}
-              Salvar campos
+              {store.isSaving ? "Salvando..." : "Salvar campos"}
             </Button>
           </div>
         </PanelCard>
@@ -467,8 +442,8 @@ export function StageFieldsPanel({
       <NewFieldModal
         open={store.isNewFieldModalOpen}
         onOpenChange={store.setNewFieldModalOpen}
-        stageId={store.viewStage || ""}
-        stageName={viewStageName}
+        stageId={store.opportunityStage || ""}
+        stageName={currentStageName}
         onSave={handleCreateField}
       />
     </>

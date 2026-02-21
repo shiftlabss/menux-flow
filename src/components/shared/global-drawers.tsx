@@ -27,17 +27,6 @@ export function GlobalDrawers() {
       throw new Error("Usuário não autenticado para criar atividade.");
     }
 
-    const contextOpportunityId =
-      typeof drawerData?.opportunityId === "string" ? drawerData.opportunityId : undefined;
-    const contextOpportunityTitle =
-      typeof drawerData?.opportunityTitle === "string"
-        ? drawerData.opportunityTitle
-        : undefined;
-    const contextClientId =
-      typeof drawerData?.clientId === "string" ? drawerData.clientId : undefined;
-    const contextClientName =
-      typeof drawerData?.clientName === "string" ? drawerData.clientName : undefined;
-
     addActivity({
       title: data.title,
       type: data.type,
@@ -47,10 +36,12 @@ export function GlobalDrawers() {
       dueTime: data.time,
       responsibleId: user.id,
       responsibleName: user.name,
-      opportunityId: contextOpportunityId,
-      opportunityTitle: contextOpportunityTitle,
-      clientId: contextClientId,
-      clientName: contextClientName,
+      opportunityId: data.opportunityId || undefined,
+      opportunityTitle: data.opportunityTitle || undefined,
+      clientId: data.clientId || undefined,
+      clientName: data.clientName || undefined,
+      contactIds: data.contactIds?.length ? data.contactIds : undefined,
+      contactNames: data.contactNames?.length ? data.contactNames : undefined,
     });
   };
 
@@ -68,6 +59,14 @@ export function GlobalDrawers() {
         onClose={closeDrawer}
         onSave={handleSaveActivity}
         initialType={(drawerData?.type as "call" | "email" | "meeting" | "visit" | "task" | "follow-up" | "whatsapp") || undefined}
+        initialClientId={typeof drawerData?.clientId === "string" ? drawerData.clientId : undefined}
+        initialClientName={typeof drawerData?.clientName === "string" ? drawerData.clientName : undefined}
+        initialContactIds={Array.isArray(drawerData?.contactIds) ? drawerData.contactIds as string[] : undefined}
+        initialContactNames={Array.isArray(drawerData?.contactNames) ? drawerData.contactNames as string[] : undefined}
+        initialOpportunityId={typeof drawerData?.opportunityId === "string" ? drawerData.opportunityId : undefined}
+        initialOpportunityTitle={typeof drawerData?.opportunityTitle === "string" ? drawerData.opportunityTitle : undefined}
+        lockClient={drawerData?.lockClient === true}
+        requireClient={drawerData?.requireClient === true}
       />
       <WinOpportunityModal />
       <LoseOpportunityModal />

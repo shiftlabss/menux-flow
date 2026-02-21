@@ -93,7 +93,7 @@ import { cn } from "@/lib/utils";
 
 type ViewMode = "list" | "agenda";
 type SlaFilter = "all" | "breached" | "risk";
-type SectionKey = "intelligence" | "overdue" | "today" | "next7";
+type SectionKey = "intelligence" | "overdue" | "today" | "next7" | "future";
 
 type RecommendationActionState = "idle" | "loading" | "success" | "error";
 type ActivityFeedbackState =
@@ -134,8 +134,6 @@ const STATUS_OPTIONS: { value: ActivityStatus; label: string }[] = [
 const DEFAULT_STATUS_FILTER = new Set<ActivityStatus>([
   "pending",
   "overdue",
-  "completed",
-  "cancelled",
 ]);
 
 const SLA_OPTIONS: { value: SlaFilter; label: string }[] = [
@@ -207,12 +205,7 @@ function buildRecommendations(
       why: overdue
         ? "Prazo estourado com alto impacto no ritmo do pipeline."
         : "Atividade com potencial de destravar avanço ainda hoje.",
-      primaryActionLabel:
-        activity.type === "call" || activity.type === "whatsapp"
-          ? "Executar contato"
-          : activity.type === "meeting"
-            ? "Executar preparação"
-            : "Gerar mensagem",
+      primaryActionLabel: "Ir para atividade",
       actionKind:
         activity.type === "call" || activity.type === "whatsapp"
           ? "call"
@@ -349,6 +342,7 @@ function ActivitiesPageContent() {
     overdue: false,
     today: false,
     next7: false,
+    future: true,
   });
 
   const [sectionErrors, setSectionErrors] = useState<Record<SectionKey, string | null>>({
@@ -356,6 +350,7 @@ function ActivitiesPageContent() {
     overdue: null,
     today: null,
     next7: null,
+    future: null,
   });
 
   const [planSeed, setPlanSeed] = useState(0);
@@ -370,6 +365,9 @@ function ActivitiesPageContent() {
     () => new Set()
   );
   const [confirmBulkCancelOpen, setConfirmBulkCancelOpen] = useState(false);
+  const [confirmBulkCompleteOpen, setConfirmBulkCompleteOpen] = useState(false);
+  const [bulkPostponeOpen, setBulkPostponeOpen] = useState(false);
+  const [bulkPostponeCustomDate, setBulkPostponeCustomDate] = useState("");
   const [activityFeedback, setActivityFeedback] = useState<Record<string, ActivityFeedback>>(
     {}
   );
@@ -451,6 +449,13 @@ function ActivitiesPageContent() {
   }, []);
 
   // Loading is instant since data comes from the local store (no API).
+
+  // Auto-dismiss commandResult after 6 seconds
+  useEffect(() => {
+    if (!commandResult) return;
+    const timer = window.setTimeout(() => setCommandResult(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [commandResult]);
 
   useEffect(() => {
     return () => {
@@ -865,6 +870,22 @@ function ActivitiesPageContent() {
         if (isActivityOverdue(activity, now)) return false;
         const due = startOfDay(parseDateISO(activity.dueDate));
         return due > todayDate && due <= next7Date;
+      })
+      .sort((a, b) => {
+        const diff = parseDateISO(a.dueDate).getTime() - parseDateISO(b.dueDate).getTime();
+        if (diff !== 0) return diff;
+        return (a.dueTime || "99:99").localeCompare(b.dueTime || "99:99");
+      });
+  }, [executionActivities, now]);
+
+  const futureActivities = useMemo(() => {
+    const next7Date = addDays(startOfDay(now), 7);
+
+    return executionActivities
+      .filter((activity) => {
+        if (isActivityOverdue(activity, now)) return false;
+        const due = startOfDay(parseDateISO(activity.dueDate));
+        return due > next7Date;
       })
       .sort((a, b) => {
         const diff = parseDateISO(a.dueDate).getTime() - parseDateISO(b.dueDate).getTime();
@@ -1355,7 +1376,7 @@ function ActivitiesPageContent() {
     ]
   );
 
-  const handleBulkCompleteActivities = useCallback(() => {
+  const handleRequestBulkCompleteActivities = useCallback(() => {
     if (selectedExecutionIds.length === 0) return;
 
     if (!canExecuteActivityActions) {
@@ -1366,20 +1387,25 @@ function ActivitiesPageContent() {
       return;
     }
 
+    setConfirmBulkCompleteOpen(true);
+  }, [canExecuteActivityActions, selectedExecutionIds.length]);
+
+  const handleConfirmBulkCompleteActivities = useCallback(() => {
+    if (selectedExecutionIds.length === 0) {
+      setConfirmBulkCompleteOpen(false);
+      return;
+    }
+
     selectedExecutionIds.forEach((activityId) => {
       handleCompleteActivity(activityId);
     });
     clearSelectedActivities();
+    setConfirmBulkCompleteOpen(false);
     setCommandResult({
       status: "success",
       text: `${selectedExecutionIds.length} atividades concluídas em lote.`,
     });
-  }, [
-    canExecuteActivityActions,
-    clearSelectedActivities,
-    handleCompleteActivity,
-    selectedExecutionIds,
-  ]);
+  }, [clearSelectedActivities, handleCompleteActivity, selectedExecutionIds]);
 
   const handleRequestBulkCancelActivities = useCallback(() => {
     if (selectedExecutionIds.length === 0) return;
@@ -1412,35 +1438,38 @@ function ActivitiesPageContent() {
     });
   }, [clearSelectedActivities, handleCancelActivity, selectedExecutionIds]);
 
-  const handleBulkPostponeActivities = useCallback(() => {
-    if (selectedExecutionIds.length === 0) return;
+  const handleBulkPostponeActivities = useCallback(
+    (targetDate: string) => {
+      if (selectedExecutionIds.length === 0) return;
 
-    if (!canExecuteActivityActions) {
-      setCommandResult({
-        status: "error",
-        text: "Você não tem permissão para reagendar atividades em lote.",
+      if (!canExecuteActivityActions) {
+        setCommandResult({
+          status: "error",
+          text: "Você não tem permissão para reagendar atividades em lote.",
+        });
+        return;
+      }
+
+      selectedExecutionIds.forEach((activityId) => {
+        handlePostponeActivity(activityId, targetDate);
       });
-      return;
-    }
-
-    const tomorrow = toISODate(addDays(startOfDay(now), 1));
-    selectedExecutionIds.forEach((activityId) => {
-      handlePostponeActivity(activityId, tomorrow);
-    });
-    clearSelectedActivities();
-    setCommandResult({
-      status: "success",
-      text: `${selectedExecutionIds.length} atividades reagendadas para ${formatDateBR(
-        tomorrow
-      )}.`,
-    });
-  }, [
-    canExecuteActivityActions,
-    clearSelectedActivities,
-    handlePostponeActivity,
-    now,
-    selectedExecutionIds,
-  ]);
+      clearSelectedActivities();
+      setBulkPostponeOpen(false);
+      setBulkPostponeCustomDate("");
+      setCommandResult({
+        status: "success",
+        text: `${selectedExecutionIds.length} atividades reagendadas para ${formatDateBR(
+          targetDate
+        )}.`,
+      });
+    },
+    [
+      canExecuteActivityActions,
+      clearSelectedActivities,
+      handlePostponeActivity,
+      selectedExecutionIds,
+    ]
+  );
 
   const handleOpenIntelligenceFromActivity = useCallback(
     (activity: Activity) => {
@@ -2130,22 +2159,70 @@ function ActivitiesPageContent() {
               <Button
                 size="sm"
                 className="h-8 rounded-full bg-zinc-900 px-3 text-xs text-white hover:bg-zinc-800"
-                onClick={handleBulkCompleteActivities}
+                onClick={handleRequestBulkCompleteActivities}
                 disabled={!canExecuteActivityActions}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Concluir em lote
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 rounded-full px-3 text-xs"
-                onClick={handleBulkPostponeActivities}
-                disabled={!canExecuteActivityActions}
-              >
-                <CalendarClock className="h-3.5 w-3.5" />
-                Adiar +1 dia
-              </Button>
+              <Popover open={bulkPostponeOpen} onOpenChange={setBulkPostponeOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 rounded-full px-3 text-xs"
+                    disabled={!canExecuteActivityActions}
+                  >
+                    <CalendarClock className="h-3.5 w-3.5" />
+                    Adiar
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  sideOffset={8}
+                  className="w-[250px] rounded-[16px] border-zinc-200 p-3"
+                >
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Reagendar em lote
+                  </p>
+                  <div className="space-y-2">
+                    {[1, 3, 7].map((days) => (
+                      <button
+                        key={days}
+                        onClick={() =>
+                          handleBulkPostponeActivities(
+                            toISODate(addDays(startOfDay(now), days))
+                          )
+                        }
+                        className="flex w-full items-center justify-between rounded-[10px] border border-zinc-200 px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
+                      >
+                        <span>+{days} {days === 1 ? "dia" : "dias"}</span>
+                        <ArrowRight className="h-3.5 w-3.5 text-zinc-400" />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <Label className="text-xs text-zinc-500">Escolher data</Label>
+                    <Input
+                      type="date"
+                      value={bulkPostponeCustomDate}
+                      min={toISODate(startOfDay(now))}
+                      onChange={(event) => setBulkPostponeCustomDate(event.target.value)}
+                      className="h-9 rounded-[10px]"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 w-full rounded-full bg-zinc-900 text-xs text-white hover:bg-zinc-800"
+                      disabled={!bulkPostponeCustomDate}
+                      onClick={() =>
+                        handleBulkPostponeActivities(bulkPostponeCustomDate)
+                      }
+                    >
+                      Confirmar data
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Button
                 size="sm"
                 variant="ghost"
@@ -2354,6 +2431,16 @@ function ActivitiesPageContent() {
             tone="neutral"
           >
             {renderSectionBody(next7Activities, "next7")}
+          </ExecutionSection>
+
+          <ExecutionSection
+            title="Futuras"
+            count={futureActivities.length}
+            collapsed={collapsedSections.future}
+            onToggle={() => toggleSection("future")}
+            tone="neutral"
+          >
+            {renderSectionBody(futureActivities, "future")}
           </ExecutionSection>
 
           <div className="rounded-[20px] border border-zinc-200 bg-white p-4 shadow-sm md:p-5">
@@ -2566,6 +2653,34 @@ function ActivitiesPageContent() {
           </div>
         </aside>
       </div>
+
+      <AlertDialog
+        open={confirmBulkCompleteOpen}
+        onOpenChange={setConfirmBulkCompleteOpen}
+      >
+        <AlertDialogContent className="rounded-[20px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading text-xl">
+              Concluir atividades em lote?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-body text-sm text-zinc-600">
+              Essa ação conclui {selectedExecutionIds.length} atividade(s) selecionada(s) e
+              registra o status imediatamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-full">
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
+              onClick={handleConfirmBulkCompleteActivities}
+            >
+              Confirmar conclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={confirmBulkCancelOpen}
@@ -2884,9 +2999,16 @@ function ActivitiesCalendarView({
                   ))}
 
                   {activities.length > 2 ? (
-                    <p className="text-[10px] font-medium text-zinc-500">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSelectDate(date);
+                      }}
+                      className="text-[10px] font-medium text-brand hover:underline"
+                    >
                       +{activities.length - 2} atividades
-                    </p>
+                    </button>
                   ) : null}
                 </div>
               </div>

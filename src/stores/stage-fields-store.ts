@@ -18,9 +18,6 @@ interface StageFieldsState {
   opportunityId: string | null;
   opportunityStage: PipelineStage | null;
 
-  // View stage (what the user is looking at — can differ from opportunityStage)
-  viewStage: PipelineStage | null;
-
   // Field definitions per stage (keyed by stageId)
   fieldDefinitions: Record<string, StageField[]>;
 
@@ -36,6 +33,7 @@ interface StageFieldsState {
   // Global save/loading states
   isSaving: boolean;
   isLoadingFields: boolean;
+  isChangingStage: boolean;
   loadError: string | null;
 
   // Banner messages
@@ -46,9 +44,12 @@ interface StageFieldsState {
 
   // Actions
   initForOpportunity: (opportunityId: string, stage: PipelineStage, initialValues?: Record<string, StageFieldValue>) => void;
-  setViewStage: (stage: PipelineStage) => void;
   updateFieldValue: (fieldId: string, value: StageFieldValue) => void;
   saveAllFields: () => void;
+  updateOpportunityStage: (
+    nextStageId: PipelineStage,
+    onAdvance: (nextStage: PipelineStage) => boolean | void
+  ) => void;
   advanceStage: (
     nextStageId: PipelineStage,
     onAdvance: (nextStage: PipelineStage) => boolean | void
@@ -72,13 +73,13 @@ export const useStageFieldsStore = create<StageFieldsState>()(
     (set, get) => ({
       opportunityId: null,
       opportunityStage: null,
-      viewStage: null,
       fieldDefinitions: {},
       fieldValues: {},
       fieldSaveStates: {},
       fieldErrors: {},
       isSaving: false,
       isLoadingFields: false,
+      isChangingStage: false,
       loadError: null,
       banner: null,
       isNewFieldModalOpen: false,
@@ -98,55 +99,24 @@ export const useStageFieldsStore = create<StageFieldsState>()(
         set({
           opportunityId,
           opportunityStage: stage,
-          viewStage: stage,
           fieldDefinitions: definitions,
           fieldValues: { ...get().fieldValues, [key]: values },
           fieldSaveStates: {},
           fieldErrors: {},
           isSaving: false,
           isLoadingFields: false,
+          isChangingStage: false,
           loadError: null,
           banner: null,
           isNewFieldModalOpen: false,
         });
       },
 
-      setViewStage: (stage) => {
-        const { opportunityId, fieldValues, fieldDefinitions } = get();
-        if (!opportunityId) return;
-
-        const key = valuesKey(opportunityId, stage);
-        // Ensure values exist for this stage
-        if (!fieldValues[key]) {
-          set({
-            fieldValues: { ...fieldValues, [key]: {} },
-          });
-        }
-
-        // Ensure field definitions exist
-        if (!fieldDefinitions[stage]) {
-          const fields = (stageFieldsConfig[stage] || []).filter((f) => f.isActive);
-          set({
-            fieldDefinitions: { ...get().fieldDefinitions, [stage]: fields },
-          });
-        }
-
-        set({
-          viewStage: stage,
-          fieldSaveStates: {},
-          fieldErrors: {},
-          banner: null,
-        });
-      },
-
       updateFieldValue: (fieldId, value) => {
-        const { opportunityId, viewStage, opportunityStage, fieldValues } = get();
-        if (!opportunityId || !viewStage) return;
+        const { opportunityId, opportunityStage, fieldValues } = get();
+        if (!opportunityId || !opportunityStage) return;
 
-        // Block editing when viewing a different stage
-        if (viewStage !== opportunityStage) return;
-
-        const key = valuesKey(opportunityId, viewStage);
+        const key = valuesKey(opportunityId, opportunityStage);
         const currentValues = fieldValues[key] || {};
         const updatedValues = { ...currentValues, [fieldId]: value };
 
@@ -175,22 +145,11 @@ export const useStageFieldsStore = create<StageFieldsState>()(
       },
 
       saveAllFields: () => {
-        const { opportunityId, viewStage, opportunityStage, fieldDefinitions, fieldValues } = get();
-        if (!opportunityId || !viewStage) return;
+        const { opportunityId, opportunityStage, fieldDefinitions, fieldValues } = get();
+        if (!opportunityId || !opportunityStage) return;
 
-        // Block saving when viewing a different stage
-        if (viewStage !== opportunityStage) {
-          set({
-            banner: {
-              message: "Volte para a etapa atual para salvar campos.",
-              variant: "warning",
-            },
-          });
-          return;
-        }
-
-        const fields = fieldDefinitions[viewStage] || [];
-        const key = valuesKey(opportunityId, viewStage);
+        const fields = fieldDefinitions[opportunityStage] || [];
+        const key = valuesKey(opportunityId, opportunityStage);
         const values = fieldValues[key] || {};
 
         // Validate required fields
@@ -226,17 +185,22 @@ export const useStageFieldsStore = create<StageFieldsState>()(
         setTimeout(() => {
           const savedMap: Record<string, FieldSaveState> = {};
           fields.forEach((f) => { savedMap[f.id] = "saved"; });
+
+          const now = new Date();
+          const timeString = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
           set({
             fieldSaveStates: savedMap,
             isSaving: false,
             fieldErrors: {},
             banner: {
-              message: "Campos da etapa salvos com sucesso.",
+              message: `Salvo agora às ${timeString}`,
               variant: "success",
             },
           });
 
           setTimeout(() => {
+            // Dismiss banner after 3 seconds, keep idle state reset
             const idleMap: Record<string, FieldSaveState> = {};
             fields.forEach((f) => { idleMap[f.id] = "idle"; });
             set({ fieldSaveStates: idleMap });
@@ -244,20 +208,61 @@ export const useStageFieldsStore = create<StageFieldsState>()(
         }, 380);
       },
 
-      advanceStage: (nextStageId, onAdvance) => {
-        const { opportunityId, viewStage, opportunityStage, fieldDefinitions, fieldValues } = get();
-        if (!opportunityId || !viewStage || !opportunityStage) return;
+      updateOpportunityStage: (nextStageId, onAdvance) => {
+        const { opportunityId } = get();
+        if (!opportunityId) return;
 
-        // Block advance when viewing a different stage
-        if (viewStage !== opportunityStage) {
+        set({ isChangingStage: true, banner: null });
+
+        // 1. Trigger the actual stage change
+        const didAdvance = onAdvance(nextStageId);
+
+        // Let the normal React context flow update the current stage prop.
+        // We will simulate the "fetch fields for new stage" here.
+        setTimeout(() => {
+          if (didAdvance === false) {
+            set({
+              isChangingStage: false,
+              banner: {
+                message: "Não consegui mudar a etapa. Tente novamente.",
+                variant: "error",
+              }
+            });
+            return;
+          }
+
+          // Fetch definitions for the new stage if we don't have them
+          const { fieldDefinitions, fieldValues } = get();
+          const newDefinitions = { ...fieldDefinitions };
+          if (!newDefinitions[nextStageId]) {
+            newDefinitions[nextStageId] = (stageFieldsConfig[nextStageId as PipelineStage] || []).filter((f) => f.isActive);
+          }
+
+          // Ensure values exist
+          const key = valuesKey(opportunityId, nextStageId);
+          const newValues = { ...fieldValues };
+          if (!newValues[key]) {
+            newValues[key] = {};
+          }
+
           set({
+            opportunityStage: nextStageId,
+            fieldDefinitions: newDefinitions,
+            fieldValues: newValues,
+            fieldSaveStates: {},
+            fieldErrors: {},
+            isChangingStage: false,
             banner: {
-              message: "Volte para a etapa atual para avançar.",
-              variant: "warning",
-            },
+              message: `Etapa alterada. Preencha os campos para continuar.`, // The stage label is inserted in the UI
+              variant: "success"
+            }
           });
-          return;
-        }
+        }, 600);
+      },
+
+      advanceStage: (nextStageId, onAdvance) => {
+        const { opportunityId, opportunityStage, fieldDefinitions, fieldValues } = get();
+        if (!opportunityId || !opportunityStage) return;
 
         const fields = fieldDefinitions[opportunityStage] || [];
         const key = valuesKey(opportunityId, opportunityStage);
@@ -293,7 +298,6 @@ export const useStageFieldsStore = create<StageFieldsState>()(
         // Update internal state to reflect new stage
         set({
           opportunityStage: nextStageId,
-          viewStage: nextStageId,
           fieldSaveStates: {},
           fieldErrors: {},
           banner: null,
@@ -338,11 +342,11 @@ export const useStageFieldsStore = create<StageFieldsState>()(
         set({
           opportunityId: null,
           opportunityStage: null,
-          viewStage: null,
           fieldSaveStates: {},
           fieldErrors: {},
           isSaving: false,
           isLoadingFields: false,
+          isChangingStage: false,
           loadError: null,
           banner: null,
           isNewFieldModalOpen: false,
@@ -355,24 +359,18 @@ export const useStageFieldsStore = create<StageFieldsState>()(
 // ===== Selectors =====
 
 export function useViewStageFields() {
-  const viewStage = useStageFieldsStore((s) => s.viewStage);
+  const stage = useStageFieldsStore((s) => s.opportunityStage);
   const fieldDefinitions = useStageFieldsStore((s) => s.fieldDefinitions);
-  if (!viewStage) return [];
-  return (fieldDefinitions[viewStage] || []).sort((a, b) => a.order - b.order);
+  if (!stage) return [];
+  return (fieldDefinitions[stage] || []).sort((a, b) => a.order - b.order);
 }
 
 export function useViewStageValues() {
   const opportunityId = useStageFieldsStore((s) => s.opportunityId);
-  const viewStage = useStageFieldsStore((s) => s.viewStage);
+  const stage = useStageFieldsStore((s) => s.opportunityStage);
   const fieldValues = useStageFieldsStore((s) => s.fieldValues);
-  if (!opportunityId || !viewStage) return {};
-  return fieldValues[valuesKey(opportunityId, viewStage)] || {};
-}
-
-export function useIsViewingDifferentStage() {
-  const viewStage = useStageFieldsStore((s) => s.viewStage);
-  const opportunityStage = useStageFieldsStore((s) => s.opportunityStage);
-  return viewStage !== null && opportunityStage !== null && viewStage !== opportunityStage;
+  if (!opportunityId || !stage) return {};
+  return fieldValues[valuesKey(opportunityId, stage)] || {};
 }
 
 export function useRequiredProgress() {

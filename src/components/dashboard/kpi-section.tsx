@@ -3,72 +3,227 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, animate, useMotionValue } from "framer-motion";
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   ChevronRight,
   Clock3,
   Gauge,
   ShieldAlert,
-  TrendingUp,
+  TrendingUp
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
-import { PIPELINE_STAGE_ORDER } from "@/lib/business-rules";
+import { getPeriodDateRange } from "@/stores/dashboard-store";
+import { useOpportunityStore } from "@/stores/opportunity-store";
+import { filterByUser } from "@/lib/proactive-engine/helpers";
+import type { Opportunity } from "@/types";
 import { cardStaggerContainer, listItemReveal } from "@/lib/motion";
 
 type KPIState = "default" | "loading" | "error";
-type TrendTone = "positive" | "negative" | "neutral";
+type ChipTone = "neutral" | "info" | "warning" | "danger" | "success";
 
-interface TrendData {
-  value: string;
-  tone: TrendTone;
+const STALE_ACTIVITY_DAYS = 5;
+const SLA_RISK_WINDOW_HOURS = 24;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+interface KPIChip {
+  id: string;
+  label: string;
+  tone: ChipTone;
+}
+
+interface KPIAction {
+  label: string;
+  targetPath: string;
 }
 
 interface KPIData {
   label: string;
   value: number;
-  valueFormat: "currency" | "percent" | "integer" | "sla";
+  valueFormat: "currency" | "percent" | "integer";
+  valueSuffix?: string;
   subtext: string;
-  trend?: TrendData;
+  chips: KPIChip[];
+  line4Text?: string;
+  detailAction?: KPIAction;
+  microText?: string;
   targetPath: string;
+  disabled?: boolean;
   state?: KPIState;
+}
+
+function isSlaBreached(slaDeadline: string | undefined, now: Date): boolean {
+  return Boolean(slaDeadline) && new Date(slaDeadline as string) < now;
+}
+
+function isSlaAtRisk(slaDeadline: string | undefined, now: Date): boolean {
+  if (!slaDeadline) return false;
+  const deadline = new Date(slaDeadline);
+  const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+  return hoursLeft > 0 && hoursLeft <= SLA_RISK_WINDOW_HOURS;
+}
+
+function calculateConversionInRange(
+  opportunities: Opportunity[],
+  start: Date,
+  end: Date
+): { won: number; total: number; rate: number } {
+  const closed = opportunities.filter((opportunity) => {
+    if (opportunity.status !== "won" && opportunity.status !== "lost") return false;
+    const updatedAt = new Date(opportunity.updatedAt);
+    return updatedAt >= start && updatedAt <= end;
+  });
+
+  const won = closed.filter((opportunity) => opportunity.status === "won").length;
+  const total = closed.length;
+  const rate = total > 0 ? (won / total) * 100 : 0;
+
+  return { won, total, rate };
 }
 
 function useKpiData(): Record<"pipeline" | "conversion" | "activities" | "sla", KPIData> {
   const {
-    filteredOpportunities,
     filteredActivities,
     openOpportunities,
     now,
+    period,
+    context,
+    userId,
+    userRole,
   } = useDashboardFilters();
+  const opportunities = useOpportunityStore((state) => state.opportunities);
 
   return useMemo(() => {
     const openOpps = openOpportunities;
-    const wonOpps = filteredOpportunities.filter((o) => o.status === "won");
-    const lostOpps = filteredOpportunities.filter((o) => o.status === "lost");
-    const closedTotal = wonOpps.length + lostOpps.length;
+    const scopedOpportunities =
+      context === "me"
+        ? filterByUser(opportunities, userId, userRole)
+        : opportunities;
+
+    const { start, end } = getPeriodDateRange(period, now);
+    const rangeSizeMs = end.getTime() - start.getTime() + 1;
+    const previousEnd = new Date(start.getTime() - 1);
+    const previousStart = new Date(previousEnd.getTime() - rangeSizeMs + 1);
+
+    const currentConversion = calculateConversionInRange(scopedOpportunities, start, end);
+    const previousConversion = calculateConversionInRange(
+      scopedOpportunities,
+      previousStart,
+      previousEnd
+    );
+    const hasCurrentConversionData = currentConversion.total > 0;
+    const hasPreviousBase = previousConversion.total > 0;
+    const conversionDelta = hasPreviousBase
+      ? currentConversion.rate - previousConversion.rate
+      : null;
 
     const pipelineTotal = openOpps.reduce((sum, o) => sum + (o.value || 0), 0);
-    const conversionRate = closedTotal > 0 ? (wonOpps.length / closedTotal) * 100 : 0;
 
     const pendingActivities = filteredActivities.filter(
       (a) => a.effectiveStatus === "pending" || a.effectiveStatus === "overdue"
     );
-    const overdueActivities = filteredActivities.filter(
+    const overdueActivityCount = filteredActivities.filter(
       (a) => a.effectiveStatus === "overdue"
-    );
+    ).length;
 
-    const slaBreached = openOpps.filter(
-      (o) => o.slaDeadline && new Date(o.slaDeadline) < now
-    );
-    const slaAtRisk = openOpps.filter((o) => {
-      if (!o.slaDeadline) return false;
-      const deadline = new Date(o.slaDeadline);
-      const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
-      return hoursLeft > 0 && hoursLeft <= 24;
-    });
+    const todayIso = now.toISOString().slice(0, 10);
+    const todayPendingCount = filteredActivities.filter(
+      (a) => a.effectiveStatus === "pending" && a.dueDate === todayIso
+    ).length;
+
+    const staleThreshold = now.getTime() - STALE_ACTIVITY_DAYS * DAY_MS;
+    const staleCount = openOpps.filter(
+      (opportunity) => new Date(opportunity.updatedAt).getTime() < staleThreshold
+    ).length;
+
+    const slaBreachedCount = openOpps.filter((o) => isSlaBreached(o.slaDeadline, now)).length;
+    const slaRiskCount = openOpps.filter((o) => isSlaAtRisk(o.slaDeadline, now)).length;
+    const riskPct =
+      openOpps.length > 0
+        ? Math.round(((slaBreachedCount + slaRiskCount) / openOpps.length) * 100)
+        : 0;
+
+    const conversionChips: KPIChip[] = [];
+    if (hasCurrentConversionData && conversionDelta !== null) {
+      if (conversionDelta > 0) {
+        conversionChips.push({
+          id: "conversion-up",
+          label: `Alta +${conversionDelta.toFixed(1)} p.p.`,
+          tone: "success",
+        });
+      } else if (conversionDelta < 0) {
+        conversionChips.push({
+          id: "conversion-down",
+          label: `Queda ${Math.abs(conversionDelta).toFixed(1)} p.p.`,
+          tone: "danger",
+        });
+      } else {
+        conversionChips.push({
+          id: "conversion-flat",
+          label: "Estavel 0.0 p.p.",
+          tone: "neutral",
+        });
+      }
+    }
+
+    const activityChips: KPIChip[] = [];
+    if (overdueActivityCount > 0) {
+      activityChips.push({
+        id: "activities-overdue",
+        label: `Atrasadas: ${overdueActivityCount}`,
+        tone: "danger",
+      });
+    }
+    if (todayPendingCount > 0) {
+      activityChips.push({
+        id: "activities-today",
+        label: `Hoje: ${todayPendingCount}`,
+        tone: "warning",
+      });
+    }
+    if (activityChips.length === 0) {
+      activityChips.push({
+        id: "activities-ok",
+        label: "OK",
+        tone: "success",
+      });
+    }
+
+    const slaChips: KPIChip[] = [];
+    if (slaBreachedCount > 0) {
+      slaChips.push({
+        id: "sla-overdue",
+        label: `Estourados: ${slaBreachedCount}`,
+        tone: "danger",
+      });
+    }
+    if (slaRiskCount > 0) {
+      slaChips.push({
+        id: "sla-risk",
+        label: `Em risco: ${slaRiskCount}`,
+        tone: "warning",
+      });
+    }
+    if (slaChips.length === 0) {
+      slaChips.push({
+        id: "sla-ok",
+        label: "OK",
+        tone: "success",
+      });
+    }
+
+    const pipelineChips: KPIChip[] = [];
+    if (slaBreachedCount > 0) {
+      pipelineChips.push({
+        id: "pipeline-overdue",
+        label: `Estourados: ${slaBreachedCount}`,
+        tone: "danger",
+      });
+    }
+
+    const slaTargetPath = slaBreachedCount > 0
+      ? "/pipes?filter=sla_overdue"
+      : "/pipes?filter=sla_risk";
 
     return {
       pipeline: {
@@ -76,51 +231,81 @@ function useKpiData(): Record<"pipeline" | "conversion" | "activities" | "sla", 
         value: pipelineTotal,
         valueFormat: "currency",
         subtext: `${openOpps.length} oportunidades abertas`,
-        trend: wonOpps.length > 0
-          ? { value: `${wonOpps.length} ganhos`, tone: "positive" as TrendTone }
-          : undefined,
+        chips: pipelineChips,
+        line4Text: pipelineChips.length === 0 && staleCount === 0 ? "Sem alertas hoje" : undefined,
+        detailAction:
+          staleCount > 0
+            ? { label: "Ver sem atividade", targetPath: "/pipes?filter=stale" }
+            : undefined,
         targetPath: "/pipes",
         state: "default",
       },
       conversion: {
         label: "Conversão Global",
-        value: conversionRate,
+        value: currentConversion.rate,
         valueFormat: "percent",
-        subtext: `Ganhos no período: ${wonOpps.length}`,
-        trend: conversionRate > 15
-          ? { value: `${conversionRate.toFixed(0)}%`, tone: "positive" as TrendTone }
-          : { value: `${conversionRate.toFixed(0)}%`, tone: "negative" as TrendTone },
-        targetPath: "/pipes",
+        subtext: hasCurrentConversionData
+          ? `Ganhos no período: ${currentConversion.won}`
+          : "Sem dados no período",
+        chips: conversionChips,
+        line4Text: hasCurrentConversionData
+          ? hasPreviousBase
+            ? undefined
+            : "Sem base comparável"
+          : "Ajuste o período para comparar.",
+        disabled: !hasCurrentConversionData,
+        targetPath: "/dashboard?view=conversion",
         state: "default",
       },
       activities: {
         label: "Atividades",
         value: pendingActivities.length,
         valueFormat: "integer",
-        subtext: "Pendentes",
-        trend: overdueActivities.length > 0
-          ? { value: `${overdueActivities.length} atrasadas`, tone: "negative" as TrendTone }
-          : { value: "Em dia", tone: "positive" as TrendTone },
-        targetPath: "/activities",
+        subtext: `${overdueActivityCount} atrasadas · ${todayPendingCount} para hoje`,
+        chips: activityChips.slice(0, 2),
+        targetPath: "/activities?statuses=pending,overdue",
         state: "default",
       },
       sla: {
         label: "SLA Crítico",
-        value: slaBreached.length,
-        valueFormat: "sla",
-        subtext: `${slaAtRisk.length} em risco`,
-        trend: slaBreached.length > 0
-          ? { value: `+${slaBreached.length}`, tone: "negative" as TrendTone }
-          : { value: "OK", tone: "positive" as TrendTone },
-        targetPath: "/pipes?status=sla-breached",
+        value: slaBreachedCount,
+        valueFormat: "integer",
+        valueSuffix: "estourados",
+        subtext: `${slaRiskCount} em risco`,
+        chips: slaChips.slice(0, 2),
+        detailAction:
+          slaBreachedCount > 0 || slaRiskCount > 0
+            ? { label: "Ver deals", targetPath: slaTargetPath }
+            : undefined,
+        microText: `${riskPct}% da carteira em risco`,
+        targetPath: slaTargetPath,
         state: "default",
       },
     };
-  }, [filteredOpportunities, filteredActivities, openOpportunities, now]);
+  }, [
+    filteredActivities,
+    openOpportunities,
+    now,
+    period,
+    context,
+    userId,
+    userRole,
+    opportunities,
+  ]);
 }
 
 function formatKpiValue(value: number, format: KPIData["valueFormat"]): string {
   if (format === "currency") {
+    const absValue = Math.abs(value);
+    if (absValue >= 1_000) {
+      return new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        notation: "compact",
+        maximumFractionDigits: absValue >= 1_000_000 ? 2 : 1,
+      }).format(value);
+    }
+
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -130,10 +315,6 @@ function formatKpiValue(value: number, format: KPIData["valueFormat"]): string {
 
   if (format === "percent") {
     return `${value.toFixed(1)}%`;
-  }
-
-  if (format === "sla") {
-    return `${Math.round(value)} estourados`;
   }
 
   return Math.round(value).toString();
@@ -167,163 +348,81 @@ function AnimatedKpiValue({
   return <>{formatKpiValue(displayValue, format)}</>;
 }
 
-function TrendBadge({ trend }: { trend?: TrendData }) {
-  if (!trend) {
-    return <div className="h-6 min-w-[68px]" aria-hidden />;
-  }
-
-  const Icon =
-    trend.tone === "positive"
-      ? ArrowUpRight
-      : trend.tone === "negative"
-        ? ArrowDownRight
-        : TrendingUp;
-
+function KpiChipBadge({ chip }: { chip: KPIChip }) {
   return (
-    <div
+    <span
       className={cn(
-        "inline-flex h-[26px] min-w-fit items-center justify-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold tracking-tight whitespace-nowrap",
-        trend.tone === "positive" && "bg-emerald-100/80 text-emerald-700",
-        trend.tone === "negative" && "bg-red-100/80 text-red-700",
-        trend.tone === "neutral" && "bg-zinc-100/80 text-zinc-700"
+        "inline-flex h-[24px] max-w-full items-center rounded-full border px-2.5 text-[11px] font-semibold tracking-tight whitespace-nowrap",
+        chip.tone === "neutral" && "border-zinc-200/85 bg-zinc-100/80 text-zinc-700",
+        chip.tone === "info" && "border-sky-200/80 bg-sky-50/80 text-sky-700",
+        chip.tone === "warning" && "border-amber-200/80 bg-amber-50/80 text-amber-700",
+        chip.tone === "danger" && "border-rose-200/80 bg-rose-50/80 text-rose-700",
+        chip.tone === "success" && "border-emerald-200/80 bg-emerald-50/80 text-emerald-700"
       )}
+      title={chip.label}
     >
-      <Icon className="h-3.5 w-3.5" />
-      {trend.value}
-    </div>
-  );
-}
-
-function SparklineMini({ data }: { data: number[] }) {
-  if (data.length < 2) return null;
-  const maxVal = Math.max(...data, 1);
-  const points = data
-    .map((v, i) => {
-      const x = (i / (data.length - 1)) * 126;
-      const y = 26 - (v / maxVal) * 24;
-      return `${x.toFixed(0)},${y.toFixed(0)}`;
-    })
-    .join(" ");
-  const isPositive = data[data.length - 1] >= data[0];
-  return (
-    <svg
-      width="126"
-      height="28"
-      viewBox="0 0 126 28"
-      fill="none"
-      className="h-7 w-[126px]"
-      aria-hidden
-    >
-      <polyline
-        points={points}
-        stroke={isPositive ? "#10b981" : "#ef4444"}
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ConversionBarsMini({ stages }: { stages: number[] }) {
-  const maxVal = Math.max(...stages, 1);
-  const bars = stages.map((v) => Math.round((v / maxVal) * 100));
-  return (
-    <div className="flex h-7 w-[126px] items-end gap-1.5" aria-hidden>
-      {bars.map((height, index) => (
-        <div
-          key={`bar-${index}`}
-          className={cn(
-            "w-full rounded-[6px]",
-            index === bars.length - 1 ? "bg-brand" : "bg-brand/25"
-          )}
-          style={{ height: `${Math.max(8, Math.round((height / 100) * 28))}px` }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function ActivityMiniChips({ overdueCount, pendingCount }: { overdueCount: number; pendingCount: number }) {
-
-  return (
-    <div className="flex flex-col items-end gap-1.5 w-full flex-wrap" aria-hidden>
-      {overdueCount > 0 && (
-        <span className="inline-flex h-[26px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-red-200/60 bg-red-50/80 px-2.5 text-red-700 w-full max-w-[126px]">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-          <span className="text-[11px] font-semibold whitespace-nowrap truncate text-left w-full max-w-full">
-            {overdueCount} atrasad{overdueCount !== 1 ? "as" : "a"}
-          </span>
-        </span>
-      )}
-      <span className="inline-flex h-[26px] shrink-0 items-center justify-center gap-1.5 rounded-full border border-zinc-200/60 bg-zinc-50/80 px-2.5 text-zinc-700 w-full max-w-[126px]">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
-        <span className="text-[11px] font-semibold whitespace-nowrap truncate text-left w-full max-w-full">
-          {pendingCount} pendente{pendingCount !== 1 ? "s" : ""}
-        </span>
-      </span>
-    </div>
-  );
-}
-
-function SlaProgressMini({ riskPct }: { riskPct: number }) {
-
-  return (
-    <div className="w-[126px]" aria-hidden>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200/80">
-        <div
-          className="h-full rounded-full bg-red-500"
-          style={{ width: `${Math.min(riskPct, 100)}%` }}
-        />
-      </div>
-      <p className="mt-1 text-right text-[10px] text-zinc-500">{riskPct}% de risco</p>
-    </div>
+      <span className="truncate">{chip.label}</span>
+    </span>
   );
 }
 
 function KPITemplateCard({
   icon,
   data,
-  miniVisual,
-  onClick,
+  onNavigate,
   onRetry,
 }: {
   icon: React.ReactNode;
   data: KPIData;
-  miniVisual: React.ReactNode;
-  onClick: () => void;
+  onNavigate: (path: string) => void;
   onRetry: () => void;
 }) {
   const state = data.state ?? "default";
+  const isInteractive = state === "default" && !data.disabled;
+  const chips = data.chips.slice(0, 2);
+  const hasOverflow = data.chips.length > 2;
+  const detailAction = hasOverflow
+    ? { label: "Ver detalhes", targetPath: data.targetPath }
+    : data.detailAction;
+
+  function handleCardAction() {
+    if (!isInteractive) return;
+    onNavigate(data.targetPath);
+  }
+
+  function handleCardKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (!isInteractive) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onNavigate(data.targetPath);
+    }
+  }
 
   return (
-    <motion.button
-      type="button"
-      onClick={state === "default" ? onClick : undefined}
-      whileTap={state === "default" ? { scale: 0.99 } : undefined}
+    <motion.article
+      onClick={handleCardAction}
+      onKeyDown={handleCardKeyDown}
+      role={isInteractive ? "button" : undefined}
+      tabIndex={isInteractive ? 0 : -1}
+      aria-disabled={!isInteractive}
+      whileTap={isInteractive ? { scale: 0.99 } : undefined}
       transition={{ duration: 0.09, ease: "easeInOut" }}
       className={cn(
-        "premium-shine group flex h-[172px] shrink-0 w-full flex-col rounded-[24px] border border-zinc-200/80 bg-white/90 p-5 text-left",
-        "shadow-(--shadow-bento-sm) transition-[transform,box-shadow,border-color] duration-150 ease-out",
-        "hover:-translate-y-[2px] hover:shadow-(--shadow-bento-sm-hover)",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/25",
-        state !== "default" && "cursor-default hover:translate-y-0"
+        "premium-shine group flex h-[222px] w-full flex-col overflow-hidden rounded-[24px] border border-zinc-200/80 bg-white/90 p-5 text-left",
+        "shadow-(--shadow-bento-sm) transition-[box-shadow,border-color,background-color] duration-150 ease-out",
+        isInteractive && "cursor-pointer hover:shadow-(--shadow-bento-sm-hover)",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/25"
       )}
     >
       {state === "loading" ? (
-        <div className="flex h-full flex-col">
-          <Skeleton className="h-3 w-24 rounded-md before:animation-duration-[900ms]" />
-          <Skeleton className="mt-4 h-8 w-32 rounded-lg before:animation-duration-[900ms]" />
-          <Skeleton className="mt-2 h-3 w-28 rounded-md before:animation-duration-[900ms]" />
-          <div className="mt-auto flex h-[42px] items-end">
-            <Skeleton className="h-7 w-full rounded-md before:animation-duration-[900ms]" />
-          </div>
+        <div className="flex h-full flex-col gap-4">
+          <Skeleton className="h-4 w-28 rounded-md before:animation-duration-[900ms]" />
+          <Skeleton className="h-10 w-36 rounded-lg before:animation-duration-[900ms]" />
         </div>
       ) : state === "error" ? (
-        <div className="flex h-full flex-col justify-between">
+        <div className="flex h-full flex-col justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-zinc-900">{data.label}</p>
+            <p className="text-[13px] font-semibold text-zinc-900">{data.label}</p>
             <p className="mt-2 text-xs text-red-700">Erro ao carregar métrica.</p>
           </div>
           <button
@@ -339,42 +438,69 @@ function KPITemplateCard({
         </div>
       ) : (
         <>
-          <header className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] bg-zinc-100 text-zinc-700">
+          <header className="flex h-8 items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-zinc-100 text-zinc-700">
                 {icon}
               </div>
               <p className="truncate text-[13px] font-medium text-zinc-600">
                 {data.label}
               </p>
             </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-600" />
+            {isInteractive ? (
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition-[color,transform] duration-150 group-hover:translate-x-[1px] group-hover:text-zinc-600" />
+            ) : null}
           </header>
 
-          <div className="mt-3">
-            <p className="text-[32px] font-bold tracking-tight leading-none text-zinc-900">
+          <div className="mt-3 flex h-[66px] min-w-0 items-end gap-1.5">
+            <p className="tabular-nums whitespace-nowrap text-[clamp(1.9rem,2.35vw,2.85rem)] leading-[0.92] font-bold tracking-tight text-zinc-900">
               <AnimatedKpiValue value={data.value} format={data.valueFormat} />
             </p>
-            <p className="mt-1.5 truncate text-[12.5px] font-medium text-zinc-500">{data.subtext || "—"}</p>
+            {data.valueSuffix ? (
+              <p className="tabular-nums shrink-0 truncate pb-1 text-[13px] font-semibold text-zinc-500">{data.valueSuffix}</p>
+            ) : null}
           </div>
 
-          <footer className="mt-auto flex w-full flex-row items-end justify-between gap-x-2 gap-y-2 pt-2">
-            <div className="shrink-0 mb-0.5"><TrendBadge trend={data.trend} /></div>
-            <div className="flex min-w-0 flex-1 flex-col items-end justify-end ml-auto">{miniVisual}</div>
+          <p className="mt-2 h-6 truncate text-[13px] font-medium text-zinc-500">{data.subtext}</p>
+
+          <footer className="mt-auto flex h-[58px] flex-col justify-end pt-3">
+            <div className="flex min-h-[24px] items-center gap-2 overflow-hidden">
+              {chips.map((chip) => (
+                <KpiChipBadge key={chip.id} chip={chip} />
+              ))}
+
+              {chips.length === 0 && !detailAction ? (
+                <p className="truncate text-[12px] text-zinc-500" title={data.line4Text || "Sem alertas hoje"}>
+                  {data.line4Text || "Sem alertas hoje"}
+                </p>
+              ) : null}
+
+              {detailAction ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onNavigate(detailAction.targetPath);
+                  }}
+                  className="inline-flex h-[24px] shrink-0 items-center text-[12px] font-semibold text-brand underline underline-offset-4 transition-[color,transform,opacity] duration-150 hover:translate-x-[1px] hover:text-brand/80"
+                >
+                  {detailAction.label}
+                </button>
+              ) : null}
+            </div>
+
+            <p className="tabular-nums mt-1.5 h-[16px] truncate text-[11px] text-zinc-500">
+              {data.microText ?? ""}
+            </p>
           </footer>
         </>
       )}
-    </motion.button>
+    </motion.article>
   );
 }
 
 export function KpiSection() {
   const router = useRouter();
-  const {
-    filteredActivities,
-    openOpportunities,
-    now,
-  } = useDashboardFilters();
   const baseData = useKpiData();
   const [cardState, setCardState] = useState<Record<keyof typeof baseData, KPIState>>({
     pipeline: "default",
@@ -393,61 +519,6 @@ export function KpiSection() {
     [baseData, cardState]
   );
 
-  // ── Compute mini-chart data ──────────────────────────────────────
-  const sparklineData = useMemo(() => {
-    // Build 7 time-bucketed pipeline values for the sparkline
-    const openOpps = openOpportunities;
-    const buckets = 7;
-    const msPerBucket = (7 * 24 * 60 * 60 * 1000) / buckets;
-    const end = now.getTime();
-    const start = end - 7 * 24 * 60 * 60 * 1000;
-    const data: number[] = Array.from({ length: buckets }, () => 0);
-
-    for (const opp of openOpps) {
-      const created = new Date(opp.createdAt).getTime();
-      for (let i = 0; i < buckets; i++) {
-        const bucketEnd = start + (i + 1) * msPerBucket;
-        if (created <= bucketEnd) {
-          data[i] += opp.value || 0;
-        }
-      }
-    }
-    // Ensure at least some variation for visual interest
-    return data.length >= 2 ? data : [0, 0];
-  }, [openOpportunities, now]);
-
-  const stageCounts = useMemo(() => {
-    const counts: number[] = PIPELINE_STAGE_ORDER.map(
-      (stage) => openOpportunities.filter((o) => o.stage === stage).length
-    );
-    return counts;
-  }, [openOpportunities]);
-
-  const activityCounts = useMemo(() => {
-    const overdueCount = filteredActivities.filter(
-      (a) => a.effectiveStatus === "overdue"
-    ).length;
-    const pendingCount = filteredActivities.filter(
-      (a) => a.effectiveStatus === "pending"
-    ).length;
-    return { overdueCount, pendingCount };
-  }, [filteredActivities]);
-
-  const slaRiskPct = useMemo(() => {
-    const total = openOpportunities.length;
-    if (total === 0) return 0;
-    const breached = openOpportunities.filter(
-      (o) => o.slaDeadline && new Date(o.slaDeadline) < now
-    ).length;
-    const atRisk = openOpportunities.filter((o) => {
-      if (!o.slaDeadline) return false;
-      const deadline = new Date(o.slaDeadline);
-      const hoursLeft = (deadline.getTime() - now.getTime()) / (1000 * 60 * 60);
-      return hoursLeft > 0 && hoursLeft <= 24;
-    }).length;
-    return Math.round(((breached + atRisk) / total) * 100);
-  }, [openOpportunities, now]);
-
   function retryCard(card: keyof typeof kpis) {
     setCardState((prev) => ({ ...prev, [card]: "loading" }));
     window.setTimeout(() => {
@@ -460,49 +531,40 @@ export function KpiSection() {
       variants={cardStaggerContainer}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
-      <motion.div custom={0} variants={listItemReveal}>
+      <motion.div custom={0} variants={listItemReveal} className="h-full">
         <KPITemplateCard
           icon={<Gauge className="h-4 w-4" />}
           data={kpis.pipeline}
-          miniVisual={<SparklineMini data={sparklineData} />}
-          onClick={() => router.push(kpis.pipeline.targetPath)}
+          onNavigate={(path) => router.push(path)}
           onRetry={() => retryCard("pipeline")}
         />
       </motion.div>
 
-      <motion.div custom={1} variants={listItemReveal}>
+      <motion.div custom={1} variants={listItemReveal} className="h-full">
         <KPITemplateCard
           icon={<TrendingUp className="h-4 w-4" />}
           data={kpis.conversion}
-          miniVisual={<ConversionBarsMini stages={stageCounts} />}
-          onClick={() => router.push(kpis.conversion.targetPath)}
+          onNavigate={(path) => router.push(path)}
           onRetry={() => retryCard("conversion")}
         />
       </motion.div>
 
-      <motion.div custom={2} variants={listItemReveal}>
+      <motion.div custom={2} variants={listItemReveal} className="h-full">
         <KPITemplateCard
           icon={<Clock3 className="h-4 w-4" />}
           data={kpis.activities}
-          miniVisual={
-            <ActivityMiniChips
-              overdueCount={activityCounts.overdueCount}
-              pendingCount={activityCounts.pendingCount}
-            />
-          }
-          onClick={() => router.push(kpis.activities.targetPath)}
+          onNavigate={(path) => router.push(path)}
           onRetry={() => retryCard("activities")}
         />
       </motion.div>
 
-      <motion.div custom={3} variants={listItemReveal}>
+      <motion.div custom={3} variants={listItemReveal} className="h-full">
         <KPITemplateCard
           icon={<ShieldAlert className="h-4 w-4" />}
           data={kpis.sla}
-          miniVisual={<SlaProgressMini riskPct={slaRiskPct} />}
-          onClick={() => router.push(kpis.sla.targetPath)}
+          onNavigate={(path) => router.push(path)}
           onRetry={() => retryCard("sla")}
         />
       </motion.div>

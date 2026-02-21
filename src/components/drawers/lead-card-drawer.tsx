@@ -77,6 +77,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
   DialogDescription,
   DialogFooter,
   DialogTitle,
@@ -99,7 +100,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useUIStore } from "@/stores/ui-store";
-import type { Activity as FlowActivity, Temperature, PipelineStage } from "@/types";
+import type { Activity as FlowActivity, Contact, Temperature, PipelineStage } from "@/types";
 import {
   calculateCardPatentScore,
   calculateLeadScore,
@@ -416,9 +417,10 @@ const mockLead = {
   },
 };
 
-const mockContacts = [
+const mockContacts: Contact[] = [
   {
     id: "c1",
+    clientId: "1",
     nome: "Joao Silva",
     email: "joao@belavista.com",
     telefone: "(11) 99999-1234",
@@ -428,6 +430,7 @@ const mockContacts = [
   },
   {
     id: "c2",
+    clientId: "1",
     nome: "Ana Costa",
     email: "ana@belavista.com",
     telefone: "(11) 99999-5678",
@@ -437,6 +440,7 @@ const mockContacts = [
   },
   {
     id: "c3",
+    clientId: "1",
     nome: "Carlos Mendes",
     email: "carlos@belavista.com",
     telefone: "(11) 99999-9012",
@@ -1431,252 +1435,250 @@ function ExecutiveCompanyStrip({
   }, []);
 
   return (
-    <div className="mt-3 animate-in fade-in slide-in-from-bottom-1 duration-[180ms] ease-out">
-      <div className="rounded-xl border border-zinc-100/60 bg-gradient-to-b from-zinc-50/60 to-zinc-50/30 px-4 py-3 md:px-5 md:py-3.5">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4">
-          {/* ─── Bloco A: Empresa & Links (5 cols) ─────────────────── */}
-          <div className="md:col-span-5 min-w-0">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand/8">
-                <Building2 className="h-3.5 w-3.5 text-brand" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-heading text-[13px] font-bold text-black leading-tight">
-                  {nomeFantasia || "Sem empresa vinculada"}
+    <div className="mt-4 pb-2 animate-in fade-in slide-in-from-bottom-1 duration-[180ms] ease-out">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-6">
+        {/* ─── Bloco A: Empresa & Links (5 cols) ─────────────────── */}
+        <div className="md:col-span-5 min-w-0">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand/8">
+              <Building2 className="h-3.5 w-3.5 text-brand" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-heading text-[13px] font-bold text-black leading-tight">
+                {nomeFantasia || "Sem empresa vinculada"}
+              </p>
+              {segmento && (
+                <p className="truncate font-body text-[10px] text-zinc-400 leading-tight">
+                  {segmento}
                 </p>
-                {segmento && (
-                  <p className="truncate font-body text-[10px] text-zinc-400 leading-tight">
-                    {segmento}
-                  </p>
+              )}
+            </div>
+          </div>
+
+          {/* Endereço */}
+          <div className="mt-1.5 pl-[38px]">
+            {enderecoFormatado ? (
+              <p
+                className="truncate font-body text-[10px] text-zinc-400 leading-tight"
+                title={enderecoFormatado}
+              >
+                <MapPin className="mr-0.5 inline h-2.5 w-2.5 text-zinc-300 align-[-1px]" />
+                {enderecoFormatado}
+              </p>
+            ) : (
+              <p className="font-body text-[10px] text-zinc-300 italic leading-tight">
+                <MapPin className="mr-0.5 inline h-2.5 w-2.5 text-zinc-200 align-[-1px]" />
+                Endereco nao informado
+              </p>
+            )}
+
+            {/* Contact icons & links row */}
+            {hasAnyContact ? (
+              <div className="mt-1.5 flex flex-wrap items-center gap-0.5">
+                {telefoneEmpresa && (
+                  <CopyButton
+                    value={telefoneEmpresa}
+                    className="!px-1 !py-0.5"
+                  >
+                    <Phone className="h-2.5 w-2.5 text-zinc-400" />
+                    <span className="font-body text-[10px] text-zinc-500">
+                      {telefoneEmpresa}
+                    </span>
+                  </CopyButton>
+                )}
+                {emailEmpresa && (
+                  <CopyButton value={emailEmpresa} className="!px-1 !py-0.5">
+                    <Mail className="h-2.5 w-2.5 text-zinc-400" />
+                    <span className="truncate max-w-[120px] font-body text-[10px] text-zinc-500">
+                      {emailEmpresa}
+                    </span>
+                  </CopyButton>
+                )}
+                {website && (
+                  <a
+                    href={website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-body text-[10px] text-brand/70 transition-all duration-[120ms] hover:bg-brand/5 hover:text-brand hover:scale-[1.05] active:scale-[0.97]"
+                  >
+                    <ExternalLink className="h-2.5 w-2.5" />
+                    Site
+                  </a>
+                )}
+                {instagramUrl && (
+                  <a
+                    href={instagramUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-body text-[10px] text-brand/70 transition-all duration-[120ms] hover:bg-brand/5 hover:text-brand hover:scale-[1.05] active:scale-[0.97]"
+                  >
+                    <Instagram className="h-2.5 w-2.5" />
+                    IG
+                  </a>
+                )}
+                {cardapioUrl && (
+                  <a
+                    href={cardapioUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-body text-[10px] text-brand/70 transition-all duration-[120ms] hover:bg-brand/5 hover:text-brand hover:scale-[1.05] active:scale-[0.97]"
+                  >
+                    <UtensilsCrossed className="h-2.5 w-2.5" />
+                    Menu
+                  </a>
                 )}
               </div>
-            </div>
-
-            {/* Endereço */}
-            <div className="mt-1.5 pl-[38px]">
-              {enderecoFormatado ? (
-                <p
-                  className="truncate font-body text-[10px] text-zinc-400 leading-tight"
-                  title={enderecoFormatado}
-                >
-                  <MapPin className="mr-0.5 inline h-2.5 w-2.5 text-zinc-300 align-[-1px]" />
-                  {enderecoFormatado}
-                </p>
-              ) : (
-                <p className="font-body text-[10px] text-zinc-300 italic leading-tight">
-                  <MapPin className="mr-0.5 inline h-2.5 w-2.5 text-zinc-200 align-[-1px]" />
-                  Endereco nao informado
-                </p>
-              )}
-
-              {/* Contact icons & links row */}
-              {hasAnyContact ? (
-                <div className="mt-1.5 flex flex-wrap items-center gap-0.5">
-                  {telefoneEmpresa && (
-                    <CopyButton
-                      value={telefoneEmpresa}
-                      className="!px-1 !py-0.5"
-                    >
-                      <Phone className="h-2.5 w-2.5 text-zinc-400" />
-                      <span className="font-body text-[10px] text-zinc-500">
-                        {telefoneEmpresa}
-                      </span>
-                    </CopyButton>
-                  )}
-                  {emailEmpresa && (
-                    <CopyButton value={emailEmpresa} className="!px-1 !py-0.5">
-                      <Mail className="h-2.5 w-2.5 text-zinc-400" />
-                      <span className="truncate max-w-[120px] font-body text-[10px] text-zinc-500">
-                        {emailEmpresa}
-                      </span>
-                    </CopyButton>
-                  )}
-                  {website && (
-                    <a
-                      href={website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-body text-[10px] text-brand/70 transition-all duration-[120ms] hover:bg-brand/5 hover:text-brand hover:scale-[1.05] active:scale-[0.97]"
-                    >
-                      <ExternalLink className="h-2.5 w-2.5" />
-                      Site
-                    </a>
-                  )}
-                  {instagramUrl && (
-                    <a
-                      href={instagramUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-body text-[10px] text-brand/70 transition-all duration-[120ms] hover:bg-brand/5 hover:text-brand hover:scale-[1.05] active:scale-[0.97]"
-                    >
-                      <Instagram className="h-2.5 w-2.5" />
-                      IG
-                    </a>
-                  )}
-                  {cardapioUrl && (
-                    <a
-                      href={cardapioUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-body text-[10px] text-brand/70 transition-all duration-[120ms] hover:bg-brand/5 hover:text-brand hover:scale-[1.05] active:scale-[0.97]"
-                    >
-                      <UtensilsCrossed className="h-2.5 w-2.5" />
-                      Menu
-                    </a>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-1.5 font-body text-[10px] text-zinc-300 italic">
-                  Sem links cadastrados
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* ─── Bloco B: Decisor (4 cols) ───────────────── */}
-          <div className="md:col-span-4 md:border-l md:border-zinc-200/30 md:pl-4 min-w-0">
-            {primaryContact ? (
-              <div className="group/contact relative">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100">
-                    <User className="h-3.5 w-3.5 text-zinc-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-heading text-[13px] font-semibold text-black leading-tight">
-                      {primaryContact.nome}
-                    </p>
-                    <p className="truncate font-body text-[10px] text-zinc-400 leading-tight">
-                      {getCargoLabel(primaryContact.cargo)}
-                    </p>
-                    <p className="truncate font-body text-[10px] text-zinc-500 leading-tight">
-                      Patente {getPatentScore(primaryContact.cargo)}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-0.5 pl-[36px]">
-                  {primaryContact.email && (
-                    <CopyButton
-                      value={primaryContact.email}
-                      className="!px-1 !py-0.5"
-                    >
-                      <Mail className="h-2.5 w-2.5 text-zinc-400" />
-                      <span className="truncate max-w-[110px] font-body text-[10px] text-zinc-500">
-                        {primaryContact.email}
-                      </span>
-                    </CopyButton>
-                  )}
-                  {primaryContact.telefone && (
-                    <CopyButton
-                      value={primaryContact.telefone}
-                      className="!px-1 !py-0.5"
-                    >
-                      <Phone className="h-2.5 w-2.5 text-zinc-400" />
-                      <span className="font-body text-[10px] text-zinc-500">
-                        {primaryContact.telefone}
-                      </span>
-                    </CopyButton>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={onOpenPrimaryContact}
-                  className="absolute top-0 right-0 inline-flex items-center gap-0.5 rounded-md border border-zinc-200/50 bg-white px-1.5 py-0.5 font-body text-[9px] font-medium text-zinc-400 shadow-sm opacity-0 transition-all duration-[120ms] group-hover/contact:opacity-100 hover:text-brand hover:border-brand/20 active:scale-[0.98]"
-                >
-                  <ChevronRight className="h-2 w-2" />
-                  Abrir
-                </button>
-              </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100">
-                  <User className="h-3.5 w-3.5 text-zinc-300" />
-                </div>
-                <div>
-                  <p className="font-body text-[10px] text-zinc-400">
-                    Sem decisor definido
-                  </p>
-                  <button
-                    type="button"
-                    onClick={onCreatePrimaryContact}
-                    className="mt-0.5 inline-flex items-center gap-0.5 font-body text-[10px] font-medium text-brand transition-colors hover:text-brand/80"
-                  >
-                    <Plus className="h-2.5 w-2.5" />
-                    Definir contato
-                  </button>
-                </div>
-              </div>
+              <p className="mt-1.5 font-body text-[10px] text-zinc-300 italic">
+                Sem links cadastrados
+              </p>
             )}
           </div>
+        </div>
 
-          {/* ─── Bloco C: Operação do Deal (3 cols) ────────────────── */}
-          <div className="md:col-span-3 md:border-l md:border-zinc-200/30 md:pl-4 min-w-0">
-            <div className="relative space-y-1.5">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <StageRail
-                  currentStage={stage}
-                  onStageChange={(s) => {
-                    onStageChange(s);
-                    showStripUpdate("Atualizado");
-                  }}
-                  disabled={isLocked}
-                  statusBanner={stageBanner}
-                  onBannerDismiss={onStageBannerDismiss}
-                />
-                <TemperatureSelect
-                  current={temperature}
-                  onChange={(t) => {
-                    onTemperatureChange(t);
-                    showStripUpdate("Atualizado");
-                  }}
-                  suggested={suggestedTemperature}
-                  disabled={isLocked}
-                />
-              </div>
-              <div className="flex items-center justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="group/owner flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 transition-colors duration-[140ms] hover:bg-white/80 active:scale-[0.98]">
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[8px] font-bold text-white">
-                        {getInitials(responsibleName)}
-                      </div>
-                      <span className="font-body text-[10px] text-zinc-500">
-                        {responsibleName}
-                      </span>
-                      <Pencil className="h-2 w-2 text-zinc-300 opacity-0 transition-opacity duration-[140ms] group-hover/owner:opacity-100" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="rounded-xl min-w-[180px]"
-                  >
-                    {teamMembers.map((member) => (
-                      <DropdownMenuItem
-                        key={member.id}
-                        onClick={() => {
-                          onResponsibleChange(member.id, member.name);
-                          showStripUpdate("Atualizado");
-                        }}
-                        className="flex items-center gap-2"
-                      >
-                        <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-bold text-zinc-600">
-                          {getInitials(member.name)}
-                        </div>
-                        <span className="font-body text-xs">{member.name}</span>
-                        {member.id === responsibleId && (
-                          <Check className="ml-auto h-3.5 w-3.5 text-brand" />
-                        )}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              {stripUpdatedLabel && (
-                <div className="absolute -top-1.5 right-0 inline-flex items-center gap-0.5 rounded-full bg-status-success/10 px-1.5 py-0.5 font-body text-[8px] font-semibold text-status-success animate-in fade-in duration-90">
-                  <Check className="h-2 w-2" />
-                  {stripUpdatedLabel}
+        {/* ─── Bloco B: Decisor (4 cols) ───────────────── */}
+        <div className="md:col-span-4 md:border-l md:border-zinc-200/30 md:pl-4 min-w-0">
+          {primaryContact ? (
+            <div className="group/contact relative">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+                  <User className="h-3.5 w-3.5 text-zinc-500" />
                 </div>
-              )}
+                <div className="min-w-0">
+                  <p className="truncate font-heading text-[13px] font-semibold text-black leading-tight">
+                    {primaryContact.nome}
+                  </p>
+                  <p className="truncate font-body text-[10px] text-zinc-400 leading-tight">
+                    {getCargoLabel(primaryContact.cargo)}
+                  </p>
+                  <p className="truncate font-body text-[10px] text-zinc-500 leading-tight">
+                    Patente {getPatentScore(primaryContact.cargo)}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-0.5 pl-[36px]">
+                {primaryContact.email && (
+                  <CopyButton
+                    value={primaryContact.email}
+                    className="!px-1 !py-0.5"
+                  >
+                    <Mail className="h-2.5 w-2.5 text-zinc-400" />
+                    <span className="truncate max-w-[110px] font-body text-[10px] text-zinc-500">
+                      {primaryContact.email}
+                    </span>
+                  </CopyButton>
+                )}
+                {primaryContact.telefone && (
+                  <CopyButton
+                    value={primaryContact.telefone}
+                    className="!px-1 !py-0.5"
+                  >
+                    <Phone className="h-2.5 w-2.5 text-zinc-400" />
+                    <span className="font-body text-[10px] text-zinc-500">
+                      {primaryContact.telefone}
+                    </span>
+                  </CopyButton>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={onOpenPrimaryContact}
+                className="absolute top-0 right-0 inline-flex items-center gap-0.5 rounded-md border border-zinc-200/50 bg-white px-1.5 py-0.5 font-body text-[9px] font-medium text-zinc-400 shadow-sm opacity-0 transition-all duration-[120ms] group-hover/contact:opacity-100 hover:text-brand hover:border-brand/20 active:scale-[0.98]"
+              >
+                <ChevronRight className="h-2 w-2" />
+                Abrir
+              </button>
             </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+                <User className="h-3.5 w-3.5 text-zinc-300" />
+              </div>
+              <div>
+                <p className="font-body text-[10px] text-zinc-400">
+                  Sem decisor definido
+                </p>
+                <button
+                  type="button"
+                  onClick={onCreatePrimaryContact}
+                  className="mt-0.5 inline-flex items-center gap-0.5 font-body text-[10px] font-medium text-brand transition-colors hover:text-brand/80"
+                >
+                  <Plus className="h-2.5 w-2.5" />
+                  Definir contato
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ─── Bloco C: Operação do Deal (3 cols) ────────────────── */}
+        <div className="md:col-span-3 md:border-l md:border-zinc-200/30 md:pl-4 min-w-0">
+          <div className="relative space-y-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <StageRail
+                currentStage={stage}
+                onStageChange={(s) => {
+                  onStageChange(s);
+                  showStripUpdate("Atualizado");
+                }}
+                disabled={isLocked}
+                statusBanner={stageBanner}
+                onBannerDismiss={onStageBannerDismiss}
+              />
+              <TemperatureSelect
+                current={temperature}
+                onChange={(t) => {
+                  onTemperatureChange(t);
+                  showStripUpdate("Atualizado");
+                }}
+                suggested={suggestedTemperature}
+                disabled={isLocked}
+              />
+            </div>
+            <div className="flex items-center justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="group/owner flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 pr-2 transition-colors duration-[140ms] hover:bg-white/80 active:scale-[0.98]">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-[8px] font-bold text-white">
+                      {getInitials(responsibleName)}
+                    </div>
+                    <span className="font-body text-[10px] text-zinc-500">
+                      {responsibleName}
+                    </span>
+                    <Pencil className="h-2 w-2 text-zinc-300 opacity-0 transition-opacity duration-[140ms] group-hover/owner:opacity-100" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="rounded-xl min-w-[180px]"
+                >
+                  {teamMembers.map((member) => (
+                    <DropdownMenuItem
+                      key={member.id}
+                      onClick={() => {
+                        onResponsibleChange(member.id, member.name);
+                        showStripUpdate("Atualizado");
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-bold text-zinc-600">
+                        {getInitials(member.name)}
+                      </div>
+                      <span className="font-body text-xs">{member.name}</span>
+                      {member.id === responsibleId && (
+                        <Check className="ml-auto h-3.5 w-3.5 text-brand" />
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            {stripUpdatedLabel && (
+              <div className="absolute -top-1.5 right-0 inline-flex items-center gap-0.5 rounded-full bg-status-success/10 px-1.5 py-0.5 font-body text-[8px] font-semibold text-status-success animate-in fade-in duration-90">
+                <Check className="h-2 w-2" />
+                {stripUpdatedLabel}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1995,6 +1997,9 @@ export default function LeadCardDrawer() {
   const [headerBanner, setHeaderBanner] = useState<InlineBanner | null>(null);
   const [stageBanner, setStageBanner] = useState<InlineBanner | null>(null);
   const [showWinConfirm, setShowWinConfirm] = useState(false);
+
+  // --- Removed dirty state handlers (moved down) ---
+
   const [showLostPanel, setShowLostPanel] = useState(false);
   const [isWinLoading, setIsWinLoading] = useState(false);
   const [isLostLoading, setIsLostLoading] = useState(false);
@@ -2020,6 +2025,60 @@ export default function LeadCardDrawer() {
     personalidade: "",
   });
   const [activeTab, setActiveTab] = useState<LeadDrawerTab>(initialTabFromModal);
+
+  // --- Dirty State & Tab Navigation ---
+  const isDirty = useMemo(() => {
+    return noteDraft.trim().length > 0 || (editingNoteId !== null && editingNoteDraft.trim().length > 0) || nextStepDraft.action.trim().length > 0;
+  }, [noteDraft, editingNoteId, editingNoteDraft, nextStepDraft.action]);
+
+  const [pendingTab, setPendingTab] = useState<LeadDrawerTab | null>(null);
+  const [showDirtyConfirm, setShowDirtyConfirm] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"tab" | "close" | null>(null);
+
+  const handleTabChange = useCallback((newTab: string) => {
+    const resolvedTab = resolveLeadDrawerTab(newTab);
+    if (resolvedTab === activeTab) return;
+    if (isDirty) {
+      setPendingTab(resolvedTab);
+      setPendingAction("tab");
+      setShowDirtyConfirm(true);
+    } else {
+      setActiveTab(resolvedTab);
+    }
+  }, [activeTab, isDirty]);
+
+  const handleCloseDrawer = useCallback(() => {
+    if (isDirty) {
+      setPendingAction("close");
+      setShowDirtyConfirm(true);
+    } else {
+      closeModal();
+    }
+  }, [isDirty, closeModal]);
+
+  const confirmDiscardChanges = useCallback(() => {
+    setShowDirtyConfirm(false);
+    // Clear dirty fields
+    setNoteDraft("");
+    setEditingNoteDraft("");
+    setEditingNoteId(null);
+    setNextStepDraft({ action: "", dueDate: "", channel: "call", ownerId: initialLeadOwnerId });
+
+    if (pendingAction === "tab" && pendingTab) {
+      setActiveTab(pendingTab);
+    } else if (pendingAction === "close") {
+      closeModal();
+    }
+    setPendingAction(null);
+    setPendingTab(null);
+  }, [pendingAction, pendingTab, closeModal, initialLeadOwnerId]);
+
+  const cancelDiscardChanges = useCallback(() => {
+    setShowDirtyConfirm(false);
+    setPendingAction(null);
+    setPendingTab(null);
+  }, []);
+
   const [isNewVisitModalOpen, setIsNewVisitModalOpen] = useState(false);
   const [isNewActivityModalOpen, setIsNewActivityModalOpen] = useState(false);
   const [newActivityType, setNewActivityType] = useState<"task" | "call" | "email" | "meeting" | "whatsapp">("task");
@@ -2612,7 +2671,7 @@ export default function LeadCardDrawer() {
     }
     setContacts([
       ...contacts,
-      { id: `c${Date.now()}`, ...newContact, isDecisionMaker: false },
+      { id: `c${Date.now()}`, clientId: selectedLead?.clientId ?? "1", ...newContact, isDecisionMaker: false },
     ]);
     setNewContact({ nome: "", email: "", telefone: "", cargo: "", personalidade: "" });
     setShowAddContact(false);
@@ -2674,7 +2733,7 @@ export default function LeadCardDrawer() {
       email: contact.email,
       telefone: contact.telefone,
       cargo: contact.cargo,
-      personalidade: contact.personalidade,
+      personalidade: contact.personalidade ?? "",
     });
   };
 
@@ -2895,10 +2954,14 @@ export default function LeadCardDrawer() {
       title: data.title,
       type: data.type,
       status: "pending",
-      dueDate: `${new Date(data.date).toLocaleDateString('pt-BR')} ${data.time}`,
-      responsibleName: "Eu (Logado)", // Mock
-      responsibleId: "u1", // Mock
-      opportunityId: resolvedLead.id,
+      dueDate: `${new Date(data.date).toLocaleDateString('pt-BR')} ${data.time || ""}`.trim(),
+      responsibleName: "Eu (Logado)",
+      responsibleId: "u1",
+      opportunityId: data.opportunityId || resolvedLead.id,
+      clientId: data.clientId,
+      clientName: data.clientName,
+      contactIds: data.contactIds?.length ? data.contactIds : undefined,
+      contactNames: data.contactNames?.length ? data.contactNames : undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -2989,16 +3052,18 @@ export default function LeadCardDrawer() {
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={() => closeModal()}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) handleCloseDrawer();
+      }}>
         <DialogContent
-          className="flex h-[90vh] !max-h-[90vh] w-[90vw] !max-w-[90vw] flex-col overflow-hidden rounded-[var(--radius-bento-card)] !gap-0 !p-0"
+          className="flex h-[90vh] !max-h-[90vh] w-[90vw] !max-w-[90vw] flex-col overflow-hidden rounded-[var(--radius-bento-card)] !gap-0 !p-0 bg-zinc-50/50"
           showCloseButton={false}
         >
           {/* ═══════════════════════════════════════════════════════════
-              HeaderStickyDeal — Premium 3-zone layout
+              HeaderStickyDeal — Premium Glassmorphism layout
               ═══════════════════════════════════════════════════════════ */}
-          <div className="sticky top-0 z-10 border-b border-zinc-100/80 bg-white/97 backdrop-blur-md transition-shadow duration-[120ms]">
-            <div className="px-5 pt-3 pb-2 md:px-6">
+          <div className="sticky top-0 z-10 border-b border-zinc-200/50 bg-white/85 backdrop-blur-xl transition-shadow duration-[120ms] shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
+            <div className="px-5 pt-3 pb-0 md:px-6">
               {/* ─── Camada 1: Top Bar Compacta ────────────────────── */}
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -3067,7 +3132,7 @@ export default function LeadCardDrawer() {
                       <button
                         onClick={() => setShowWinConfirm(true)}
                         disabled={isWinLoading}
-                        className="group/won inline-flex h-[34px] items-center gap-1 rounded-full border border-emerald-200/80 bg-emerald-50/80 px-3 font-heading text-[11px] font-semibold text-emerald-700 transition-all duration-[140ms] ease-out hover:border-emerald-500 hover:bg-emerald-600 hover:text-white hover:shadow-sm active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 disabled:pointer-events-none disabled:opacity-50"
+                        className="group/won inline-flex h-[34px] items-center gap-1 rounded-full border border-emerald-200/80 bg-emerald-50/80 px-3 font-heading text-[11px] font-semibold text-emerald-700 transition-all duration-300 ease-out hover:-translate-y-[1px] hover:border-emerald-500 hover:bg-emerald-600 hover:text-white hover:shadow-[0_4px_12px_rgba(16,185,129,0.2)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 disabled:pointer-events-none disabled:opacity-50"
                       >
                         {isWinLoading ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -3079,7 +3144,7 @@ export default function LeadCardDrawer() {
                       <button
                         onClick={() => setShowLostPanel(true)}
                         disabled={isLostLoading}
-                        className="group/lost inline-flex h-[34px] items-center gap-1 rounded-full border border-zinc-200/80 bg-white px-3 font-heading text-[11px] font-semibold text-zinc-500 transition-all duration-[140ms] ease-out hover:border-red-400 hover:bg-red-500 hover:text-white hover:shadow-sm active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/30 disabled:pointer-events-none disabled:opacity-50"
+                        className="group/lost inline-flex h-[34px] items-center gap-1 rounded-full border border-zinc-200/80 bg-white px-3 font-heading text-[11px] font-semibold text-zinc-500 transition-all duration-300 ease-out hover:-translate-y-[1px] hover:border-red-400 hover:bg-red-500 hover:text-white hover:shadow-[0_4px_12px_rgba(248,113,113,0.2)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/30 disabled:pointer-events-none disabled:opacity-50"
                       >
                         {isLostLoading ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -3132,7 +3197,7 @@ export default function LeadCardDrawer() {
                   </DropdownMenu>
 
                   <button
-                    onClick={() => closeModal()}
+                    onClick={handleCloseDrawer}
                     className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition-all duration-[140ms] hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
                     aria-label="Fechar"
                   >
@@ -3194,6 +3259,42 @@ export default function LeadCardDrawer() {
                 onStageBannerDismiss={() => setStageBanner(null)}
               />
             </div>
+
+            {/* NEW Native Tabs Row integrated into Header with Framer Motion */}
+            <div className="flex w-full items-end overflow-x-auto px-5 md:px-6 scrollbar-hide">
+              {[
+                { value: "empresa", label: "Empresa" },
+                { value: "contatos", label: "Contatos" },
+                { value: "visitas", label: "Visitas" },
+                { value: "atividades", label: "Atividades" },
+                { value: "negociacao", label: "Negociação" },
+                { value: "anotacoes", label: "Anotações" },
+                { value: "linha-do-tempo", label: "Linha do Tempo" },
+              ].map((tab) => {
+                const isActive = activeTab === tab.value;
+                return (
+                  <button
+                    key={tab.value}
+                    onClick={() => handleTabChange(tab.value)}
+                    className={cn(
+                      "relative whitespace-nowrap px-1 py-3 font-heading text-[11px] font-semibold tracking-wide uppercase transition-colors outline-none mr-6",
+                      isActive
+                        ? "text-brand"
+                        : "text-zinc-500 hover:text-zinc-800 focus-visible:ring-2 focus-visible:ring-brand/30"
+                    )}
+                  >
+                    {tab.label}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeDrawerTab"
+                        className="absolute bottom-0 left-0 right-0 h-[3px] rounded-t-full bg-brand"
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════
@@ -3206,33 +3307,8 @@ export default function LeadCardDrawer() {
                 <div className="p-5 md:px-8 lg:px-10">
                   <Tabs
                     value={activeTab}
-                    onValueChange={(value) =>
-                      setActiveTab(resolveLeadDrawerTab(value))
-                    }
+                    onValueChange={(value) => handleTabChange(value)}
                   >
-                    <div className="sticky top-2 z-20 w-fit">
-                      <div className="max-w-full overflow-x-auto">
-                        <TabsList className="inline-flex h-9 items-center justify-start rounded-full bg-zinc-100/80 p-1">
-                          {[
-                            { value: "empresa", label: "Empresa" },
-                            { value: "contatos", label: "Contatos" },
-                            { value: "visitas", label: "Visitas" },
-                            { value: "atividades", label: "Atividades" },
-                            { value: "negociacao", label: "Negociação" },
-                            { value: "anotacoes", label: "Anotações" },
-                            { value: "linha-do-tempo", label: "Linha do Tempo" },
-                          ].map((tab) => (
-                            <TabsTrigger
-                              key={tab.value}
-                              value={tab.value}
-                              className="flex-none rounded-full px-4 py-1.5 font-heading text-[11px] font-semibold uppercase tracking-wide text-zinc-500 transition-all duration-200 hover:text-zinc-700 data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm"
-                            >
-                              {tab.label}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </div>
-                    </div>
 
 
 
@@ -4388,7 +4464,7 @@ export default function LeadCardDrawer() {
                           isLocked={isLocked}
                           onStageChange={(newStage) => handleStageChangeFromPanel(newStage)}
                           nextStage={nextStage}
-                          canCreateFields={true}
+                          canCreateFields={false}
                           advanceBlockedReason={
                             contacts.length < MIN_CONTACTS_PER_CARD
                               ? "Adicione pelo menos 1 contato para avançar no funil."
@@ -4644,8 +4720,9 @@ export default function LeadCardDrawer() {
           }
           // Adapt to the existing handleSaveContact which expects full QuickContactData but we only have partial
           // Creating a minimal valid contact object
-          const contactToAdd = {
+          const contactToAdd: Contact = {
             id: `c${Date.now()}`,
+            clientId: selectedLead?.clientId ?? "1",
             nome: newContact.nome || "Sem Nome",
             email: newContact.email || "",
             telefone: newContact.telefone || "",
@@ -4666,7 +4743,39 @@ export default function LeadCardDrawer() {
         onSave={handleSaveActivity}
         dealId={resolvedLead.id}
         initialType={newActivityType}
+        initialClientId={selectedLead?.clientId}
+        initialClientName={resolvedLead.clientName}
+        initialContactIds={primaryContact?.id ? [primaryContact.id] : undefined}
+        initialContactNames={primaryContact?.nome ? [primaryContact.nome] : undefined}
+        initialOpportunityId={resolvedLead.id}
+        initialOpportunityTitle={resolvedLead.title}
+        lockClient={!!selectedLead?.clientId}
+        requireClient={!!selectedLead?.clientId}
       />
+
+      <Dialog open={showDirtyConfirm} onOpenChange={(open) => {
+        if (!open) cancelDiscardChanges();
+      }}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-lg font-bold">Alterações não salvas</DialogTitle>
+            <DialogDescription className="font-body text-sm text-zinc-500 mt-2">
+              Você tem alterações não salvas. Quer descartar as alterações e sair?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex sm:justify-end gap-3">
+            <Button variant="outline" onClick={cancelDiscardChanges}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={confirmDiscardChanges}
+            >
+              Sair sem salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
