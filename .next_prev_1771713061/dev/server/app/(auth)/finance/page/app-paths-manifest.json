@@ -1,0 +1,3 @@
+{
+  "/(auth)/finance/page": "app/(auth)/finance/page.js"
+}

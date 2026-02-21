@@ -1,0 +1,6 @@
+1:"$Sreact.fragment"
+2:I[22016,["/_next/static/chunks/ffee60f8524cbd1a.js","/_next/static/chunks/29f62a2d079942fb.js","/_next/static/chunks/159c5809c1aa9193.js","/_next/static/chunks/85a3236e805b1e14.js","/_next/static/chunks/18f38dbeee9f54d3.js"],""]
+3:I[97367,["/_next/static/chunks/ff1a16fafef87110.js","/_next/static/chunks/d2be314c3ece3fbe.js"],"OutletBoundary"]
+4:"$Sreact.suspense"
+0:{"buildId":"Jz5JU_zpfUzm5CX3Mm0H8","rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto flex min-h-screen w-full max-w-3xl flex-col items-start justify-center gap-6 px-6 py-12","children":[["$","h1",null,{"className":"font-heading text-3xl font-bold text-black","children":"Suporte"}],["$","p",null,{"className":"font-body text-zinc-600","children":"Este ambiente está em modo frontend com dados mockados. Para suporte, fale com o time interno da Menux."}],["$","$L2",null,{"href":"/login","className":"rounded-full bg-black px-5 py-2.5 font-heading text-sm font-semibold text-white","children":"Voltar ao login"}]]}],[["$","script","script-0",{"src":"/_next/static/chunks/18f38dbeee9f54d3.js","async":true}]],["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"loading":null,"isPartial":false}
+5:null

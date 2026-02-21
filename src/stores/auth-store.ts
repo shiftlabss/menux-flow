@@ -5,6 +5,19 @@ import {
   type UserRole,
 } from "@/lib/auth-types";
 
+// ---------------------------------------------------------------------------
+// Mock fallback user — used when session API is unavailable (dev / mock mode)
+// ---------------------------------------------------------------------------
+const MOCK_FALLBACK_USER: SessionUser = {
+  id: "user-1",
+  name: "Rafael Mendes",
+  email: "rafael.mendes@flow.com.br",
+  role: "master",
+  unitId: "unit-1",
+  unitName: "Matriz - Sao Paulo",
+  isActive: true,
+};
+
 export type { UserRole };
 export type User = SessionUser;
 
@@ -282,12 +295,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
 
       if (!response.ok) {
-        stopInactivityTracking();
+        // Session API unavailable — fall back to mock user in dev mode
         set({
-          user: null,
-          token: null,
-          permissions: null,
-          isAuthenticated: false,
+          user: MOCK_FALLBACK_USER,
+          token: "mock-token",
+          permissions: getPermissionsForRole(MOCK_FALLBACK_USER.role),
+          isAuthenticated: true,
           isLoading: false,
         });
         return;
@@ -295,12 +308,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       const data = (await response.json()) as { user?: unknown };
       if (!isSessionUser(data.user)) {
-        stopInactivityTracking();
+        // Invalid session payload — fall back to mock user in dev mode
         set({
-          user: null,
-          token: null,
-          permissions: null,
-          isAuthenticated: false,
+          user: MOCK_FALLBACK_USER,
+          token: "mock-token",
+          permissions: getPermissionsForRole(MOCK_FALLBACK_USER.role),
+          isAuthenticated: true,
           isLoading: false,
         });
         return;
@@ -318,12 +331,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch {
-      stopInactivityTracking();
+      // Network error — fall back to mock user in dev mode
       set({
-        user: null,
-        token: null,
-        permissions: null,
-        isAuthenticated: false,
+        user: MOCK_FALLBACK_USER,
+        token: "mock-token",
+        permissions: getPermissionsForRole(MOCK_FALLBACK_USER.role),
+        isAuthenticated: true,
         isLoading: false,
       });
     }

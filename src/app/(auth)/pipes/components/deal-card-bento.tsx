@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useCallback } from "react";
 import {
   MoreHorizontal,
   Clock3,
@@ -68,20 +69,21 @@ function formatElapsed(isoDate: string): string {
   const diffMs = Math.max(0, now.getTime() - base.getTime());
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 
-  if (diffHours < 24) return `${Math.max(1, diffHours)}h`;
+  if (diffHours < 1) return "<1h";
+  if (diffHours < 24) return `${diffHours}h`;
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 30) return `${diffDays}d`;
   const diffMonths = Math.floor(diffDays / 30);
   return `${Math.max(1, diffMonths)}m`;
 }
 
-function getTemperatureChipClasses(temp: Opportunity["temperature"]) {
-  switch (temp) {
-    case "hot":
+function getTemperatureChipClassesByLabel(label: string) {
+  switch (label) {
+    case "Quente":
       return "border-red-200 bg-red-50 text-red-700";
-    case "warm":
+    case "Morno":
       return "border-amber-200 bg-amber-50 text-amber-700";
-    case "cold":
+    case "Frio":
       return "border-sky-200 bg-sky-50 text-sky-700";
     default:
       return "border-zinc-200 bg-zinc-50 text-zinc-600";
@@ -90,7 +92,8 @@ function getTemperatureChipClasses(temp: Opportunity["temperature"]) {
 
 function getPriorityVisual(
   opportunity: Opportunity,
-  slaStatus: "ok" | "near" | "breached"
+  slaStatus: "ok" | "near" | "breached",
+  computedTempLabel: string,
 ) {
   if (slaStatus === "breached") {
     return {
@@ -99,7 +102,7 @@ function getPriorityVisual(
     };
   }
 
-  if (opportunity.temperature === "hot" || opportunity.value >= 20000) {
+  if (computedTempLabel === "Quente" || opportunity.value >= 20000) {
     return {
       label: "Alta",
       className: "border-amber-200 bg-amber-50 text-amber-700",
@@ -128,10 +131,32 @@ export function DealCardBento({
   onTagClick,
 }: DealCardBentoProps) {
   const { openDrawer, openModal } = useUIStore();
+  const wasDraggingRef = useRef(false);
   const sla = getSlaStatus(opportunity.slaDeadline);
   const slaColors = getSlaColors(sla.status);
-  const priority = getPriorityVisual(opportunity, sla.status);
+  const priority = getPriorityVisual(opportunity, sla.status, temp.label);
   const primarySegment = opportunity.tags[0] ?? "Sem segmento";
+
+  const handleDragStartInternal = useCallback(
+    (e: React.DragEvent) => {
+      wasDraggingRef.current = true;
+      onDragStart(e);
+    },
+    [onDragStart]
+  );
+
+  const handleDragEndInternal = useCallback(() => {
+    // Keep wasDragging flag set for the click event that fires after dragEnd
+    setTimeout(() => {
+      wasDraggingRef.current = false;
+    }, 0);
+    onDragEnd();
+  }, [onDragEnd]);
+
+  const handleClick = useCallback(() => {
+    if (wasDraggingRef.current) return;
+    onOpen();
+  }, [onOpen]);
 
   return (
     <div
@@ -144,10 +169,10 @@ export function DealCardBento({
           ? "ring-2 ring-emerald-300/70"
           : ""
         }`}
-      onClick={onOpen}
+      onClick={handleClick}
       draggable={canMove}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      onDragStart={handleDragStartInternal}
+      onDragEnd={handleDragEndInternal}
       tabIndex={0}
       role="button"
       aria-roledescription="card arrastavel"
@@ -240,7 +265,7 @@ export function DealCardBento({
             : "Sem valor"}
         </span>
         <span
-          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getTemperatureChipClasses(opportunity.temperature)}`}
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getTemperatureChipClassesByLabel(temp.label)}`}
         >
           {temp.icon}
           {temp.label}

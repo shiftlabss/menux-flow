@@ -414,7 +414,7 @@ function FinancePageContent() {
   const { user, permissions } = useAuthStore();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [commissions, setCommissions] = useState<FinanceCommission[]>(commissionsSeed);
+  const [commissions, setCommissions] = useState<FinanceCommission[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(1);
   const [selectedYear, setSelectedYear] = useState(2026);
   const [statusScope, setStatusScope] = useState<StatusScope>("all");
@@ -438,6 +438,7 @@ function FinancePageContent() {
   const [rowFeedback, setRowFeedback] = useState<Record<string, FeedbackState>>({});
   const [calcOpenRowId, setCalcOpenRowId] = useState<string | null>(null);
   const [contestConfirmId, setContestConfirmId] = useState<string | null>(null);
+  const [isSubmittingContest, setIsSubmittingContest] = useState(false);
   const [contestReason, setContestReason] = useState("");
   const [pageFeedback, setPageFeedback] = useState<FeedbackState | null>(null);
   const [intelRunningAction, setIntelRunningAction] = useState<string | null>(null);
@@ -446,7 +447,11 @@ function FinancePageContent() {
   const [tableError, setTableError] = useState(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setIsLoading(false), 700);
+    setIsLoading(true);
+    const timer = window.setTimeout(() => {
+      setCommissions(commissionsSeed);
+      setIsLoading(false);
+    }, 800);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -753,27 +758,38 @@ function FinancePageContent() {
   );
 
   const handleConfirmContest = useCallback(
-    (commissionId: string) => {
+    async (commissionId: string) => {
       if (!contestReason.trim() || contestReason.trim().length < 5) {
         setRowInlineFeedback(commissionId, "error", "Motivo é obrigatório e deve ser claro.");
         return;
       }
-      setCommissions((prev) =>
-        prev.map((current) =>
-          current.id === commissionId
-            ? {
-              ...current,
-              status: "contested" as CommissionStatus,
-              contestationReason: contestReason.trim(),
-            }
-            : current
-        )
-      );
-      setContestConfirmId(null);
-      setContestReason("");
-      setRowInlineFeedback(commissionId, "success", "Contestação enviada ao financeiro");
+
+      setIsSubmittingContest(true);
+
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        setCommissions((prev) =>
+          prev.map((current) =>
+            current.id === commissionId
+              ? {
+                ...current,
+                status: "contested" as CommissionStatus,
+                contestationReason: contestReason.trim(),
+              }
+              : current
+          )
+        );
+        setContestConfirmId(null);
+        setContestReason("");
+        setRowInlineFeedback(commissionId, "success", "Contestação enviada ao financeiro");
+      } catch (err) {
+        setRowInlineFeedback(commissionId, "error", "Falha de rede. Tente novamente.");
+      } finally {
+        setIsSubmittingContest(false);
+      }
     },
-    [contestReason, setRowInlineFeedback]
+    [contestReason, setRowInlineFeedback, setIsSubmittingContest]
   );
 
   const handleCancelContest = useCallback(() => {
@@ -1565,6 +1581,7 @@ function FinancePageContent() {
                               router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                             }
                             isContestPending={contestConfirmId === commission.id}
+                            isSubmittingContest={isSubmittingContest && contestConfirmId === commission.id}
                             contestReason={contestReason}
                             onContestReasonChange={setContestReason}
                             onCopySummary={() => void handleCopySummary(commission)}
@@ -1624,6 +1641,7 @@ function FinancePageContent() {
                                         router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                                       }
                                       isContestPending={contestConfirmId === commission.id}
+                                      isSubmittingContest={isSubmittingContest && contestConfirmId === commission.id}
                                       contestReason={contestReason}
                                       onContestReasonChange={setContestReason}
                                       onCopySummary={() => void handleCopySummary(commission)}
@@ -1686,6 +1704,7 @@ function FinancePageContent() {
                                         router.push(`/pipes?opportunityId=${commission.opportunityId}`)
                                       }
                                       isContestPending={contestConfirmId === commission.id}
+                                      isSubmittingContest={isSubmittingContest && contestConfirmId === commission.id}
                                       contestReason={contestReason}
                                       onContestReasonChange={setContestReason}
                                       onCopySummary={() => void handleCopySummary(commission)}
@@ -2082,6 +2101,7 @@ function FinanceCommissionItem({
   inlineFeedback,
   isDetailsOpen,
   isContestPending,
+  isSubmittingContest,
   contestReason,
   onContestReasonChange,
   onToggleDetails,
@@ -2097,6 +2117,7 @@ function FinanceCommissionItem({
   inlineFeedback?: FeedbackState;
   isDetailsOpen: boolean;
   isContestPending: boolean;
+  isSubmittingContest: boolean;
   contestReason: string;
   onContestReasonChange: (reason: string) => void;
   onToggleDetails: () => void;
@@ -2280,6 +2301,7 @@ function FinanceCommissionItem({
               variant="ghost"
               className="h-8 rounded-[8px] px-3 text-xs text-zinc-600 hover:bg-red-100"
               onClick={onCancelContest}
+              disabled={isSubmittingContest}
             >
               Cancelar
             </Button>
@@ -2288,8 +2310,12 @@ function FinanceCommissionItem({
               variant="outline"
               className="h-8 rounded-[8px] border-red-200 bg-white px-3 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-50"
               onClick={onConfirmContest}
+              disabled={isSubmittingContest}
             >
-              Enviar para análise
+              {isSubmittingContest ? (
+                <span className="mr-2 h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-red-700 border-t-transparent" />
+              ) : null}
+              {isSubmittingContest ? "Enviando..." : "Enviar para análise"}
             </Button>
           </div>
         </div>

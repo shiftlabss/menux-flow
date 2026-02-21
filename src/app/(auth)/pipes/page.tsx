@@ -118,7 +118,9 @@ function createEmptyPipesFilters(): GlobalPipesFilters {
 }
 
 function getStageParamLabel(stage: PipelineStage) {
-  return stage.replace(/-/g, " ");
+  return stage
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function PipesPageContent() {
@@ -137,6 +139,7 @@ function PipesPageContent() {
   const canViewAllUnits = permissions?.canViewAllUnits ?? false;
 
   const [selectedFunnel, setSelectedFunnel] = useState("comercial");
+  const [colorPopoverStage, setColorPopoverStage] = useState<PipelineStage | null>(null);
   const [filtersInlineFeedback, setFiltersInlineFeedback] = useState<{
     tone: "success" | "error" | "info";
     message: string;
@@ -723,6 +726,7 @@ function PipesPageContent() {
     stageCustomizations,
     renamingStage,
     renameValue,
+    renameError,
     setRenameValue,
     renameInputRef,
     startRename,
@@ -755,12 +759,25 @@ function PipesPageContent() {
         };
       }
 
+      // WIP limit warning
+      const currentCards = opportunitiesByStage[targetStage] || [];
+      const wipLimit = WIP_LIMIT_BY_STAGE[targetStage] ?? 7;
+      const isDifferentStage = draggingOpportunity.stage !== targetStage;
+      const projectedCount = isDifferentStage ? currentCards.length + 1 : currentCards.length;
+
+      if (projectedCount > wipLimit) {
+        return {
+          tone: "warning" as const,
+          message: `WIP excedido (${projectedCount}/${wipLimit}). Solte para mover para ${targetLabel}.`,
+        };
+      }
+
       return {
         tone: "success" as const,
         message: `Solte para mover para ${targetLabel}.`,
       };
     },
-    [activeFunnel.stages, dragOverStage, draggingOpportunity]
+    [activeFunnel.stages, dragOverStage, draggingOpportunity, opportunitiesByStage]
   );
 
   const handleOpenBlockedMove = useCallback(() => {
@@ -1085,7 +1102,10 @@ function PipesPageContent() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         {canConfigureStages ? (
-                          <Popover>
+                          <Popover
+                            open={colorPopoverStage === stageDef.id}
+                            onOpenChange={(open) => setColorPopoverStage(open ? stageDef.id : null)}
+                          >
                             <PopoverTrigger asChild>
                               <button
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-400 shadow-sm transition-all hover:bg-zinc-50 hover:text-zinc-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
@@ -1107,7 +1127,10 @@ function PipesPageContent() {
                                   return (
                                     <button
                                       key={color.id}
-                                      onClick={() => setStageColor(stageDef.id, color.id)}
+                                      onClick={() => {
+                                        setStageColor(stageDef.id, color.id);
+                                        setColorPopoverStage(null);
+                                      }}
                                       className={cn(
                                         "flex h-6 w-6 items-center justify-center rounded-full transition-all",
                                         color.bg,
@@ -1128,18 +1151,32 @@ function PipesPageContent() {
                         ) : null}
 
                         {renamingStage === stageDef.id && canConfigureStages ? (
-                          <input
-                            ref={renameInputRef}
-                            value={renameValue}
-                            onChange={(event) => setRenameValue(event.target.value)}
-                            onBlur={confirmRename}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") confirmRename();
-                              if (event.key === "Escape") cancelRename();
-                            }}
-                            className="min-w-0 flex-1 truncate rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 font-heading text-[14px] font-semibold text-zinc-900 outline-none focus:border-brand focus:ring-1 focus:ring-brand"
-                            aria-label="Renomear etapa"
-                          />
+                          <div className="flex min-w-0 flex-1 flex-col">
+                            <input
+                              ref={renameInputRef}
+                              value={renameValue}
+                              maxLength={30}
+                              onChange={(event) => setRenameValue(event.target.value)}
+                              onBlur={confirmRename}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") confirmRename();
+                                if (event.key === "Escape") cancelRename();
+                              }}
+                              className={cn(
+                                "min-w-0 w-full truncate rounded-md border bg-white px-1.5 py-0.5 font-heading text-[14px] font-semibold text-zinc-900 outline-none focus:ring-1",
+                                renameError
+                                  ? "border-red-400 focus:border-red-400 focus:ring-red-300"
+                                  : "border-zinc-300 focus:border-brand focus:ring-brand"
+                              )}
+                              aria-label="Renomear etapa"
+                              aria-invalid={Boolean(renameError)}
+                            />
+                            {renameError ? (
+                              <span className="mt-0.5 text-[10px] font-medium text-red-600" role="alert">
+                                {renameError}
+                              </span>
+                            ) : null}
+                          </div>
                         ) : canConfigureStages ? (
                           <button
                             onClick={() => startRename(stageDef.id, stageLabel)}
@@ -1432,7 +1469,7 @@ function PipesPageContent() {
 function PipesPageFallback() {
   return (
     <div className="premium-ambient min-h-[calc(100vh-72px)] p-6">
-      <PipelineSkeleton stageCount={6} />
+      <PipelineSkeleton stageCount={funnels[0].stages.length} />
     </div>
   );
 }

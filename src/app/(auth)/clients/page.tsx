@@ -6,6 +6,7 @@ import {
   useMemo,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import {
@@ -24,7 +25,6 @@ import {
   Check,
   Filter,
   ChevronRight,
-  Download,
   MessageSquare,
   Activity,
   Building2,
@@ -267,12 +267,14 @@ function getIntelligenceSuggestions(client: Client): {
 function ClientsPageContent() {
   const { openDrawer } = useUIStore();
   const { clients: storeClients } = useClientStore();
-  const { user } = useAuthStore();
+  const { user, permissions, isLoading: isAuthLoading } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const hasRiskFilterParam = searchParams.get("filter") === "risk";
-  // Consider standard CSM as not having export rights unless admin
-  const canExport = user?.role === "admin" || (user as any)?.permissions?.canExport === true;
+  const canExport = permissions?.canExportData ?? false;
+  const canCreateActivity = permissions?.canCreateActivity ?? false;
+  const canViewAllUnits = permissions?.canViewAllUnits ?? false;
 
 
   const [isLoading, setIsLoading] = useState(true);
@@ -297,24 +299,27 @@ function ClientsPageContent() {
   const scopedOwnerId = useMemo(() => user?.id ?? "", [user?.id]);
 
   const scopedClients = useMemo(
-    () => allClients.filter((client) => client.responsibleId === scopedOwnerId),
-    [allClients, scopedOwnerId]
+    () => {
+      if (canViewAllUnits) return allClients;
+      if (!scopedOwnerId) return [];
+      return allClients.filter((client) => client.responsibleId === scopedOwnerId);
+    },
+    [allClients, canViewAllUnits, scopedOwnerId]
   );
 
   // Deep linking for clientId
   useEffect(() => {
     const clientId = searchParams.get("clientId");
     if (clientId) {
-      const linkedClient = allClients.find((client) => client.id === clientId);
-      const canAccessClient = linkedClient?.responsibleId === scopedOwnerId;
+      const linkedClient = scopedClients.find((client) => client.id === clientId);
 
-      if (canAccessClient) {
+      if (linkedClient) {
         openDrawer("client-card", { id: clientId });
       } else {
         window.setTimeout(() => {
           setFeedback({
             type: "error",
-            message: "Esse cliente não pertence à sua carteira.",
+            message: "Cliente não encontrado no seu escopo atual.",
           });
         }, 0);
       }
@@ -322,9 +327,10 @@ function ClientsPageContent() {
       // Remove param from URL without reload to avoid re-opening on refresh
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.delete("clientId");
-      router.replace(`/clients?${newParams.toString()}`, { scroll: false });
+      const serialized = newParams.toString();
+      router.replace(serialized ? `/clients?${serialized}` : "/clients", { scroll: false });
     }
-  }, [allClients, openDrawer, router, scopedOwnerId, searchParams]);
+  }, [openDrawer, router, scopedClients, searchParams]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsLoading(false), 700);
@@ -372,12 +378,39 @@ function ClientsPageContent() {
     return () => window.clearTimeout(timer);
   }, [cardFeedback]);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "i") {
+        event.preventDefault();
+        setIsIntelligenceOpen((prev) => !prev);
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setIsFiltersOpen(false);
+        setIsIntelligenceOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const panelFilterCount = useMemo(() => {
     return (
       (filters.health !== "all" ? 1 : 0) +
       (filters.staleOnly ? 1 : 0)
     );
   }, [filters.health, filters.staleOnly]);
+  const hasScopedClients = scopedClients.length > 0;
+  const hasSearch = searchQuery.length > 0;
+  const hasActiveViewFilters = panelFilterCount > 0 || visiblePhase !== "all" || hasSearch;
 
   const phaseScopedClients = useMemo(() => {
     return scopedClients.filter((client) => {
@@ -498,6 +531,31 @@ function ClientsPageContent() {
     []
   );
 
+  const handleCreateActivity = useCallback(
+    (client?: Pick<Client, "id" | "companyName">) => {
+      if (!canCreateActivity) {
+        setFeedback({
+          type: "error",
+          message: "Você não tem permissão para criar atividades.",
+        });
+        return;
+      }
+
+      openDrawer("new-activity", client
+        ? {
+          clientId: client.id,
+          clientName: client.companyName,
+        }
+        : undefined);
+    },
+    [canCreateActivity, openDrawer]
+  );
+
+  const focusClientInIntelligence = useCallback((client: Client) => {
+    setFocusedClientId(client.id);
+    setIsIntelligenceOpen(true);
+  }, []);
+
   const handleCopyText = useCallback(
     async (text: string, clientId?: string) => {
       try {
@@ -524,12 +582,20 @@ function ClientsPageContent() {
     window.setTimeout(() => {
       setRunningCommand(null);
       setCommandResult(`Menux Intelligence executou: ${label.toLowerCase()}.`);
+      setIsIntelligenceOpen(true);
     }, 460);
   }, []);
 
-  const handleExportColumn = useCallback(
-    (columnId: SuccessColumnId) => {
-      const clients = clientsByColumn[columnId];
+  const exportClientsCsv = useCallback(
+    (clients: Client[], exportId: string) => {
+      if (!canExport) {
+        setFeedback({
+          type: "error",
+          message: "Você não tem permissão para exportar dados.",
+        });
+        return;
+      }
+
       if (clients.length > 500) {
         setFeedback({ type: "error", message: "Muitos clientes para exportar. Refine os filtros." });
         return;
@@ -554,39 +620,57 @@ function ClientsPageContent() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `clientes-${columnId}.csv`;
+      link.download = `clientes-${exportId}.csv`;
       link.click();
       URL.revokeObjectURL(url);
       setFeedback({ type: "success", message: "Exportação iniciada." });
     },
-    [clientsByColumn]
+    [canExport]
+  );
+
+  const handleExportColumn = useCallback(
+    (columnId: SuccessColumnId) => {
+      exportClientsCsv(clientsByColumn[columnId], columnId);
+    },
+    [clientsByColumn, exportClientsCsv]
   );
 
   const renderBoard = () => {
     if (clientsForDisplay.length === 0) {
+      const emptyTitle = hasScopedClients
+        ? "Nenhum cliente encontrado"
+        : "Sua carteira não possui clientes";
+      const emptyDescription = hasScopedClients
+        ? "Ajuste os filtros ou busque por outro termo para visualizar clientes nesta fase."
+        : "Quando novos clientes forem atribuídos ao seu escopo, eles aparecerão aqui.";
+
       return (
         <div className="premium-panel flex h-full min-h-[380px] items-center justify-center rounded-[20px] p-8 text-center">
           <div>
             <p className="font-heading text-xl font-semibold text-zinc-900">
-              Nenhum cliente encontrado
+              {emptyTitle}
             </p>
             <p className="mt-2 max-w-[420px] font-body text-sm text-zinc-500">
-              Ajuste os filtros ou busque por outro termo para visualizar clientes nesta fase.
+              {emptyDescription}
             </p>
             <div className="mt-4 flex justify-center gap-2">
               <Button
                 variant="outline"
                 className="rounded-full"
+                disabled={!hasActiveViewFilters}
                 onClick={() => {
                   setFilters({ health: "all", staleOnly: false });
                   setVisiblePhase("all");
+                  setSearchInput("");
+                  setSearchQuery("");
                 }}
               >
                 Limpar filtros
               </Button>
               <Button
                 className="rounded-full bg-black text-white hover:bg-zinc-800"
-                onClick={() => openDrawer("new-activity")}
+                onClick={() => handleCreateActivity()}
+                disabled={!canCreateActivity}
               >
                 Criar atividade
               </Button>
@@ -618,16 +702,12 @@ function ClientsPageContent() {
                 insight={getColumnInsight(clients)}
                 clients={clients}
                 onOpenClient={(client) => openDrawer("client-card", { id: client.id })}
-                onCreateActivity={(client) =>
-                  openDrawer("new-activity", {
-                    clientId: client.id,
-                    clientName: client.companyName,
-                  })
-                }
-                onFocusClient={(client) => setFocusedClientId(client.id)}
+                onCreateActivity={handleCreateActivity}
+                onFocusClient={focusClientInIntelligence}
                 onCopyMessage={handleCopyText}
                 cardFeedback={cardFeedback}
                 canExport={canExport}
+                canCreateActivity={canCreateActivity}
                 onExport={() => handleExportColumn(columnId)}
                 onSuggestPlan={() =>
                   handleIntelligenceCommand("plan-column", `Plano de ação para ${config.label}`)
@@ -637,12 +717,6 @@ function ClientsPageContent() {
                   setView("list");
                 }}
                 onViewFilters={() => setIsFiltersOpen(true)}
-                onAddClient={() =>
-                  setFeedback({
-                    type: "success",
-                    message: "Preview de cadastro de cliente aberto.",
-                  })
-                }
               />
             );
           })}
@@ -656,22 +730,13 @@ function ClientsPageContent() {
               insight="Clientes com risco de churn ou inatividade elevada"
               clients={riskClients}
               onOpenClient={(client) => openDrawer("client-card", { id: client.id })}
-              onCreateActivity={(client) =>
-                openDrawer("new-activity", {
-                  clientId: client.id,
-                  clientName: client.companyName,
-                })
-              }
-              onFocusClient={(client) => setFocusedClientId(client.id)}
+              onCreateActivity={handleCreateActivity}
+              onFocusClient={focusClientInIntelligence}
               onCopyMessage={handleCopyText}
               cardFeedback={cardFeedback}
               canExport={canExport}
-              onExport={() => {
-                setFeedback({
-                  type: "success",
-                  message: "Preview de exportação da coluna de risco gerado.",
-                });
-              }}
+              canCreateActivity={canCreateActivity}
+              onExport={() => exportClientsCsv(riskClients, "risk")}
               onSuggestPlan={() =>
                 handleIntelligenceCommand("plan-risk", "Plano de ataque para clientes em risco")
               }
@@ -680,12 +745,6 @@ function ClientsPageContent() {
                 setView("list");
               }}
               onViewFilters={() => setIsFiltersOpen(true)}
-              onAddClient={() =>
-                setFeedback({
-                  type: "success",
-                  message: "Preview de cadastro de cliente aberto.",
-                })
-              }
             />
           ) : null}
 
@@ -693,7 +752,7 @@ function ClientsPageContent() {
             <BoardInsightsColumn
               widthClass={widthClass}
               prioritizedClients={prioritizedClients}
-              onFocusClient={(client) => setFocusedClientId(client.id)}
+              onFocusClient={focusClientInIntelligence}
             />
           ) : null}
         </div>
@@ -703,15 +762,43 @@ function ClientsPageContent() {
 
   const renderList = () => {
     if (clientsForDisplay.length === 0) {
+      const emptyTitle = hasScopedClients
+        ? "Nenhum cliente para listar"
+        : "Sua carteira não possui clientes";
+      const emptyDescription = hasScopedClients
+        ? "Tente ajustar filtros ou busque por outro termo."
+        : "Quando novos clientes forem atribuídos ao seu escopo, eles aparecerão nesta lista.";
       return (
         <div className="premium-panel flex h-full min-h-[380px] items-center justify-center rounded-[20px] p-8 text-center">
           <div>
             <p className="font-heading text-xl font-semibold text-zinc-900">
-              Nenhum cliente para listar
+              {emptyTitle}
             </p>
             <p className="mt-2 font-body text-sm text-zinc-500">
-              Tente ajustar filtros ou busque por outro termo.
+              {emptyDescription}
             </p>
+            <div className="mt-4 flex justify-center gap-2">
+              <Button
+                variant="outline"
+                className="rounded-full"
+                disabled={!hasActiveViewFilters}
+                onClick={() => {
+                  setFilters({ health: "all", staleOnly: false });
+                  setVisiblePhase("all");
+                  setSearchInput("");
+                  setSearchQuery("");
+                }}
+              >
+                Limpar filtros
+              </Button>
+              <Button
+                className="rounded-full bg-black text-white hover:bg-zinc-800"
+                onClick={() => handleCreateActivity()}
+                disabled={!canCreateActivity}
+              >
+                Criar atividade
+              </Button>
+            </div>
           </div>
         </div>
       );
@@ -746,15 +833,11 @@ function ClientsPageContent() {
                         key={`${columnId}-${client.id}`}
                         client={client}
                         onOpenClient={() => openDrawer("client-card", { id: client.id })}
-                        onCreateActivity={() =>
-                          openDrawer("new-activity", {
-                            clientId: client.id,
-                            clientName: client.companyName,
-                          })
-                        }
-                        onFocusClient={() => setFocusedClientId(client.id)}
+                        onCreateActivity={() => handleCreateActivity(client)}
+                        onFocusClient={() => focusClientInIntelligence(client)}
                         onCopyMessage={handleCopyText}
                         feedback={cardFeedback}
+                        canCreateActivity={canCreateActivity}
                       />
                     ))
                   ) : (
@@ -786,16 +869,12 @@ function ClientsPageContent() {
                     key={`risk-${client.id}`}
                     client={client}
                     onOpenClient={() => openDrawer("client-card", { id: client.id })}
-                    onCreateActivity={() =>
-                      openDrawer("new-activity", {
-                        clientId: client.id,
-                        clientName: client.companyName,
-                      })
-                    }
-                    onFocusClient={() => setFocusedClientId(client.id)}
+                    onCreateActivity={() => handleCreateActivity(client)}
+                    onFocusClient={() => focusClientInIntelligence(client)}
                     onCopyMessage={handleCopyText}
                     feedback={cardFeedback}
                     customRiskReason={getRiskReason(client)}
+                    canCreateActivity={canCreateActivity}
                   />
                 ))}
               </div>
@@ -806,7 +885,7 @@ function ClientsPageContent() {
     );
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return <ClientsPageSkeleton />;
   }
 
@@ -818,15 +897,6 @@ function ClientsPageContent() {
         transition={{ duration: 0.18, ease: [0.25, 0.46, 0.45, 0.94] }}
         className="flex h-[calc(100dvh-2rem)] min-h-0 w-full max-w-full flex-col gap-4"
       >
-        {feedback ? (
-          <InlineFeedback
-            type={feedback.type}
-            message={feedback.message}
-            compact
-            onClose={() => setFeedback(null)}
-          />
-        ) : null}
-
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -867,6 +937,18 @@ function ClientsPageContent() {
                     Lista
                   </button>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-9 rounded-full",
+                    isIntelligenceOpen && "border-brand/30 bg-brand/5 text-brand"
+                  )}
+                  onClick={() => setIsIntelligenceOpen((prev) => !prev)}
+                >
+                  <Bot className="h-3.5 w-3.5" />
+                  Intelligence
+                </Button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -877,30 +959,12 @@ function ClientsPageContent() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 rounded-[14px]">
                     <DropdownMenuItem
-                      onClick={() => {
-                        openDrawer("new-activity");
-                        setFeedback({
-                          type: "success",
-                          message: "Nova atividade iniciada.",
-                        });
-                      }}
+                      onClick={() => handleCreateActivity()}
+                      disabled={!canCreateActivity}
                     >
                       <Activity className="mr-2 h-4 w-4" />
                       Criar atividade
                     </DropdownMenuItem>
-                    {canExport ? (
-                      <DropdownMenuItem
-                        onClick={() =>
-                          setFeedback({
-                            type: "success",
-                            message: "Preview de importação de clientes aberto.",
-                          })
-                        }
-                      >
-                        <Download className="mr-2 h-4 w-4" />
-                        Importar clientes (Admin)
-                      </DropdownMenuItem>
-                    ) : null}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() =>
@@ -919,10 +983,20 @@ function ClientsPageContent() {
               </div>
             }
           >
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+            <div className="space-y-2">
+              {feedback ? (
+                <InlineFeedback
+                  type={feedback.type}
+                  message={feedback.message}
+                  compact
+                  onClose={() => setFeedback(null)}
+                />
+              ) : null}
+              <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:justify-end">
               <div className="relative min-w-[220px] flex-1 lg:max-w-[360px]">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 <Input
+                  ref={searchInputRef}
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
                   placeholder="Buscar por empresa ou contato"
@@ -1030,12 +1104,13 @@ function ClientsPageContent() {
                         className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800"
                         onClick={() => setIsFiltersOpen(false)}
                       >
-                        Aplicar
+                        Fechar
                       </Button>
                     </div>
                   </div>
                 </PopoverContent>
               </Popover>
+            </div>
             </div>
           </ModuleCommandHeader>
         </motion.div>
@@ -1065,7 +1140,7 @@ function ClientsPageContent() {
               commandResult={commandResult}
               runningCommand={runningCommand}
               onRunCommand={handleIntelligenceCommand}
-              onFocusClient={(client) => setFocusedClientId(client.id)}
+              onFocusClient={focusClientInIntelligence}
               onCopyText={handleCopyText}
               focusedSuggestions={focusedSuggestions}
             />
@@ -1096,7 +1171,7 @@ function ClientsPageContent() {
                 commandResult={commandResult}
                 runningCommand={runningCommand}
                 onRunCommand={handleIntelligenceCommand}
-                onFocusClient={(client) => setFocusedClientId(client.id)}
+                onFocusClient={focusClientInIntelligence}
                 onCopyText={handleCopyText}
                 focusedSuggestions={focusedSuggestions}
                 onClose={() => setIsIntelligenceOpen(false)}
@@ -1155,11 +1230,11 @@ function SuccessBoardColumn({
   onCopyMessage,
   cardFeedback,
   canExport,
+  canCreateActivity,
   onExport,
   onSuggestPlan,
   onViewAll,
   onViewFilters,
-  onAddClient,
 }: {
   title: string;
   count: number;
@@ -1168,16 +1243,16 @@ function SuccessBoardColumn({
   clients: Client[];
   widthClass: string;
   onOpenClient: (client: Client) => void;
-  onCreateActivity: (client: Client) => void;
+  onCreateActivity: (client?: Pick<Client, "id" | "companyName">) => void;
   onFocusClient: (client: Client) => void;
   onCopyMessage: (text: string, clientId: string) => Promise<void>;
   cardFeedback: CardFeedbackState | null;
   canExport: boolean;
+  canCreateActivity: boolean;
   onExport: () => void;
   onSuggestPlan: () => void;
   onViewAll: () => void;
   onViewFilters: () => void;
-  onAddClient: () => void;
 }) {
   const [hasScrolled, setHasScrolled] = useState(false);
 
@@ -1214,7 +1289,7 @@ function SuccessBoardColumn({
             <DropdownMenuContent align="end" className="w-52 rounded-[14px]">
               <DropdownMenuItem onClick={onViewAll}>Ver todos</DropdownMenuItem>
               {canExport ? (
-                <DropdownMenuItem onClick={onExport}>Exportar lista (Admin)</DropdownMenuItem>
+                <DropdownMenuItem onClick={onExport}>Exportar lista</DropdownMenuItem>
               ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onSuggestPlan}>
@@ -1235,15 +1310,16 @@ function SuccessBoardColumn({
           <div className="rounded-[14px] border border-dashed border-zinc-200 bg-zinc-50/70 p-3">
             <p className="text-sm font-medium text-zinc-700">Sem clientes nesta fase</p>
             <p className="mt-1 text-xs text-zinc-500">
-              Adicione um cliente ou revise os filtros aplicados.
+              Revise os filtros ativos ou crie uma atividade para reengajar essa fase.
             </p>
             <div className="mt-3 flex gap-2">
               <Button
                 size="sm"
                 className="h-8 rounded-full bg-black px-3 text-xs text-white hover:bg-zinc-800"
-                onClick={onAddClient}
+                onClick={() => onCreateActivity()}
+                disabled={!canCreateActivity}
               >
-                Adicionar cliente
+                Criar atividade
               </Button>
               <Button
                 variant="outline"
@@ -1266,6 +1342,7 @@ function SuccessBoardColumn({
                 onFocusClient={() => onFocusClient(client)}
                 onCopyMessage={onCopyMessage}
                 feedback={cardFeedback}
+                canCreateActivity={canCreateActivity}
                 customRiskReason={isRiskClient(client) ? getRiskReason(client) : undefined}
               />
             ))}
@@ -1283,6 +1360,7 @@ function ClientCardPremium({
   onFocusClient,
   onCopyMessage,
   feedback,
+  canCreateActivity,
   customRiskReason,
 }: {
   client: Client;
@@ -1291,6 +1369,7 @@ function ClientCardPremium({
   onFocusClient: () => void;
   onCopyMessage: (text: string, clientId: string) => Promise<void>;
   feedback: CardFeedbackState | null;
+  canCreateActivity: boolean;
   customRiskReason?: string;
 }) {
   const health = healthConfig[client.healthScore];
@@ -1323,7 +1402,9 @@ function ClientCardPremium({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44 rounded-[14px]">
               <DropdownMenuItem onClick={onOpenClient}>Ver cliente</DropdownMenuItem>
-              <DropdownMenuItem onClick={onCreateActivity}>Criar atividade</DropdownMenuItem>
+              <DropdownMenuItem onClick={onCreateActivity} disabled={!canCreateActivity}>
+                Criar atividade
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onFocusClient}>
                 Atualizar insights
               </DropdownMenuItem>
@@ -1387,6 +1468,7 @@ function ClientCardPremium({
             size="sm"
             className="h-8 rounded-full px-2.5 text-xs"
             onClick={onCreateActivity}
+            disabled={!canCreateActivity}
           >
             Criar atividade
           </Button>

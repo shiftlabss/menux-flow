@@ -1,0 +1,43 @@
+{
+  "app": {
+    "[project]/src/app/(auth)/activities/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ],
+    "[project]/src/app/(auth)/clients/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ],
+    "[project]/src/app/(auth)/dashboard/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ],
+    "[project]/src/app/(auth)/finance/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ],
+    "[project]/src/app/(auth)/goals/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ],
+    "[project]/src/app/(auth)/pipes/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ],
+    "[project]/src/app/(public)/login/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ],
+    "[project]/src/app/_not-found/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ],
+    "[project]/src/app/page": [
+      "static/media/caa3a2e1cccd8315-s.p.853070df.woff2",
+      "static/media/017d9bea37084d9b-s.p.a6d6de71.woff2"
+    ]
+  },
+  "appUsingSizeAdjust": true,
+  "pages": {},
+  "pagesUsingSizeAdjust": false
+}

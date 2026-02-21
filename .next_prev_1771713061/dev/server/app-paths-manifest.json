@@ -1,0 +1,14 @@
+{
+  "/(auth)/activities/page": "app/(auth)/activities/page.js",
+  "/(auth)/clients/page": "app/(auth)/clients/page.js",
+  "/(auth)/dashboard/page": "app/(auth)/dashboard/page.js",
+  "/(auth)/finance/page": "app/(auth)/finance/page.js",
+  "/(auth)/goals/page": "app/(auth)/goals/page.js",
+  "/(auth)/pipes/page": "app/(auth)/pipes/page.js",
+  "/(public)/login/page": "app/(public)/login/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/auth/login/route": "app/api/auth/login/route.js",
+  "/api/auth/session/route": "app/api/auth/session/route.js",
+  "/manifest.webmanifest/route": "app/manifest.webmanifest/route.js",
+  "/page": "app/page.js"
+}

@@ -266,6 +266,8 @@ export function usePipelineBoard({
       const card = dragCardRef.current;
       if (!card) return;
       setUpdatingCardId(card.id);
+
+      try {
       const stageOrder = activeFunnel.stages.map((stage) => stage.id);
       const sourceStageCards = localOpportunities.filter(
         (opportunity) => opportunity.stage === card.stage
@@ -293,6 +295,7 @@ export function usePipelineBoard({
         setDraggingCardId(null);
         setDraggingCardStage(null);
         dragCardRef.current = null;
+        setUpdatingCardId(null);
         return;
       }
 
@@ -417,10 +420,13 @@ export function usePipelineBoard({
       runWithTimeout(() => setRecentlyMovedCardId((prev) => (prev === card.id ? null : prev)), 2600);
       runWithTimeout(() => setUpdatingCardId((prev) => (prev === card.id ? null : prev)), 850);
 
-      setDraggingCardId(null);
-      setDraggingCardStage(null);
-      setDraggingOpportunity(null);
-      dragCardRef.current = null;
+      } finally {
+        setDraggingCardId(null);
+        setDraggingCardStage(null);
+        setDraggingOpportunity(null);
+        dragCardRef.current = null;
+        document.body.style.cursor = "";
+      }
     },
     [
       activeFunnel,
